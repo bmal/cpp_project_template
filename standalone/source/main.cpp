@@ -36,7 +36,7 @@ auto main(int argc, char** argv) -> int {
   }
 
   if (result["version"].as<bool>()) {
-    std::cout << "Trading, version " << GREETER_VERSION << std::endl;
+    std::cout << "Trading, version " << TRADING_VERSION << std::endl;
     return 0;
   }
 

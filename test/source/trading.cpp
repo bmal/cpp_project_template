@@ -16,6 +16,6 @@ TEST_CASE("Trading") {
 }
 
 TEST_CASE("Trading version") {
-  static_assert(std::string_view(GREETER_VERSION) == std::string_view("1.0"));
-  CHECK(std::string(GREETER_VERSION) == std::string("1.0"));
+  static_assert(std::string_view(TRADING_VERSION) == std::string_view("1.0"));
+  CHECK(std::string(TRADING_VERSION) == std::string("1.0"));
 }
