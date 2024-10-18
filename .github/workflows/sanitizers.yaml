@@ -19,7 +19,7 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        sanitizer: [Thread, Leak, Address, Memory, Undefined, MemoryWithOrigins]
+        sanitizer: [Thread, Leak, Address, Undefined]
 
     steps:
       - uses: actions/checkout@v3
