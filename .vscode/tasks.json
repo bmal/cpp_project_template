@@ -10,8 +10,7 @@
         "${workspaceFolder}/standalone",
         "-B",
         "${workspaceFolder}/build/standalone",
-        "-DUSE_STATIC_ANALYZER=clang-tidy",
-        "-DUSE_SANITIZER='Thread;Undefined'"
+        "-DUSE_STATIC_ANALYZER=clang-tidy"
       ],
       "group": "build",
       "problemMatcher": [],
@@ -49,6 +48,7 @@
         "${workspaceFolder}/standalone",
         "-B",
         "${workspaceFolder}/build/standalone",
+        "-DUSE_SANITIZER='Thread;Undefined'",
         "-DCMAKE_BUILD_TYPE=Debug"
       ],
       "group": {
