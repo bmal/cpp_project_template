@@ -1,11 +1,15 @@
 #include <fmt/format.h>
 #include <trading/trading.h>
+#include <iostream>
 
 using namespace trading;
 
 Trading::Trading(std::string _name) : name(std::move(_name)) {}
 
 std::string Trading::greet(LanguageCode lang) const {
+    const auto i = 5;
+    const auto b = i + 3;
+    std::cout << b << std::endl;
     switch (lang) {
         default:
         case LanguageCode::EN:
