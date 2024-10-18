@@ -1,0 +1,13 @@
+name: clang-tidy-review
+
+on: [pull_request]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v2
+
+      - name: clang-tidy review
+        uses: ZedThree/clang-tidy-review@v0.4.0
