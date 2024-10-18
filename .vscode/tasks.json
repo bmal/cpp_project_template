@@ -2,9 +2,25 @@
   "version": "2.0.0",
   "tasks": [
     {
+      "label": "CMake: configure",
       "type": "shell",
+      "command": "cmake",
+      "args": [
+        "-S",
+        "${workspaceFolder}/standalone",
+        "-B",
+        "${workspaceFolder}/build/standalone"
+      ],
+      "group": "build",
+      "problemMatcher": [],
+      "detail": "CMake configuration"
+    },
+    {
       "label": "CMake: build",
-      "command": "cmake -S standalone -B build/standalone; cmake --build build/standalone; ./build/standalone/Trading --help",
+      "type": "shell",
+      "dependsOn": "CMake: configure",
+      "command": "cmake",
+      "args": ["--build", "${workspaceFolder}/build/standalone"],
       "group": {
         "kind": "build",
         "isDefault": true
@@ -13,20 +29,43 @@
       "detail": "CMake build task"
     },
     {
+      "label": "CMake: run",
       "type": "shell",
+      "dependsOn": "CMake: build",
+      "command": "${workspaceFolder}/build/standalone/Trading",
+      "args": ["--help"],
+      "group": "none",
+      "problemMatcher": [],
+      "detail": "Run the built Trading executable with --help"
+    },
+    {
       "label": "CMake: debug",
-      "command": "cmake -S standalone -B build/standalone -DCMAKE_BUILD_TYPE=Debug; cmake --build build/standalone; ./build/standalone/Trading --help",
+      "type": "shell",
+      "command": "cmake",
+      "args": [
+        "-S",
+        "${workspaceFolder}/standalone",
+        "-B",
+        "${workspaceFolder}/build/standalone",
+        "-DCMAKE_BUILD_TYPE=Debug"
+      ],
       "group": {
         "kind": "build",
         "isDefault": false
       },
       "problemMatcher": [],
-      "detail": "CMake build task"
+      "detail": "CMake debug build task"
     },
     {
-      "type": "shell",
       "label": "CMake: clean",
-      "command": "cmake -S standalone -B build/standalone; cmake --build build/standalone --target clean",
+      "type": "shell",
+      "command": "cmake",
+      "args": [
+        "--build",
+        "${workspaceFolder}/build/standalone",
+        "--target",
+        "clean"
+      ],
       "group": {
         "kind": "build",
         "isDefault": false
@@ -35,15 +74,50 @@
       "detail": "CMake clean task"
     },
     {
-      "type": "shell",
       "label": "CMake: test",
-      "command": "cmake -S test -B build/test; cmake --build build/test CTEST_OUTPUT_ON_FAILURE=1; cmake --build build/test --target test; ./build/test/TradingTests",
+      "type": "shell",
+      "command": "cmake",
+      "args": [
+        "-S",
+        "${workspaceFolder}/test",
+        "-B",
+        "${workspaceFolder}/build/test"
+      ],
+      "group": {
+        "kind": "test",
+        "isDefault": false
+      },
+      "problemMatcher": [],
+      "detail": "CMake test task"
+    },
+    {
+      "label": "CMake: build test",
+      "type": "shell",
+      "dependsOn": "CMake: test",
+      "command": "cmake",
+      "args": [
+        "--build",
+        "${workspaceFolder}/build/test",
+        "--target",
+        "test",
+        "--",
+        "CTEST_OUTPUT_ON_FAILURE=1"
+      ],
+      "group": "test",
+      "problemMatcher": [],
+      "detail": "Build and run CMake tests"
+    },
+    {
+      "label": "CMake: run tests",
+      "type": "shell",
+      "dependsOn": "CMake: build test",
+      "command": "${workspaceFolder}/build/test/TradingTests",
       "group": {
         "kind": "test",
         "isDefault": true
       },
       "problemMatcher": [],
-      "detail": "CMake install task"
+      "detail": "Run the TradingTests executable"
     }
   ]
 }
