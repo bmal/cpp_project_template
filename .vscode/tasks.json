@@ -9,7 +9,8 @@
         "-S",
         "${workspaceFolder}/standalone",
         "-B",
-        "${workspaceFolder}/build/standalone"
+        "${workspaceFolder}/build/standalone",
+        "-DUSE_STATIC_ANALYZER=clang-tidy"
       ],
       "group": "build",
       "problemMatcher": [],
