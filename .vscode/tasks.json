@@ -1,0 +1,49 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "type": "shell",
+      "label": "CMake: build",
+      "command": "cmake -S standalone -B build/standalone; cmake --build build/standalone; ./build/standalone/Trading --help",
+      "group": {
+        "kind": "build",
+        "isDefault": true
+      },
+      "problemMatcher": [],
+      "detail": "CMake build task"
+    },
+    {
+      "type": "shell",
+      "label": "CMake: debug",
+      "command": "cmake -S standalone -B build/standalone -DCMAKE_BUILD_TYPE=Debug; cmake --build build/standalone; ./build/standalone/Trading --help",
+      "group": {
+        "kind": "build",
+        "isDefault": false
+      },
+      "problemMatcher": [],
+      "detail": "CMake build task"
+    },
+    {
+      "type": "shell",
+      "label": "CMake: clean",
+      "command": "cmake -S standalone -B build/standalone; cmake --build build/standalone --target clean",
+      "group": {
+        "kind": "build",
+        "isDefault": false
+      },
+      "problemMatcher": [],
+      "detail": "CMake clean task"
+    },
+    {
+      "type": "shell",
+      "label": "CMake: test",
+      "command": "cmake -S test -B build/test; cmake --build build/test CTEST_OUTPUT_ON_FAILURE=1; cmake --build build/test --target test; ./build/test/TradingTests",
+      "group": {
+        "kind": "test",
+        "isDefault": true
+      },
+      "problemMatcher": [],
+      "detail": "CMake install task"
+    }
+  ]
+}

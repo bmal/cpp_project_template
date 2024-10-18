@@ -31,7 +31,6 @@
 *.out
 *.app
 
-.vscode/*
 build*/*
 .cache
 CMakeCache.txt
