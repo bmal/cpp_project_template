@@ -17,6 +17,9 @@ env:
 jobs:
   build:
     runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        sanitizer: [Thread, Leak, Address, Memory, Undefined, MemoryWithOrigins]
 
     steps:
       - uses: actions/checkout@v3
@@ -27,7 +30,7 @@ jobs:
           key: ${{ github.workflow }}-cpm-modules-${{ hashFiles('**/CMakeLists.txt', '**/*.cmake') }}
 
       - name: configure
-        run: cmake -Stest -Bbuild -DCMAKE_BUILD_TYPE=Debug -DUSE_SANITIZER='Thread;Undefined;Address;Leak'
+        run: cmake -Stest -Bbuild -DCMAKE_BUILD_TYPE=Debug -DUSE_SANITIZER=${{matrix.sanitizer}}
 
       - name: build
         run: cmake --build build -j4
@@ -36,6 +39,3 @@ jobs:
         run: |
           cd build
           ctest --build-config Debug
-
-      - name: collect code coverage
-        run: bash <(curl -s https://codecov.io/bash) || echo "Codecov did not collect coverage reports"
