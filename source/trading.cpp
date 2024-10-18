@@ -12,7 +12,7 @@ std::string Trading::greet(LanguageCode lang) const {
     auto t1 = std::async(std::launch::async, [&]() { a = 2; });
     auto t2 = std::async(std::launch::async, [&]() { a = 3; });
 
-    std::cout << "DUPA" << a << std::endl;
+    std::cout << "Thread sanitizer test: " << a << std::endl;
     t1.get();
     t2.get();
 
