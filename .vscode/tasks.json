@@ -10,7 +10,8 @@
         "${workspaceFolder}/standalone",
         "-B",
         "${workspaceFolder}/build/standalone",
-        "-DUSE_STATIC_ANALYZER=clang-tidy"
+        "-DUSE_STATIC_ANALYZER=clang-tidy",
+        "-DUSE_SANITIZER='Thread;Undefined'"
       ],
       "group": "build",
       "problemMatcher": [],
