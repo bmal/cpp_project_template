@@ -27,5 +27,4 @@ jobs:
         run: cmake --build build -j4
       - name: Run tests with Valgrind
         run: |
-          cd build/test
-          valgrind --leak-check=full --show-leak-kinds=all --track-origins=yes --verbose ./TradingTests
+          valgrind --leak-check=full --show-leak-kinds=all --track-origins=yes --verbose ./build/Trading
