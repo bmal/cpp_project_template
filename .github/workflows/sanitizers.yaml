@@ -1,4 +1,4 @@
-name: Ubuntu
+name: Sanitizers
 
 on:
   push:

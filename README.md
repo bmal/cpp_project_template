@@ -1,9 +1,9 @@
-[![Actions Status](https://github.com/TheLartians/ModernCppStarter/workflows/MacOS/badge.svg)](https://github.com/TheLartians/ModernCppStarter/actions)
-[![Actions Status](https://github.com/TheLartians/ModernCppStarter/workflows/Windows/badge.svg)](https://github.com/TheLartians/ModernCppStarter/actions)
-[![Actions Status](https://github.com/TheLartians/ModernCppStarter/workflows/Ubuntu/badge.svg)](https://github.com/TheLartians/ModernCppStarter/actions)
-[![Actions Status](https://github.com/TheLartians/ModernCppStarter/workflows/Style/badge.svg)](https://github.com/TheLartians/ModernCppStarter/actions)
-[![Actions Status](https://github.com/TheLartians/ModernCppStarter/workflows/Install/badge.svg)](https://github.com/TheLartians/ModernCppStarter/actions)
-[![codecov](https://codecov.io/gh/TheLartians/ModernCppStarter/branch/master/graph/badge.svg)](https://codecov.io/gh/TheLartians/ModernCppStarter)
+[![Actions Status](https://github.com/bmal/ModernCppStarter/workflows/MacOS/badge.svg)](https://github.com/bmal/trading/actions)
+[![Actions Status](https://github.com/bmal/ModernCppStarter/workflows/clang-tidy-review/badge.svg)](https://github.com/bmal/trading/actions)
+[![Actions Status](https://github.com/bmal/ModernCppStarter/workflows/Sanitizers/badge.svg)](https://github.com/bmal/trading/actions)
+[![Actions Status](https://github.com/bmal/ModernCppStarter/workflows/Valgrind/badge.svg)](https://github.com/bmal/trading/actions)
+[![Actions Status](https://github.com/bmal/ModernCppStarter/workflows/Install/badge.svg)](https://github.com/bmal/trading/actions)
+[![codecov](https://codecov.io/gh/bmal/ModernCppStarter/branch/master/graph/badge.svg)](https://codecov.io/gh/bmal/trading)
 
 <p align="center">
   <img src="https://repository-images.githubusercontent.com/254842585/4dfa7580-7ffb-11ea-99d0-46b8fe2f4170" height="175" width="auto" />
@@ -205,4 +205,4 @@ Perhaps the [MiniCppStarter](https://github.com/TheLartians/MiniCppStarter) is s
 
 ## Star History
 
-[![Star History Chart](https://api.star-history.com/svg?repos=TheLartians/ModernCppStarter,cpp-best-practices/gui_starter_template,filipdutescu/modern-cpp-template&type=Date)](https://star-history.com/#TheLartians/ModernCppStarter&cpp-best-practices/gui_starter_template&filipdutescu/modern-cpp-template&Date)
+[![Star History Chart](https://api.star-history.com/svg?repos=bmal/trading,cpp-best-practices/gui_starter_template,filipdutescu/modern-cpp-template&type=Date)](https://star-history.com/#bmal/trading&cpp-best-practices/gui_starter_template&filipdutescu/modern-cpp-template&Date)
