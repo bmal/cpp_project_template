@@ -35,6 +35,6 @@ jobs:
       - name: Run tests with Valgrind
         uses: Ximaz/valgrind-action@v1.2.0
         with:
-          binary_path: "./build/Trading"
+          binary_path: "./build/test/TradingTests"
           binary_args: ""
           verbose: true
