@@ -24,11 +24,11 @@ jobs:
         run: sudo apt-get update && sudo apt-get install -y libtbb-dev valgrind
 
       - name: configure
-        run: cmake -Sstandalone -Bbuild -DCMAKE_BUILD_TYPE=Debug
+        run: cmake -Stest -Bbuild -DCMAKE_BUILD_TYPE=Debug
 
       - name: build
         run: cmake --build build -j4
 
       - name: Run tests with Valgrind
         run: |
-          valgrind --leak-check=full --show-leak-kinds=all --track-origins=yes --verbose ./build/Trading
+          valgrind --leak-check=full --show-leak-kinds=all --track-origins=yes --verbose ./build/test/TradingTests
