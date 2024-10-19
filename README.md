@@ -2,7 +2,6 @@
 [![Install](https://github.com/bmal/trading/actions/workflows/install.yaml/badge.svg)](https://github.com/bmal/trading/actions/workflows/install.yaml)
 [![MacOS](https://github.com/bmal/trading/actions/workflows/macos.yaml/badge.svg)](https://github.com/bmal/trading/actions/workflows/macos.yaml)
 [![Sanitizers](https://github.com/bmal/trading/actions/workflows/sanitizers.yaml/badge.svg)](https://github.com/bmal/trading/actions/workflows/sanitizers.yaml)
-[![codecov](https://codecov.io/gh/bmal/ModernCppStarter/branch/master/graph/badge.svg)](https://codecov.io/gh/bmal/trading)
 [![Standalone](https://github.com/bmal/trading/actions/workflows/standalone.yaml/badge.svg)](https://github.com/bmal/trading/actions/workflows/standalone.yaml)
 [![Valgrind](https://github.com/bmal/trading/actions/workflows/valgrind.yaml/badge.svg)](https://github.com/bmal/trading/actions/workflows/valgrind.yaml)
 [![codecov](https://codecov.io/gh/bmal/ModernCppStarter/branch/master/graph/badge.svg)](https://codecov.io/gh/bmal/trading)
