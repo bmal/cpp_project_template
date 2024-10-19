@@ -21,10 +21,10 @@ jobs:
           key: ${{ github.workflow }}-cpm-modules-${{ hashFiles('**/CMakeLists.txt', '**/*.cmake') }}
       - name: Install dependencies
         run: sudo apt-get update && sudo apt-get install -y libtbb-dev valgrind
-      - name: Configure
-        run: cmake -Stest -Bbuild -DCMAKE_BUILD_TYPE=Debug
-      - name: Build
-        run: cmake --build build -j$(nproc)
+      - name: Configure tests
+        run: cmake -S test -B build/test -DCMAKE_BUILD_TYPE=Debug
+      - name: Build tests
+        run: cmake --build build/test --target test -- CTEST_OUTPUT_ON_FAILURE=1
       - name: Run tests with Valgrind
         run: |
           cd build/test
