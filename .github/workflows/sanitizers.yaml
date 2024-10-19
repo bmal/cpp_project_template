@@ -2,13 +2,9 @@ name: Sanitizers
 
 on:
   push:
-    branches:
-      - master
-      - main
+    branches: [master, main]
   pull_request:
-    branches:
-      - master
-      - main
+    branches: [master, main]
 
 env:
   CTEST_OUTPUT_ON_FAILURE: 1
@@ -21,22 +17,17 @@ jobs:
       fail-fast: false
       matrix:
         sanitizer: [Thread, Leak, Address, Undefined]
-
     steps:
       - uses: actions/checkout@v3
-
       - uses: actions/cache@v3
         with:
           path: "**/cpm_modules"
           key: ${{ github.workflow }}-cpm-modules-${{ hashFiles('**/CMakeLists.txt', '**/*.cmake') }}
-
-      - name: configure
+      - name: Install dependencies
+        run: sudo apt-get update && sudo apt-get install -y libtbb-dev
+      - name: Configure
         run: cmake -Stest -Bbuild -DCMAKE_BUILD_TYPE=Debug -DUSE_SANITIZER=${{matrix.sanitizer}}
-
-      - name: build
-        run: cmake --build build -j4
-
-      - name: test
-        run: |
-          cd build
-          ctest --verbose --build-config Debug
+      - name: Build
+        run: cmake --build build -j$(nproc)
+      - name: Test
+        run: cd build && ctest --build-config Debug

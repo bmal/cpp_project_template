@@ -2,13 +2,9 @@ name: Standalone
 
 on:
   push:
-    branches:
-      - master
-      - main
+    branches: [master, main]
   pull_request:
-    branches:
-      - master
-      - main
+    branches: [master, main]
 
 env:
   CPM_SOURCE_CACHE: ${{ github.workspace }}/cpm_modules
@@ -16,20 +12,17 @@ env:
 jobs:
   build:
     runs-on: ubuntu-latest
-
     steps:
       - uses: actions/checkout@v3
-
       - uses: actions/cache@v3
         with:
           path: "**/cpm_modules"
           key: ${{ github.workflow }}-cpm-modules-${{ hashFiles('**/CMakeLists.txt', '**/*.cmake') }}
-
-      - name: configure
-        run: cmake -Sstandalone -Bbuild -DCMAKE_BUILD_TYPE=Debug
-
-      - name: build
-        run: cmake --build build -j4
-
-      - name: run
+      - name: Install dependencies
+        run: sudo apt-get update && sudo apt-get install -y libtbb-dev
+      - name: Configure
+        run: cmake -Sstandalone -Bbuild -DCMAKE_BUILD_TYPE=Release -DCMAKE_CXX_FLAGS="-march=native -mtune=native"
+      - name: Build
+        run: cmake --build build -j$(nproc)
+      - name: Run
         run: ./build/Trading

@@ -2,13 +2,9 @@ name: MacOS
 
 on:
   push:
-    branches:
-      - master
-      - main
+    branches: [master, main]
   pull_request:
-    branches:
-      - master
-      - main
+    branches: [master, main]
 
 env:
   CTEST_OUTPUT_ON_FAILURE: 1
@@ -17,25 +13,19 @@ env:
 jobs:
   build:
     runs-on: macos-latest
-
     steps:
       - uses: actions/checkout@v3
-
       - uses: actions/cache@v3
         with:
           path: "**/cpm_modules"
           key: ${{ github.workflow }}-cpm-modules-${{ hashFiles('**/CMakeLists.txt', '**/*.cmake') }}
-
-      - name: configure
-        run: cmake -Stest -Bbuild -DCMAKE_BUILD_TYPE=Debug -DUSE_SANITIZER='Thread;Undefined'
-
-      - name: build
-        run: cmake --build build -j4
-
-      - name: test
-        run: |
-          cd build
-          ctest --build-config Debug
-
-      - name: collect code coverage
+      - name: Install dependencies
+        run: brew install libomp tbb
+      - name: Configure
+        run: cmake -Stest -Bbuild -DCMAKE_BUILD_TYPE=Release -DUSE_SANITIZER='Thread;Undefined' -DCMAKE_CXX_FLAGS="-march=native -mtune=native"
+      - name: Build
+        run: cmake --build build -j$(sysctl -n hw.logicalcpu)
+      - name: Test
+        run: cd build && ctest --build-config Release
+      - name: Collect code coverage
         run: bash <(curl -s https://codecov.io/bash) || echo "Codecov did not collect coverage reports"
