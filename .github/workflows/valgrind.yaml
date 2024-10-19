@@ -28,6 +28,8 @@ jobs:
 
       - name: build
         run: cmake --build build -j4
+      - name: print content of build directory
+        run: ls -R build
 
       - name: Run tests with Valgrind
         run: |
