@@ -22,7 +22,9 @@ jobs:
       - name: Install dependencies
         run: sudo apt-get update && sudo apt-get install -y libtbb-dev valgrind
       - name: Configure tests
-        run: cmake -S test -B build/test -DCMAKE_BUILD_TYPE=Debug
+        run: cmake -S. -Bbuild -DCMAKE_BUILD_TYPE=Debug
+      - name: Build tests
+        run: cmake --build build --target TradingTests -- CTEST_OUTPUT_ON_FAILURE=1
       - name: Build tests
         run: cmake --build build/test --target test -- CTEST_OUTPUT_ON_FAILURE=1
       - name: Run tests with Valgrind
