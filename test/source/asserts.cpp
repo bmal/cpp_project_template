@@ -4,53 +4,51 @@
 #include <unistd.h>
 #include <functional>
 #include <stdexcept>
-#include <string>
 #include <trading/asserts.hpp>
 
-namespace test {
+namespace processTest {
 
 class ProcessRunner {
-    int pipe_[2]{};
-    pid_t pid_{};
-    int status_{};
+   private:
+    int _pipe[2]{};
+    pid_t _pid{};
+    int _status{};
 
    public:
-    // Executes function in child process, captures its stderr
-    explicit ProcessRunner(std::function<void()> child_func) {
-        if (pipe(pipe_) == -1) {
+    explicit ProcessRunner(const std::function<void()>& childFunc) {
+        if (pipe(_pipe) == -1) {
             throw std::runtime_error("Failed to create pipe");
         }
 
-        pid_ = fork();
-        if (pid_ == -1) {
-            close(pipe_[0]);
-            close(pipe_[1]);
+        _pid = fork();
+        if (_pid == -1) {
+            close(_pipe[0]);
+            close(_pipe[1]);
             throw std::runtime_error("Fork failed");
         }
 
-        if (pid_ == 0) {  // Child
-            close(pipe_[0]);
-            dup2(pipe_[1], STDERR_FILENO);
-            close(pipe_[1]);
-            child_func();
+        if (_pid == 0) {  // Child
+            close(_pipe[0]);
+            dup2(_pipe[1], STDERR_FILENO);
+            close(_pipe[1]);
+            childFunc();
             _Exit(EXIT_SUCCESS);  // Should never reach here for assertion tests
         }
 
-        close(pipe_[1]);  // Close write end in parent
-        waitpid(pid_, &status_, 0);
+        close(_pipe[1]);  // Close write end in parent
+        waitpid(_pid, &_status, 0);
     }
 
-    ~ProcessRunner() { close(pipe_[0]); }
+    ~ProcessRunner() { close(_pipe[0]); }
 
-    [[nodiscard]] bool is_terminated_abnormally() const noexcept {
-        return WIFSIGNALED(status_) ||
-               (WIFEXITED(status_) && WEXITSTATUS(status_) == EXIT_FAILURE);
+    [[nodiscard]] bool isTerminatedAbnormally() const noexcept {
+        return WIFSIGNALED(_status) ||
+               (WIFEXITED(_status) && WEXITSTATUS(_status) == EXIT_FAILURE);
     }
 
-    // Returns captured stderr output
-    [[nodiscard]] std::string get_stderr_output() const {
+    [[nodiscard]] std::string getStderrOutput() const {
         std::string buffer(1024, '\0');
-        const ssize_t bytes = read(pipe_[0], buffer.data(), buffer.size() - 1);
+        const ssize_t bytes = read(_pipe[0], buffer.data(), buffer.size() - 1);
         if (bytes > 0) {
             buffer.resize(static_cast<size_t>(bytes));
             return buffer;
@@ -59,14 +57,15 @@ class ProcessRunner {
     }
 };
 
-}  // namespace test
+}  // namespace processTest
 
 TEST_SUITE("Assertion Mechanism") {
     TEST_CASE("ASSERT properly handles failure") {
-        test::ProcessRunner process([]() { ASSERT(false, "test message"); });
+        processTest::ProcessRunner process(
+            []() { ASSERT(false, "test message"); });
 
-        const auto output = process.get_stderr_output();
-        CHECK(process.is_terminated_abnormally());
+        const auto output = process.getStderrOutput();
+        CHECK(process.isTerminatedAbnormally());
 
         // Check essential parts of error message
         CHECK(output.find("ASSERT FAILED") != std::string::npos);
@@ -75,23 +74,22 @@ TEST_SUITE("Assertion Mechanism") {
     }
 
     TEST_CASE("FATAL properly terminates") {
-        test::ProcessRunner process([]() { FATAL("fatal message"); });
+        processTest::ProcessRunner process([]() { FATAL("fatal message"); });
 
-        const auto output = process.get_stderr_output();
-        CHECK(process.is_terminated_abnormally());
+        const auto output = process.getStderrOutput();
+        CHECK(process.isTerminatedAbnormally());
         CHECK(output.find("FATAL: fatal message") != std::string::npos);
     }
 
-// Release mode behavior
 #ifdef NDEBUG
     TEST_CASE("Assertions are stripped in release builds") {
-        test::ProcessRunner process([]() {
+        processTest::ProcessRunner process([]() {
             ASSERT(false, "should be stripped");
             exit(EXIT_SUCCESS);  // Should reach here in release
         });
 
-        CHECK_FALSE(process.terminated_abnormally());
-        CHECK(process.output().empty());
+        CHECK_FALSE(process.isTerminatedAbnormally());
+        CHECK(process.getStderrOutput().empty());
     }
 #endif
 

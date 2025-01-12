@@ -4,18 +4,18 @@
 #include <cstdlib>
 #include <cstring>
 
-namespace utils {
+namespace sysUtils {
 namespace detail {
 #ifdef _WIN32
 #include <windows.h>
-inline void error_write(const char* str) noexcept {
+inline void writeError(const char* str) noexcept {
     auto handle = GetStdHandle(STD_ERROR_HANDLE);
     WriteConsoleA(handle, str, strlen(str), nullptr, nullptr);
 }
 #define DEBUG_TRAP() __debugbreak()
 #else
 #include <unistd.h>
-inline void error_write(const char* str) noexcept {
+inline void writeError(const char* str) noexcept {
     write(STDERR_FILENO, str, strlen(str));
 }
 #define DEBUG_TRAP() __builtin_trap()
@@ -25,21 +25,21 @@ inline void error_write(const char* str) noexcept {
 #ifdef NDEBUG
 #define ASSERT(condition, message) (void)0
 #else
-[[noreturn]] inline void assert_fail(const char* condition,
-                                     const char* message,
-                                     const char* file,
-                                     unsigned line) noexcept {
-    detail::error_write("ASSERT FAILED: '");
-    detail::error_write(condition);
-    detail::error_write("' - ");
-    detail::error_write(message);
-    detail::error_write(" at ");
-    detail::error_write(file);
-    detail::error_write(":");
+[[noreturn]] inline void assertFail(const char* condition,
+                                    const char* message,
+                                    const char* file,
+                                    unsigned line) noexcept {
+    detail::writeError("ASSERT FAILED: '");
+    detail::writeError(condition);
+    detail::writeError("' - ");
+    detail::writeError(message);
+    detail::writeError(" at ");
+    detail::writeError(file);
+    detail::writeError(":");
 
-    char line_buf[20];
-    snprintf(line_buf, sizeof(line_buf), "%u\n", line);
-    detail::error_write(line_buf);
+    char lineBuf[20];
+    snprintf(lineBuf, sizeof(lineBuf), "%u\n", line);
+    detail::writeError(lineBuf);
 
 #ifdef DEBUG_BREAK_ON_ASSERT
     DEBUG_TRAP();
@@ -48,21 +48,22 @@ inline void error_write(const char* str) noexcept {
     _Exit(EXIT_FAILURE);
 }
 
-#define ASSERT(condition, message)                                       \
-    do {                                                                 \
-        if (!(condition)) [[unlikely]] {                                 \
-            utils::assert_fail(#condition, message, __FILE__, __LINE__); \
-        }                                                                \
-    } while (0)
+#define ASSERT(condition, message)                                         \
+    /* NOLINTBEGIN(cppcoreguidelines-avoid-do-while) */                    \
+    do {                                                                   \
+        if (!(condition)) [[unlikely]] {                                   \
+            sysUtils::assertFail(#condition, message, __FILE__, __LINE__); \
+        }                                                                  \
+    } while (0)  // NOLINTEND(cppcoreguidelines-avoid-do-while)
 #endif
 
 [[noreturn]] inline void fatal(const char* message) noexcept {
-    detail::error_write("FATAL: ");
-    detail::error_write(message);
-    detail::error_write("\n");
+    detail::writeError("FATAL: ");
+    detail::writeError(message);
+    detail::writeError("\n");
     _Exit(EXIT_FAILURE);
 }
 
-#define FATAL(message) ::utils::fatal(message)
+#define FATAL(message) ::sysUtils::fatal(message)
 
-}  // namespace utils
+}  // namespace sysUtils
