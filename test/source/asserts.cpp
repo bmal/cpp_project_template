@@ -3,6 +3,8 @@
 #include <sys/wait.h>
 #include <unistd.h>
 #include <functional>
+#include <stdexcept>
+#include <string>
 #include <trading/asserts.hpp>
 
 namespace test {
@@ -40,13 +42,13 @@ class ProcessRunner {
 
     ~ProcessRunner() { close(pipe_[0]); }
 
-    [[nodiscard]] bool terminated_abnormally() const noexcept {
+    [[nodiscard]] bool is_terminated_abnormally() const noexcept {
         return WIFSIGNALED(status_) ||
                (WIFEXITED(status_) && WEXITSTATUS(status_) == EXIT_FAILURE);
     }
 
     // Returns captured stderr output
-    [[nodiscard]] std::string stderr_output() const {
+    [[nodiscard]] std::string get_stderr_output() const {
         std::string buffer(1024, '\0');
         const ssize_t bytes = read(pipe_[0], buffer.data(), buffer.size() - 1);
         if (bytes > 0) {
@@ -63,8 +65,8 @@ TEST_SUITE("Assertion Mechanism") {
     TEST_CASE("ASSERT properly handles failure") {
         test::ProcessRunner process([]() { ASSERT(false, "test message"); });
 
-        const auto output = process.stderr_output();
-        CHECK(process.terminated_abnormally());
+        const auto output = process.get_stderr_output();
+        CHECK(process.is_terminated_abnormally());
 
         // Check essential parts of error message
         CHECK(output.find("ASSERT FAILED") != std::string::npos);
@@ -75,8 +77,8 @@ TEST_SUITE("Assertion Mechanism") {
     TEST_CASE("FATAL properly terminates") {
         test::ProcessRunner process([]() { FATAL("fatal message"); });
 
-        const auto output = process.stderr_output();
-        CHECK(process.terminated_abnormally());
+        const auto output = process.get_stderr_output();
+        CHECK(process.is_terminated_abnormally());
         CHECK(output.find("FATAL: fatal message") != std::string::npos);
     }
 
