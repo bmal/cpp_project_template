@@ -36,3 +36,4 @@ build*/*
 CMakeCache.txt
 CMakeFiles/*
 valgrind.log
+.DS_Store

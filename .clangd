@@ -1,0 +1,5 @@
+CompileFlags:
+    Add: [
+        "-std=c++23",
+        "-D_POSIX_C_SOURCE=200809L"
+    ]
