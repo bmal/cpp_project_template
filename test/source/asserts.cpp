@@ -32,7 +32,8 @@ class ProcessRunner {
             dup2(_pipe[1], STDERR_FILENO);
             close(_pipe[1]);
             childFunc();
-            _Exit(EXIT_SUCCESS);  // Should never reach here for assertion tests
+            _Exit(
+                EXIT_SUCCESS);  // Should only reach here in release mode tests
         }
 
         close(_pipe[1]);  // Close write end in parent
@@ -44,6 +45,10 @@ class ProcessRunner {
     [[nodiscard]] bool isTerminatedAbnormally() const noexcept {
         return WIFSIGNALED(_status) ||
                (WIFEXITED(_status) && WEXITSTATUS(_status) == EXIT_FAILURE);
+    }
+
+    [[nodiscard]] bool isTerminatedNormally() const noexcept {
+        return WIFEXITED(_status) && WEXITSTATUS(_status) == EXIT_SUCCESS;
     }
 
     [[nodiscard]] std::string getStderrOutput() const {
@@ -60,7 +65,9 @@ class ProcessRunner {
 }  // namespace processTest
 
 TEST_SUITE("Assertion Mechanism") {
-    TEST_CASE("ASSERT properly handles failure") {
+    // Test assertion behavior in Debug mode
+#ifndef NDEBUG
+    TEST_CASE("ASSERT properly handles failure in Debug mode") {
         processTest::ProcessRunner process(
             []() { ASSERT(false, "test message"); });
 
@@ -73,24 +80,38 @@ TEST_SUITE("Assertion Mechanism") {
         CHECK(output.find(__FILE__) != std::string::npos);
     }
 
-    TEST_CASE("FATAL properly terminates") {
+    TEST_CASE(
+        "ASSERT allows execution to continue when condition is true in Debug "
+        "mode") {
+        processTest::ProcessRunner process([]() {
+            ASSERT(true, "should not see this");
+            _Exit(EXIT_SUCCESS);
+        });
+
+        CHECK(process.isTerminatedNormally());
+        CHECK(process.getStderrOutput().empty());
+    }
+#endif
+
+    // Test assertion behavior in Release mode
+#ifdef NDEBUG
+    TEST_CASE("ASSERT is stripped in Release mode") {
+        processTest::ProcessRunner process([]() {
+            ASSERT(false, "should be stripped");
+            _Exit(EXIT_SUCCESS);  // Should reach here in Release
+        });
+
+        CHECK(process.isTerminatedNormally());
+        CHECK(process.getStderrOutput().empty());
+    }
+#endif
+
+    // Test FATAL behavior (should work the same in both Debug and Release)
+    TEST_CASE("FATAL properly terminates in all build modes") {
         processTest::ProcessRunner process([]() { FATAL("fatal message"); });
 
         const auto output = process.getStderrOutput();
         CHECK(process.isTerminatedAbnormally());
         CHECK(output.find("FATAL: fatal message") != std::string::npos);
     }
-
-#ifdef NDEBUG
-    TEST_CASE("Assertions are stripped in release builds") {
-        processTest::ProcessRunner process([]() {
-            ASSERT(false, "should be stripped");
-            exit(EXIT_SUCCESS);  // Should reach here in release
-        });
-
-        CHECK_FALSE(process.isTerminatedAbnormally());
-        CHECK(process.getStderrOutput().empty());
-    }
-#endif
-
-}  // TEST_SUITE
+}
