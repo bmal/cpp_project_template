@@ -18,27 +18,37 @@ env:
 jobs:
   sanitizers:
     runs-on: ubuntu-latest
-    container:
-      image: silkeh/clang:15
-      options: --security-opt seccomp=unconfined # needed for sanitizers
-
     strategy:
       fail-fast: false
       matrix:
         include:
+          # Core sanitizer checks with Clang
           - sanitizer: Address
             build_type: Release
           - sanitizer: Thread
             build_type: Release
-          - sanitizer: Memory
+          - sanitizer: Memory # Clang-only
             build_type: Release
           - sanitizer: Undefined
             build_type: Release
           - sanitizer: "Address,Undefined"
-            build_type: Debug
+            build_type: Debug # Debug build for this combination to catch more issues
 
     steps:
       - uses: actions/checkout@v3
+
+      - name: Install Dependencies
+        run: |
+          wget -O - https://apt.llvm.org/llvm-snapshot.gpg.key | sudo apt-key add -
+          sudo add-apt-repository "deb http://apt.llvm.org/jammy/ llvm-toolchain-jammy-15 main"
+          sudo apt-get update
+          sudo apt-get install -y \
+            clang-15 \
+            clang++-15 \
+            libc++-15-dev \
+            libc++abi-15-dev \
+            lld-15 \
+            libtbb-dev
 
       - name: Cache Dependencies
         uses: actions/cache@v3
@@ -46,11 +56,21 @@ jobs:
           path: "**/cpm_modules"
           key: "sanitizer-clang15-${{ matrix.sanitizer }}-${{ hashFiles('**/CMakeLists.txt') }}"
 
+      - name: Cache Build
+        uses: actions/cache@v3
+        with:
+          path: build
+          key: sanitizer-${{ matrix.sanitizer }}-${{ github.sha }}
+          restore-keys: |
+            sanitizer-${{ matrix.sanitizer }}-
+
       - name: Configure
         run: |
           cmake -S test -B build \
             -DCMAKE_BUILD_TYPE=${{ matrix.build_type }} \
             -DUSE_SANITIZER=${{ matrix.sanitizer }} \
+            -DCMAKE_C_COMPILER=clang-15 \
+            -DCMAKE_CXX_COMPILER=clang++-15 \
             -DCMAKE_CXX_FLAGS="-march=native -mtune=native -fno-omit-frame-pointer -fno-optimize-sibling-calls" \
             -DCMAKE_EXE_LINKER_FLAGS="-fuse-ld=lld" \
             -DCMAKE_MODULE_LINKER_FLAGS="-fuse-ld=lld"
