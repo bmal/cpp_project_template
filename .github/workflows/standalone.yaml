@@ -14,15 +14,27 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
-      - uses: actions/cache@v3
+
+      - name: Cache CPM Dependencies
+        uses: actions/cache@v3
         with:
           path: "**/cpm_modules"
           key: ${{ github.workflow }}-cpm-modules-${{ hashFiles('**/CMakeLists.txt', '**/*.cmake') }}
-      - name: Install dependencies
-        run: sudo apt-get update && sudo apt-get install -y libtbb-dev
+
       - name: Configure
-        run: cmake -Sstandalone -Bbuild -DCMAKE_BUILD_TYPE=Release -DCMAKE_CXX_FLAGS="-march=native -mtune=native"
+        run: |
+          cmake -S . -B build/standalone \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DCMAKE_CXX_FLAGS="-march=native -mtune=native"
+
       - name: Build
-        run: cmake --build build -j$(nproc)
+        run: cmake --build build/standalone -j$(nproc)
+
+      - name: Get Project Name
+        id: get_name
+        run: |
+          PROJECT_NAME=$(cmake -P -LA build/standalone/CMakeCache.txt 2>/dev/null | grep "PROJECT_NAME:" | cut -d "=" -f2)
+          echo "PROJECT_NAME=${PROJECT_NAME}" >> $GITHUB_OUTPUT
+
       - name: Run
-        run: ./build/Trading
+        run: ./build/standalone/${{ steps.get_name.outputs.PROJECT_NAME }}

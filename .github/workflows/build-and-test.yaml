@@ -49,17 +49,21 @@ jobs:
 
       - name: Configure
         run: |
-          cmake -S. -Bbuild \
+          cmake -S test -B build/test \
             -DCMAKE_BUILD_TYPE=${{ matrix.config.build_type }} \
             -DCMAKE_CXX_COMPILER_LAUNCHER=ccache \
             -DCMAKE_EXPORT_COMPILE_COMMANDS=ON
 
       - name: Build
-        run: cmake --build build -j$(nproc 2>/dev/null || sysctl -n hw.logicalcpu)
+        run: cmake --build build/test -j$(nproc 2>/dev/null || sysctl -n hw.logicalcpu)
 
       - name: Test
-        working-directory: build
-        run: ctest --build-config ${{ matrix.config.build_type }} --output-on-failure
+        working-directory: build/test
+        run: |
+          echo "Available tests:"
+          ctest -N
+          echo "Running tests:"
+          ctest --build-config ${{ matrix.config.build_type }} --output-on-failure
 
       - name: Upload Test Logs
         if: failure()
@@ -67,5 +71,5 @@ jobs:
         with:
           name: test-logs-${{ matrix.config.name }}
           path: |
-            build/Testing/Temporary/LastTest.log
-            build/CMakeFiles/CMakeError.log
+            build/test/Testing/Temporary/LastTest.log
+            build/test/CMakeFiles/CMakeError.log
