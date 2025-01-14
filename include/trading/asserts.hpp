@@ -16,14 +16,14 @@ inline void writeError(const char* str) noexcept {
 #else
 #include <unistd.h>
 inline void writeError(const char* str) noexcept {
-    (void)write(STDERR_FILENO, str, strlen(str));
+    [[maybe_unused]] auto _ = write(STDERR_FILENO, str, strlen(str));
 }
 #define DEBUG_TRAP() __builtin_trap()
 #endif
 }  // namespace detail
 
 #ifdef NDEBUG
-#define ASSERT(condition, message) (void)0
+#define ASSERT(condition, message)
 #else
 [[noreturn]] inline void assertFail(const char* condition,
                                     const char* message,
