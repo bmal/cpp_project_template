@@ -16,7 +16,7 @@ inline void writeError(const char* str) noexcept {
 #else
 #include <unistd.h>
 inline void writeError(const char* str) noexcept {
-    write(STDERR_FILENO, str, strlen(str));
+    (void)write(STDERR_FILENO, str, strlen(str));
 }
 #define DEBUG_TRAP() __builtin_trap()
 #endif
