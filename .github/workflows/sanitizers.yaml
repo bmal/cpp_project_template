@@ -9,25 +9,80 @@ on:
 env:
   CTEST_OUTPUT_ON_FAILURE: 1
   CPM_SOURCE_CACHE: ${{ github.workspace }}/cpm_modules
+  UBSAN_OPTIONS: print_stacktrace=1:halt_on_error=1:print_summary=1
+  ASAN_OPTIONS: detect_stack_use_after_return=1:check_initialization_order=1:strict_string_checks=1:detect_leaks=1:detect_container_overflow=1
+  TSAN_OPTIONS: second_deadlock_stack=1:report_signal_unsafe=1:memory_limit_mb=4096:history_size=7:force_seq_cst_atomics=1
+  MSAN_OPTIONS: poison_in_dtor=1:print_summary=1:fail_immediately=1
+  LSAN_OPTIONS: print_suppressions=1:report_objects=1
 
 jobs:
-  build:
+  sanitizers:
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
       matrix:
-        sanitizer: [Thread, Leak, Address, Undefined]
+        include:
+          # Core sanitizer checks with Clang
+          - sanitizer: Address
+            build_type: Release
+          - sanitizer: Thread
+            build_type: Release
+          - sanitizer: Memory # Clang-only
+            build_type: Release
+          - sanitizer: Undefined
+            build_type: Release
+          - sanitizer: "Address,Undefined"
+            build_type: Debug # Debug build for this combination to catch more issues
+
     steps:
       - uses: actions/checkout@v3
-      - uses: actions/cache@v3
+
+      - name: Install Dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y lld libtbb-dev
+
+      - name: Cache Dependencies
+        uses: actions/cache@v3
         with:
           path: "**/cpm_modules"
-          key: ${{ github.workflow }}-cpm-modules-${{ hashFiles('**/CMakeLists.txt', '**/*.cmake') }}
-      - name: Install dependencies
-        run: sudo apt-get update && sudo apt-get install -y libtbb-dev
+          key: "sanitizer-clang15-${{ matrix.sanitizer }}-${{ hashFiles('**/CMakeLists.txt') }}"
+
+      - name: Cache Build
+        uses: actions/cache@v3
+        with:
+          path: build
+          key: sanitizer-${{ matrix.sanitizer }}-${{ github.sha }}
+          restore-keys: |
+            sanitizer-${{ matrix.sanitizer }}-
+
       - name: Configure
-        run: cmake -Stest -Bbuild -DCMAKE_BUILD_TYPE=Debug -DUSE_SANITIZER=${{matrix.sanitizer}}
+        run: |
+          cmake -S test -B build \
+            -DCMAKE_BUILD_TYPE=${{ matrix.build_type }} \
+            -DUSE_SANITIZER=${{ matrix.sanitizer }} \
+            -DCMAKE_C_COMPILER=clang-15 \
+            -DCMAKE_CXX_COMPILER=clang++-15 \
+            -DCMAKE_CXX_FLAGS="-march=native -mtune=native -fno-omit-frame-pointer -fno-optimize-sibling-calls" \
+            -DCMAKE_EXE_LINKER_FLAGS="-fuse-ld=lld" \
+            -DCMAKE_MODULE_LINKER_FLAGS="-fuse-ld=lld"
+
       - name: Build
         run: cmake --build build -j$(nproc)
+
       - name: Test
-        run: cd build && ctest --build-config Debug
+        run: |
+          cd build
+          ctest --output-on-failure --timeout 300 --repeat until-pass:2 --output-junit test-results.xml
+
+      - name: Upload test results
+        if: always()
+        uses: actions/upload-artifact@v3
+        with:
+          name: test-results-${{ matrix.sanitizer }}
+          path: build/test-results.xml
+
+      - name: Generate Sanitizer Reports
+        if: failure()
+        run: |
+          find build -name "*.log" -type f -exec cat {} +

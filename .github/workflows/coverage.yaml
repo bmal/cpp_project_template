@@ -1,0 +1,59 @@
+name: Coverage
+
+on:
+  push:
+    branches: [main, master]
+  pull_request:
+    branches: [main, master]
+
+env:
+  CTEST_OUTPUT_ON_FAILURE: 1
+  ENABLE_COVERAGE: ON
+
+jobs:
+  coverage:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            lcov \
+            gcc \
+            g++
+
+      - name: Configure
+        run: |
+          cmake -S test -B build \
+            -DENABLE_COVERAGE=ON \
+            -DCMAKE_BUILD_TYPE=Debug
+
+      - name: Build
+        run: cmake --build build -j$(nproc)
+
+      - name: Test
+        working-directory: build
+        run: ctest --output-on-failure
+
+      - name: Capture coverage data
+        run: |
+          lcov --capture --directory build \
+               --output-file build/coverage.info \
+               --rc lcov_branch_coverage=1
+          lcov --remove build/coverage.info '/usr/*' '/test/*' '/build/*' \
+               --output-file build/coverage.info
+          lcov --list build/coverage.info
+
+      - name: Debug coverage file
+        run: cat build/coverage.info
+
+      - name: Upload to Codecov
+        uses: codecov/codecov-action@v3
+        with:
+          files: build/coverage.info
+          token: ${{ secrets.CODECOV_TOKEN }}
+          fail_ci_if_error: true
+          verbose: true

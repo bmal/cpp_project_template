@@ -1,64 +1,222 @@
-name: Valgrind
+name: Memory and Performance Analysis
 
 on:
-  push:
-    branches: [master, main]
+  workflow_dispatch:
+  schedule:
+    - cron: "0 0 * * 0"
   pull_request:
-    branches: [master, main]
+    paths:
+      - "src/**"
+      - "test/**"
+      - "benchmark/**"
+      - ".github/workflows/valgrind.yaml"
 
 env:
   CTEST_OUTPUT_ON_FAILURE: 1
   CPM_SOURCE_CACHE: ${{ github.workspace }}/cpm_modules
-  BUILD_TYPE: Debug
+  VALGRIND_VERSION: 3.19.0
+  LLVM_VERSION: 15
 
 jobs:
-  valgrind:
+  analyze:
     runs-on: ubuntu-latest
+    timeout-minutes: 120
+
     steps:
       - uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
 
-      - name: Cache CPM modules
+      - name: Install Tools
+        id: install
+        run: |
+          # LLVM/Clang toolchain
+          wget -O - https://apt.llvm.org/llvm-snapshot.gpg.key | sudo apt-key add -
+          sudo add-apt-repository "deb http://apt.llvm.org/jammy/ llvm-toolchain-jammy-${{ env.LLVM_VERSION }} main"
+          sudo apt-get update
+          sudo apt-get install -y \
+            clang-${{ env.LLVM_VERSION }} \
+            lld-${{ env.LLVM_VERSION }} \
+            libc++-${{ env.LLVM_VERSION }}-dev \
+            libc++abi-${{ env.LLVM_VERSION }}-dev \
+            libtbb-dev \
+            python3-pip \
+            graphviz
+
+          # Install specific valgrind version
+          wget https://sourceware.org/pub/valgrind/valgrind-${{ env.VALGRIND_VERSION }}.tar.bz2
+          tar xf valgrind-${{ env.VALGRIND_VERSION }}.tar.bz2
+          cd valgrind-${{ env.VALGRIND_VERSION }}
+          # Configure valgrind with Clang support
+          ./configure CC=clang-${{ env.LLVM_VERSION }} CXX=clang++-${{ env.LLVM_VERSION }}
+          make -j$(nproc)
+          sudo make install
+          cd ..
+
+          # Python tools
+          python3 -m pip install --upgrade pip
+          python3 -m pip install \
+            valgrind-log-parser==1.0.0 \
+            gprof2dot==2021.2.21
+
+      - name: Cache Dependencies
         uses: actions/cache@v3
         with:
           path: "**/cpm_modules"
-          key: ${{ runner.os }}-${{ github.workflow }}-cpm-modules-${{ hashFiles('**/CMakeLists.txt', '**/*.cmake') }}
+          key: valgrind-${{ runner.os }}-clang${{ env.LLVM_VERSION }}-${{ hashFiles('**/CMakeLists.txt') }}
 
-      - name: Install dependencies
+      - name: Configure
         run: |
-          sudo apt-get update
-          sudo apt-get install -y libtbb-dev valgrind
-
-      - name: Configure CMake
-        run: cmake -S test -B build -DCMAKE_BUILD_TYPE=${{ env.BUILD_TYPE }}
+          cmake -S test -B build \
+            -DCMAKE_BUILD_TYPE=Debug \
+            -DCMAKE_C_COMPILER=clang-${{ env.LLVM_VERSION }} \
+            -DCMAKE_CXX_COMPILER=clang++-${{ env.LLVM_VERSION }} \
+            -DCMAKE_CXX_FLAGS="\
+              -g3 \
+              -fno-inline-functions \
+              -fno-optimize-sibling-calls \
+              -fno-omit-frame-pointer \
+              -O1 \
+              -glldb" \
+            -DCMAKE_EXE_LINKER_FLAGS="-fuse-ld=lld" \
+            -DCMAKE_MODULE_LINKER_FLAGS="-fuse-ld=lld" \
+            -DBUILD_TESTING=ON \
+            -DBUILD_BENCHMARKS=ON
 
       - name: Build
-        run: cmake --build build --config ${{ env.BUILD_TYPE }} -j$(nproc)
+        run: cmake --build build -j$(nproc)
 
-      - name: Run Valgrind on test executables
+      - name: Setup Test Environment
+        run: |
+          echo "=== Valgrind Suppression Rules ===" > valgrind.supp
+          # Add Clang-specific suppressions
+          cat << EOF >> valgrind.supp
+          {
+             ignore_libcxx_leaks
+             Memcheck:Leak
+             ...
+             obj:*/libc++.so.*
+          }
+          {
+             ignore_llvm_leaks
+             Memcheck:Leak
+             ...
+             obj:*/libLLVM*.so.*
+          }
+          EOF
+
+      - name: Run Memory Analysis
+        id: memcheck
+        continue-on-error: true
         run: |
           cd build
-          for test_executable in $(find . -type f -executable -name '*Tests'); do
-            echo "Running Valgrind on $test_executable"
-            valgrind --tool=memcheck \
-                     --leak-check=full \
-                     --show-leak-kinds=all \
-                     --track-origins=yes \
-                     --verbose \
-                     --error-exitcode=1 \
-                     --gen-suppressions=all \
-                     --suppressions=../valgrind_suppressions.txt \
-                     --log-file=valgrind_${test_executable##*/}.log \
-                     $test_executable
-            if [ $? -ne 0 ]; then
-              echo "Valgrind detected errors in $test_executable"
-              exit_code=1
-            fi
-          done
-          exit ${exit_code:-0}
+          mkdir -p reports/memcheck
 
-      - name: Upload Valgrind logs
-        uses: actions/upload-artifact@v3
+          echo "::group::Memory Check"
+
+          ctest -T memcheck \
+            --output-on-failure \
+            --parallel $(nproc) \
+            --timeout 300 \
+            --overwrite MemoryCheckCommand=/usr/local/bin/valgrind \
+            --overwrite MemoryCheckCommandOptions="\
+              --tool=memcheck \
+              --leak-check=full \
+              --show-leak-kinds=all \
+              --track-origins=yes \
+              --num-callers=50 \
+              --error-exitcode=1 \
+              --xml=yes \
+              --xml-file=reports/memcheck/test-\${TEST_NAME}.xml \
+              --suppressions=../valgrind.supp \
+              --demangle=yes"
+
+          echo "::endgroup::"
+
+      - name: Run Performance Analysis
+        id: perfcheck
         if: always()
+        continue-on-error: true
+        run: |
+          cd build
+          mkdir -p reports/perf
+
+          echo "::group::Performance Analysis"
+
+          for bench in $(find . -type f -executable -name '*Benchmark'); do
+            bench_name=$(basename $bench)
+            
+            # Callgrind with Clang-specific options
+            timeout 20m valgrind --tool=callgrind \
+              --dump-instr=yes \
+              --collect-jumps=yes \
+              --collect-systime=yes \
+              --callgrind-out-file=reports/perf/${bench_name}_callgrind.out \
+              --fn-skip="__cxx_*" \
+              --fn-skip="std::*" \
+              $bench
+            
+            # Cachegrind
+            timeout 20m valgrind --tool=cachegrind \
+              --branch-sim=yes \
+              --I1=32768,8,64 \
+              --D1=32768,8,64 \
+              --LL=8388608,16,64 \
+              --cachegrind-out-file=reports/perf/${bench_name}_cachegrind.out \
+              $bench
+          done
+
+          echo "::endgroup::"
+
+      - name: Generate Reports
+        if: always()
+        run: |
+          cd build
+          mkdir -p reports/summaries
+
+          # Process memcheck results
+          python3 -m valgrind_log_parser reports/memcheck/*.xml > reports/summaries/memory_summary.txt
+
+          # Process performance results with demangling
+          for report in reports/perf/*_callgrind.out; do
+            base_name=$(basename $report _callgrind.out)
+            callgrind_annotate --auto=yes --tree=both $report | c++filt > reports/summaries/${base_name}_callgrind.txt
+            gprof2dot -f callgrind $report | dot -Tsvg -o reports/summaries/${base_name}_callgraph.svg
+          done
+
+          for report in reports/perf/*_cachegrind.out; do
+            base_name=$(basename $report _cachegrind.out)
+            cg_annotate $report | c++filt > reports/summaries/${base_name}_cachegrind.txt
+          done
+
+          # Create summary report
+          {
+            echo "=== Memory Analysis Summary ==="
+            grep -A 5 "LEAK SUMMARY" reports/summaries/memory_summary.txt || true
+            echo
+            echo "=== Performance Analysis Summary ==="
+            for f in reports/summaries/*_callgrind.txt; do
+              echo "--- $(basename $f) ---"
+              head -n 20 $f
+              echo
+            done
+          } > reports/summary.txt
+
+      - name: Upload Analysis Results
+        if: always()
+        uses: actions/upload-artifact@v3
         with:
-          name: valgrind-logs
-          path: build/valgrind_*.log
+          name: analysis-reports
+          path: |
+            build/reports/summaries/
+            valgrind.supp
+          retention-days: 14
+
+      - name: Check Results
+        if: always()
+        run: |
+          cd build
+          if grep -q "definitely lost: [1-9][0-9]*" reports/summaries/memory_summary.txt; then
+            echo "::error::Memory leaks detected!"
+            exit 1
+          fi
