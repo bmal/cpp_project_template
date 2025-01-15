@@ -23,9 +23,11 @@ jobs:
 
       - name: Configure
         run: |
-          cmake -S standalone -B build/standalone \
+          cmake -S . -B build/standalone \
             -DCMAKE_BUILD_TYPE=Release \
-            -DCMAKE_CXX_FLAGS="-march=native -mtune=native"
+            -DCMAKE_CXX_FLAGS="-march=native -mtune=native" \
+            -DBUILD_TRADING_TESTS=OFF \
+            -DBUILD_TRADING_STANDALONE=ON
 
       - name: Build
         run: cmake --build build/standalone -j$(nproc)
