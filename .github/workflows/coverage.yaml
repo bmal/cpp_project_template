@@ -8,7 +8,7 @@ on:
 
 env:
   CTEST_OUTPUT_ON_FAILURE: 1
-  CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
+  CPM_SOURCE_CACHE: ${{ github.workspace }}/cpm_modules
 
 jobs:
   coverage:
@@ -20,21 +20,14 @@ jobs:
       - name: Install dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y \
-            lcov \
-            gcc \
-            g++ \
-            git \
-            cmake \
-            ninja-build
+          sudo apt-get install -y lcov
 
       - name: Configure
         run: |
-          cmake -S test -B build \
+          cmake -S . -B build \
             -DCMAKE_BUILD_TYPE=Debug \
-            -DENABLE_TEST_COVERAGE=ON \
-            -DCMAKE_CXX_FLAGS="--coverage -fprofile-arcs -ftest-coverage" \
-            -DCMAKE_C_FLAGS="--coverage -fprofile-arcs -ftest-coverage"
+            -DBUILD_TESTING=ON \
+            -DCMAKE_CXX_FLAGS="--coverage"
 
       - name: Build
         run: cmake --build build -j$(nproc)
@@ -43,50 +36,36 @@ jobs:
         working-directory: build
         run: ctest --output-on-failure
 
-      - name: Create coverage baseline
-        run: lcov --capture --initial --directory build --output-file coverage.base
-
-      - name: Capture coverage data
+      - name: Collect coverage
         run: |
-          lcov --capture --directory build --output-file coverage.info \
-            --no-external \
-            --exclude '*_deps/*' \
-            --exclude '*/build/*' \
-            --branch-coverage
+          lcov --capture --directory . \
+               --output-file coverage.info \
+               --rc lcov_branch_coverage=1 \
+               --ignore-errors unused,negative \
+               --no-external
 
-      - name: Combine coverage traces
+      - name: Filter coverage
         run: |
-          lcov \
-            --add-tracefile coverage.base \
-            --add-tracefile coverage.info \
-            --output-file coverage.total
-
-      - name: Filter coverage data
-        run: |
-          lcov \
-            --remove coverage.total \
-            '*/test/*' \
-            '*/tests/*' \
-            '*/build/*' \
-            '*/_deps/*' \
-            --output-file coverage.filtered
-
-      - name: List coverage data
-        run: lcov --list coverage.filtered
+          lcov --remove coverage.info \
+               '/usr/include/*' \
+               '*/test/*' \
+               '*/tests/*' \
+               '*/build/*' \
+               '*/_deps/*' \
+               --output-file filtered.info \
+               --ignore-errors unused,negative
 
       - name: Upload to Codecov
         uses: codecov/codecov-action@v3
         with:
-          files: coverage.filtered
+          files: filtered.info
           fail_ci_if_error: true
-          verbose: true
 
       - name: Generate HTML report
-        run: genhtml coverage.filtered --output-directory coverage_report
+        run: genhtml filtered.info --output-directory coverage_report
 
       - name: Upload coverage report
         uses: actions/upload-artifact@v3
         with:
           name: coverage-report
           path: coverage_report
-          retention-days: 14

@@ -15,28 +15,30 @@ jobs:
     steps:
       - uses: actions/checkout@v3
 
-      - name: Cache CPM Dependencies
-        uses: actions/cache@v3
-        with:
-          path: "**/cpm_modules"
-          key: ${{ github.workflow }}-cpm-modules-${{ hashFiles('**/CMakeLists.txt', '**/*.cmake') }}
-
       - name: Configure
         run: |
-          cmake -S . -B build/standalone \
+          cmake -S . -B build \
             -DCMAKE_BUILD_TYPE=Release \
-            -DCMAKE_CXX_FLAGS="-march=native -mtune=native" \
-            -DBUILD_TRADING_TESTS=OFF \
-            -DBUILD_TRADING_STANDALONE=ON
+            -DBUILD_TESTING=OFF
 
       - name: Build
-        run: cmake --build build/standalone -j$(nproc)
+        run: cmake --build build -j$(nproc)
+
+      - name: List Build Directory
+        run: |
+          find build -type f -executable -print
+          echo "Executable files:"
+          find build -type f -executable -not -path "*/CMakeFiles/*" -not -path "*/_deps/*"
 
       - name: Run
-        working-directory: build/standalone
+        working-directory: build
         run: |
-          echo "Directory contents:"
-          ls -la
-          echo ""
-          echo "Running executable:"
-          ./trading_standalone
+          # Get the name of the executable (excluding CMake executables)
+          EXEC=$(find . -type f -executable -not -path "*/CMakeFiles/*" -not -path "*/_deps/*" | grep -v "cmake" | head -n 1)
+          if [ -n "$EXEC" ]; then
+            echo "Found executable: $EXEC"
+            $EXEC
+          else
+            echo "No executable found"
+            exit 1
+          fi
