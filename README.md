@@ -1,10 +1,10 @@
-[![clang-tidy-review](https://github.com/bmal/trading/actions/workflows/clang-tidy.yaml/badge.svg)](https://github.com/bmal/trading/actions/workflows/clang-tidy.yaml)
-[![Install](https://github.com/bmal/trading/actions/workflows/install.yaml/badge.svg)](https://github.com/bmal/trading/actions/workflows/install.yaml)
-[![MacOS](https://github.com/bmal/trading/actions/workflows/macos.yaml/badge.svg)](https://github.com/bmal/trading/actions/workflows/macos.yaml)
+[![Build and Test](https://github.com/bmal/trading/actions/workflows/build-and-test.yaml/badge.svg)](https://github.com/bmal/trading/actions/workflows/build-and-test.yaml)
+[![Code Quality](https://github.com/bmal/trading/actions/workflows/code-quality.yaml/badge.svg)](https://github.com/bmal/trading/actions/workflows/code-quality.yaml)
+[![Coverage](https://github.com/bmal/trading/actions/workflows/coverage.yaml/badge.svg)](https://github.com/bmal/trading/actions/workflows/coverage.yaml)
 [![Sanitizers](https://github.com/bmal/trading/actions/workflows/sanitizers.yaml/badge.svg)](https://github.com/bmal/trading/actions/workflows/sanitizers.yaml)
 [![Standalone](https://github.com/bmal/trading/actions/workflows/standalone.yaml/badge.svg)](https://github.com/bmal/trading/actions/workflows/standalone.yaml)
 [![Valgrind](https://github.com/bmal/trading/actions/workflows/valgrind.yaml/badge.svg)](https://github.com/bmal/trading/actions/workflows/valgrind.yaml)
-[![codecov](https://codecov.io/gh/bmal/ModernCppStarter/branch/master/graph/badge.svg)](https://codecov.io/gh/bmal/trading)
+[![codecov](https://codecov.io/gh/bmal/trading/branch/main/graph/badge.svg)](https://codecov.io/gh/bmal/trading)
 
 <p align="center">
   <img src="https://repository-images.githubusercontent.com/254842585/4dfa7580-7ffb-11ea-99d0-46b8fe2f4170" height="175" width="auto" />
