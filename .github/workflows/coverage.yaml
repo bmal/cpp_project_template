@@ -44,8 +44,7 @@ jobs:
                --rc branch_coverage=1 \
                --exclude '/usr/*' \
                --exclude '*/test/*' \
-               --exclude '*/_deps/*' \
-               --ignore-errors empty
+               --ignore-errors empty,unused
 
       - name: Upload coverage to Codecov
         uses: codecov/codecov-action@v3
