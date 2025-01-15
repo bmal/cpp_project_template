@@ -32,46 +32,57 @@ jobs:
         run: |
           cmake -S test -B build \
             -DCMAKE_BUILD_TYPE=Debug \
+            -DENABLE_TEST_COVERAGE=ON \
             -DCMAKE_CXX_FLAGS="--coverage -fprofile-arcs -ftest-coverage" \
-            -DCMAKE_EXE_LINKER_FLAGS="--coverage" \
-            -DENABLE_COVERAGE=ON
+            -DCMAKE_C_FLAGS="--coverage -fprofile-arcs -ftest-coverage"
 
       - name: Build
         run: cmake --build build -j$(nproc)
 
       - name: Run tests
         working-directory: build
-        run: |
-          ctest --output-on-failure
+        run: ctest --output-on-failure
+
+      - name: Create coverage baseline
+        run: lcov --capture --initial --directory build --output-file coverage.base
 
       - name: Capture coverage data
         run: |
-          lcov --directory build --capture --output-file coverage.info \
-            --rc lcov_branch_coverage=1 \
+          lcov --capture --directory build --output-file coverage.info \
             --no-external \
-            --exclude "*/test/*" \
-            --exclude "*/build/*" \
-            --exclude "*/_deps/*"
+            --exclude '*_deps/*' \
+            --exclude '*/build/*' \
+            --branch-coverage
 
-          # Remove noisy warnings
-          sed -i 's/gcda/gcno/g' coverage.info
+      - name: Combine coverage traces
+        run: |
+          lcov \
+            --add-tracefile coverage.base \
+            --add-tracefile coverage.info \
+            --output-file coverage.total
 
-          lcov --list coverage.info
+      - name: Filter coverage data
+        run: |
+          lcov \
+            --remove coverage.total \
+            '*/test/*' \
+            '*/tests/*' \
+            '*/build/*' \
+            '*/_deps/*' \
+            --output-file coverage.filtered
+
+      - name: List coverage data
+        run: lcov --list coverage.filtered
 
       - name: Upload to Codecov
         uses: codecov/codecov-action@v3
         with:
-          files: coverage.info
+          files: coverage.filtered
           fail_ci_if_error: true
           verbose: true
 
-      # Optional: Generate HTML report
-      - name: Generate coverage report
-        run: |
-          genhtml coverage.info \
-            --output-directory coverage_report \
-            --branch-coverage \
-            --rc lcov_branch_coverage=1
+      - name: Generate HTML report
+        run: genhtml coverage.filtered --output-directory coverage_report
 
       - name: Upload coverage report
         uses: actions/upload-artifact@v3
