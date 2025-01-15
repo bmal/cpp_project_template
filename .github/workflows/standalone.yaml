@@ -15,31 +15,20 @@ jobs:
     steps:
       - uses: actions/checkout@v3
 
+      - name: Cache Dependencies
+        uses: actions/cache@v3
+        with:
+          path: "**/cpm_modules"
+          key: ${{ github.workflow }}-cpm-modules-${{ hashFiles('**/CMakeLists.txt', '**/*.cmake') }}
+
       - name: Configure
         run: |
-          cmake -S . -B build \
-            -DCMAKE_BUILD_TYPE=Release \
-            -DBUILD_TESTING=OFF \
-            -DCMAKE_CXX_FLAGS="-march=native -mtune=native"
+          cmake -S standalone -B build/standalone \
+            -DCMAKE_BUILD_TYPE=Release
 
       - name: Build
-        run: cmake --build build -j$(nproc)
-
-      - name: List Build Directory
-        run: |
-          find build -type f -executable -print
-          echo "Executable files:"
-          find build -type f -executable -not -path "*/CMakeFiles/*" -not -path "*/_deps/*"
+        run: cmake --build build/standalone -j$(nproc)
 
       - name: Run
-        working-directory: build
-        run: |
-          # Find the standalone executable
-          EXEC=$(find . -type f -executable -name "*standalone" -not -path "*/CMakeFiles/*" -not -path "*/_deps/*" | head -n 1)
-          if [ -n "$EXEC" ]; then
-            echo "Found executable: $EXEC"
-            $EXEC
-          else
-            echo "No executable found"
-            exit 1
-          fi
+        working-directory: build/standalone
+        run: ./trading_standalone
