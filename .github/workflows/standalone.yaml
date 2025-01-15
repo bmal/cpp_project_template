@@ -33,8 +33,11 @@ jobs:
       - name: Get Project Name
         id: get_name
         run: |
-          PROJECT_NAME=$(cmake -P -LA build/standalone/CMakeCache.txt 2>/dev/null | grep "PROJECT_NAME:" | cut -d "=" -f2)
-          echo "PROJECT_NAME=${PROJECT_NAME}" >> $GITHUB_OUTPUT
+          echo "PROJECT_NAME=$(cmake -L -N -B build/standalone | grep 'PROJECT_NAME' | cut -d'=' -f2)" >> $GITHUB_OUTPUT
 
       - name: Run
-        run: ./build/standalone/${{ steps.get_name.outputs.PROJECT_NAME }}
+        working-directory: build/standalone
+        run: |
+          echo "Executable name: ${{ steps.get_name.outputs.PROJECT_NAME }}"
+          ls -la
+          ./${{ steps.get_name.outputs.PROJECT_NAME }}
