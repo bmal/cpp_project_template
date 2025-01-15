@@ -43,7 +43,12 @@ jobs:
       - name: Install Dependencies
         run: |
           apt-get update
-          apt-get install -y libtbb-dev
+          apt-get install -y \
+            git \
+            cmake \
+            ninja-build \
+            libtbb-dev \
+            pkg-config
 
       - name: Cache Dependencies
         uses: actions/cache@v3
