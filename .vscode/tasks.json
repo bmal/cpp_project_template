@@ -2,124 +2,81 @@
   "version": "2.0.0",
   "tasks": [
     {
-      "label": "CMake: configure",
+      "label": "CMake Configure All",
       "type": "shell",
-      "command": "cmake",
-      "args": [
-        "-S",
-        "${workspaceFolder}/standalone",
-        "-B",
-        "${workspaceFolder}/build/standalone",
-        "-DUSE_STATIC_ANALYZER=clang-tidy"
-      ],
+      "command": "cmake -S all -B build -DCMAKE_EXPORT_COMPILE_COMMANDS=ON -DCMAKE_CXX_COMPILER=clang++ && ln -sf build/compile_commands.json .",
       "group": "build",
-      "problemMatcher": [],
-      "detail": "CMake configuration"
+      "problemMatcher": "$gcc"
     },
     {
-      "label": "CMake: build",
+      "label": "CMake Build All",
       "type": "shell",
-      "dependsOn": "CMake: configure",
-      "command": "cmake",
-      "args": ["--build", "${workspaceFolder}/build/standalone"],
+      "command": "cmake --build build -j$(sysctl -n hw.ncpu)",
       "group": {
         "kind": "build",
         "isDefault": true
       },
-      "problemMatcher": [],
-      "detail": "CMake build task"
+      "dependsOn": ["CMake Configure All"],
+      "problemMatcher": {
+        "owner": "cpp",
+        "fileLocation": ["relative", "${workspaceFolder}"],
+        "pattern": {
+          "regexp": "^(.*):(\\d+):(\\d+):\\s+(warning|error):\\s+(.*)$",
+          "file": 1,
+          "line": 2,
+          "column": 3,
+          "severity": 4,
+          "message": 5
+        }
+      }
     },
     {
-      "label": "CMake: run",
+      "label": "CMake Configure Standalone",
       "type": "shell",
-      "dependsOn": "CMake: build",
-      "command": "${workspaceFolder}/build/standalone/Trading",
-      "args": ["--help"],
-      "group": "none",
-      "problemMatcher": [],
-      "detail": "Run the built Trading executable with --help"
+      "command": "cmake -S standalone -B build/standalone -DCMAKE_EXPORT_COMPILE_COMMANDS=ON -DCMAKE_CXX_COMPILER=clang++",
+      "group": "build"
     },
     {
-      "label": "CMake: debug",
+      "label": "CMake Build Standalone",
       "type": "shell",
-      "command": "cmake",
-      "args": [
-        "-S",
-        "${workspaceFolder}/standalone",
-        "-B",
-        "${workspaceFolder}/build/standalone",
-        "-DUSE_SANITIZER='Thread;Undefined'",
-        "-DCMAKE_BUILD_TYPE=Debug"
-      ],
-      "group": {
-        "kind": "build",
-        "isDefault": false
-      },
-      "problemMatcher": [],
-      "detail": "CMake debug build task"
+      "command": "cmake --build build/standalone -j$(sysctl -n hw.ncpu)",
+      "group": "build",
+      "dependsOn": ["CMake Configure Standalone"],
+      "problemMatcher": {
+        "owner": "cpp",
+        "fileLocation": ["relative", "${workspaceFolder}"],
+        "pattern": {
+          "regexp": "^(.*):(\\d+):(\\d+):\\s+(warning|error):\\s+(.*)$",
+          "file": 1,
+          "line": 2,
+          "column": 3,
+          "severity": 4,
+          "message": 5
+        }
+      }
     },
     {
-      "label": "CMake: clean",
+      "label": "Run Tests",
       "type": "shell",
-      "command": "cmake",
-      "args": [
-        "--build",
-        "${workspaceFolder}/build/standalone",
-        "--target",
-        "clean"
-      ],
-      "group": {
-        "kind": "build",
-        "isDefault": false
-      },
-      "problemMatcher": [],
-      "detail": "CMake clean task"
-    },
-    {
-      "label": "CMake: test",
-      "type": "shell",
-      "command": "cmake",
-      "args": [
-        "-S",
-        "${workspaceFolder}/test",
-        "-B",
-        "${workspaceFolder}/build/test"
-      ],
+      "command": "./build/test/TradingTests",
       "group": {
         "kind": "test",
-        "isDefault": false
+        "isDefault": true
       },
-      "problemMatcher": [],
-      "detail": "CMake test task"
+      "dependsOn": ["CMake Build All"]
     },
     {
-      "label": "CMake: build test",
+      "label": "Run Standalone",
       "type": "shell",
-      "dependsOn": "CMake: test",
-      "command": "cmake",
-      "args": [
-        "--build",
-        "${workspaceFolder}/build/test",
-        "--target",
-        "test",
-        "--",
-        "CTEST_OUTPUT_ON_FAILURE=1"
-      ],
+      "command": "./build/standalone/trading_standalone",
       "group": "test",
-      "problemMatcher": [],
-      "detail": "Build and run CMake tests"
+      "dependsOn": ["CMake Build Standalone"]
     },
     {
-      "label": "CMake: run tests",
+      "label": "Clean Build",
       "type": "shell",
-      "dependsOn": "CMake: build test",
-      "command": "${workspaceFolder}/build/test/TradingTests",
-      "group": {
-        "kind": "test",
-        "isDefault": true
-      },
-      "problemMatcher": [],
-      "detail": "Run the TradingTests executable"
+      "command": "rm -rf build/* .cache compile_commands.json",
+      "group": "build"
     }
   ]
 }

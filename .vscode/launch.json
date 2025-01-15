@@ -1,12 +1,23 @@
 {
+  "version": "0.2.0",
   "configurations": [
     {
+      "name": "Debug Tests",
       "type": "lldb",
       "request": "launch",
-      "name": "Launch",
-      "program": "${workspaceFolder}/build/standalone/Trading",
+      "program": "${workspaceFolder}/build/test/TradingTests",
       "args": [],
-      "cwd": "${workspaceFolder}"
+      "cwd": "${workspaceFolder}",
+      "preLaunchTask": "CMake Build All"
+    },
+    {
+      "name": "Debug Standalone",
+      "type": "lldb",
+      "request": "launch",
+      "program": "${workspaceFolder}/build/standalone/trading_standalone",
+      "args": [],
+      "cwd": "${workspaceFolder}",
+      "preLaunchTask": "CMake Build Standalone"
     }
   ]
 }

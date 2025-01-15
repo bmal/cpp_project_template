@@ -25,6 +25,8 @@ file(GLOB_RECURSE sources CONFIGURE_DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/source/*
 add_executable(trading_standalone ${sources})
 target_link_libraries(trading_standalone PRIVATE Trading::Trading)
 
+target_include_directories(trading_standalone PRIVATE ${CMAKE_CURRENT_LIST_DIR}/../include)
+
 target_compile_features(trading_standalone PRIVATE cxx_std_23)
 set_target_properties(trading_standalone PROPERTIES 
     CXX_STANDARD 23
