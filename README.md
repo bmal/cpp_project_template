@@ -1,6 +1,5 @@
 [![Build and Test](https://github.com/bmal/trading/actions/workflows/build-and-test.yaml/badge.svg)](https://github.com/bmal/trading/actions/workflows/build-and-test.yaml)
 [![Code Quality](https://github.com/bmal/trading/actions/workflows/code-quality.yaml/badge.svg)](https://github.com/bmal/trading/actions/workflows/code-quality.yaml)
-[![Coverage](https://github.com/bmal/trading/actions/workflows/coverage.yaml/badge.svg)](https://github.com/bmal/trading/actions/workflows/coverage.yaml)
 [![Sanitizers](https://github.com/bmal/trading/actions/workflows/sanitizers.yaml/badge.svg)](https://github.com/bmal/trading/actions/workflows/sanitizers.yaml)
 [![Standalone](https://github.com/bmal/trading/actions/workflows/standalone.yaml/badge.svg)](https://github.com/bmal/trading/actions/workflows/standalone.yaml)
 [![Valgrind](https://github.com/bmal/trading/actions/workflows/valgrind.yaml/badge.svg)](https://github.com/bmal/trading/actions/workflows/valgrind.yaml)
