@@ -23,21 +23,18 @@ jobs:
 
       - name: Configure
         run: |
-          cmake -S . -B build/standalone \
+          cmake -S standalone -B build/standalone \
             -DCMAKE_BUILD_TYPE=Release \
             -DCMAKE_CXX_FLAGS="-march=native -mtune=native"
 
       - name: Build
         run: cmake --build build/standalone -j$(nproc)
 
-      - name: Get Project Name
-        id: get_name
-        run: |
-          echo "PROJECT_NAME=$(cmake -L -N -B build/standalone | grep 'PROJECT_NAME' | cut -d'=' -f2)" >> $GITHUB_OUTPUT
-
       - name: Run
         working-directory: build/standalone
         run: |
-          echo "Executable name: ${{ steps.get_name.outputs.PROJECT_NAME }}"
+          echo "Directory contents:"
           ls -la
-          ./${{ steps.get_name.outputs.PROJECT_NAME }}
+          echo ""
+          echo "Running executable:"
+          ./trading_standalone
