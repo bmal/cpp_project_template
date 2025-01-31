@@ -99,7 +99,7 @@ TEST_CASE("Thread creation with arguments") {
     }
 }
 
-// #ifdef __linux__
+#ifdef __linux__
 TEST_CASE("Linux specific core affinity") {
     SUBCASE("Invalid core ID handling") {
         const int invalidCoreId = 1024;  // Very unlikely to be a valid core
