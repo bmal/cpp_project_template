@@ -2,11 +2,13 @@
 #include <sys/types.h>
 #include <sys/wait.h>
 #include <unistd.h>
+#include <cstdlib>
 #include <functional>
 #include <stdexcept>
+#include <string>
 #include <trading/asserts.hpp>
 
-namespace processTest {
+namespace ProcessTest {
 
 class ProcessRunner {
    private:
@@ -62,13 +64,13 @@ class ProcessRunner {
     }
 };
 
-}  // namespace processTest
+}  // namespace ProcessTest
 
 TEST_SUITE("Assertion Mechanism") {
     // Test assertion behavior in Debug mode
 #ifndef NDEBUG
     TEST_CASE("ASSERT properly handles failure in Debug mode") {
-        processTest::ProcessRunner process(
+        ProcessTest::ProcessRunner process(
             []() { ASSERT(false, "test message"); });
 
         const auto output = process.getStderrOutput();
@@ -83,7 +85,7 @@ TEST_SUITE("Assertion Mechanism") {
     TEST_CASE(
         "ASSERT allows execution to continue when condition is true in Debug "
         "mode") {
-        processTest::ProcessRunner process([]() {
+        ProcessTest::ProcessRunner process([]() {
             ASSERT(true, "should not see this");
             _Exit(EXIT_SUCCESS);
         });
@@ -108,7 +110,7 @@ TEST_SUITE("Assertion Mechanism") {
 
     // Test FATAL behavior (should work the same in both Debug and Release)
     TEST_CASE("FATAL properly terminates in all build modes") {
-        processTest::ProcessRunner process([]() { FATAL("fatal message"); });
+        ProcessTest::ProcessRunner process([]() { FATAL("fatal message"); });
 
         const auto output = process.getStderrOutput();
         CHECK(process.isTerminatedAbnormally());
