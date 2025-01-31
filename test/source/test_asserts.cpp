@@ -8,7 +8,7 @@
 #include <string>
 #include <trading/asserts.hpp>
 
-namespace ProcessTest {
+namespace {
 
 class ProcessRunner {
    private:
@@ -64,14 +64,13 @@ class ProcessRunner {
     }
 };
 
-}  // namespace ProcessTest
+}  // namespace
 
 TEST_SUITE("Assertion Mechanism") {
     // Test assertion behavior in Debug mode
 #ifndef NDEBUG
     TEST_CASE("ASSERT properly handles failure in Debug mode") {
-        ProcessTest::ProcessRunner process(
-            []() { ASSERT(false, "test message"); });
+        ProcessRunner process([]() { ASSERT(false, "test message"); });
 
         const auto output = process.getStderrOutput();
         CHECK(process.isTerminatedAbnormally());
@@ -85,7 +84,7 @@ TEST_SUITE("Assertion Mechanism") {
     TEST_CASE(
         "ASSERT allows execution to continue when condition is true in Debug "
         "mode") {
-        ProcessTest::ProcessRunner process([]() {
+        ProcessRunner process([]() {
             ASSERT(true, "should not see this");
             _Exit(EXIT_SUCCESS);
         });
@@ -98,7 +97,7 @@ TEST_SUITE("Assertion Mechanism") {
     // Test assertion behavior in Release mode
 #ifdef NDEBUG
     TEST_CASE("ASSERT is stripped in Release mode") {
-        processTest::ProcessRunner process([]() {
+        ProcessRunner process([]() {
             ASSERT(false, "should be stripped");
             _Exit(EXIT_SUCCESS);  // Should reach here in Release
         });
@@ -110,7 +109,7 @@ TEST_SUITE("Assertion Mechanism") {
 
     // Test FATAL behavior (should work the same in both Debug and Release)
     TEST_CASE("FATAL properly terminates in all build modes") {
-        ProcessTest::ProcessRunner process([]() { FATAL("fatal message"); });
+        ProcessRunner process([]() { FATAL("fatal message"); });
 
         const auto output = process.getStderrOutput();
         CHECK(process.isTerminatedAbnormally());

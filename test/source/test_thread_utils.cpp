@@ -106,29 +106,42 @@ TEST_CASE("Linux specific core affinity") {
         const int invalidCoreId = static_cast<int>(maxCores + 1);
         std::atomic<bool> threadStarted{false};
 
-        // Test invalid core ID
-        CHECK_THROWS_AS(Trading::Core::createPinnedThread(
-                            invalidCoreId, "invalidCore",
-                            [&threadStarted]() { threadStarted = true; })
-                            .join(),
-                        std::runtime_error);
+        // Create the thread object first without starting it
+        std::thread t;
 
-        CHECK_FALSE(threadStarted);
+        // Test that creating thread with invalid core throws
+        CHECK_THROWS_AS(
+            {
+                t = Trading::Core::createPinnedThread(
+                    invalidCoreId, "invalidCore", [&threadStarted]() {
+                        threadStarted.store(true, std::memory_order_release);
+                    });
+            },
+            std::runtime_error);
+
+        // If thread was created despite invalid core, join it
+        if (t.joinable()) {
+            t.join();
+        }
+
+        CHECK_FALSE(threadStarted.load(std::memory_order_acquire));
         CHECK_FALSE(Trading::Core::pinThreadToCore(invalidCoreId));
     }
 
     SUBCASE("Valid core ID handling") {
-        const auto maxCores = std::thread::hardware_concurrency();
-        if (maxCores > 1) {
+        if (std::thread::hardware_concurrency() > 1) {
             const int testCore = 0;
             std::atomic<bool> coreAffinitySet{false};
             std::atomic<int> assignedCore{-1};
+            bool threadCompleted = false;
 
-            REQUIRE_NOTHROW([&]() {
+            try {
                 auto thread = Trading::Core::createPinnedThread(
                     testCore, "coreAffinity", [&]() {
-                        coreAffinitySet =
-                            Trading::Core::pinThreadToCore(testCore);
+                        coreAffinitySet.store(
+                            Trading::Core::pinThreadToCore(testCore),
+                            std::memory_order_release);
+
                         cpu_set_t cpuset;
                         CPU_ZERO(&cpuset);
                         if (pthread_getaffinity_np(pthread_self(),
@@ -136,36 +149,46 @@ TEST_CASE("Linux specific core affinity") {
                                                    &cpuset) == 0) {
                             for (int i = 0; i < CPU_SETSIZE; i++) {
                                 if (CPU_ISSET(i, &cpuset)) {
-                                    assignedCore = i;
+                                    assignedCore.store(
+                                        i, std::memory_order_release);
                                     break;
                                 }
                             }
                         }
                     });
-                thread.join();
-            }());
 
-            CHECK(coreAffinitySet);
-            CHECK(assignedCore == testCore);
+                if (thread.joinable()) {
+                    thread.join();
+                }
+                threadCompleted = true;
+
+                CHECK(coreAffinitySet.load(std::memory_order_acquire));
+                CHECK(assignedCore.load(std::memory_order_acquire) == testCore);
+
+            } catch (const std::exception& e) {
+                INFO("Thread creation/execution failed: " << e.what());
+                CHECK(false);
+            }
+
+            CHECK(threadCompleted);
         }
     }
 }
 #else
 TEST_CASE("Non-Linux core affinity") {
-    SUBCASE("Thread creation with invalid core") {
-        const auto maxCores = std::thread::hardware_concurrency();
-        const int invalidCoreId = static_cast<int>(maxCores + 1);
-        std::atomic<bool> threadStarted{false};
+    const auto maxCores = std::thread::hardware_concurrency();
+    const int invalidCoreId = static_cast<int>(maxCores + 1);
+    std::atomic<bool> threadStarted{false};
 
-        REQUIRE_NOTHROW([&]() {
-            auto thread = Trading::Core::createPinnedThread(
-                invalidCoreId, "invalidCore",
-                [&threadStarted]() { threadStarted = true; });
-            thread.join();
-        }());
+    // Non-Linux should succeed even with invalid core
+    auto thread = Trading::Core::createPinnedThread(
+        invalidCoreId, "invalidCore", [&threadStarted]() {
+            threadStarted.store(true, std::memory_order_release);
+        });
 
-        CHECK(threadStarted);
-        CHECK(Trading::Core::pinThreadToCore(invalidCoreId));
-    }
+    thread.join();
+
+    CHECK(threadStarted.load(std::memory_order_acquire));
+    CHECK(Trading::Core::pinThreadToCore(invalidCoreId));
 }
 #endif
