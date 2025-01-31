@@ -103,6 +103,7 @@ TEST_CASE("Thread creation with arguments") {
 TEST_CASE("Linux specific core affinity") {
     const int invalidCoreId =
         static_cast<int>(std::thread::hardware_concurrency() + 1);
+    const int testCore = 0;
     std::atomic<bool> threadStarted{false};
 
     try {
