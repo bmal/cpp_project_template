@@ -102,14 +102,12 @@ TEST_CASE("Thread creation with arguments") {
 #ifdef __linux__
 TEST_CASE("Linux specific core affinity") {
     SUBCASE("Invalid core ID handling") {
-        const auto maxCores = std::thread::hardware_concurrency();
-        const int invalidCoreId = static_cast<int>(maxCores + 1);
+        const int invalidCoreId = const int invalidCoreId =
+            1024;  // Very unlikely to be a valid core
         std::atomic<bool> threadStarted{false};
 
-        // Create the thread object first without starting it
         std::thread t;
 
-        // Test that creating thread with invalid core throws
         CHECK_THROWS_AS(
             {
                 t = Trading::Core::createPinnedThread(
