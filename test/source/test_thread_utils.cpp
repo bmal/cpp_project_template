@@ -4,7 +4,7 @@
 #include <memory>
 #include <stdexcept>
 #include <thread>
-#include <trading/create_thread.hpp>
+#include <trading/thread_utils.hpp>
 #include <utility>
 
 namespace {
@@ -21,7 +21,7 @@ TEST_CASE("Basic thread creation and execution") {
         std::atomic<bool> wasExecuted{false};
         std::atomic<std::thread::id> threadId;
 
-        auto thread = Common::createAndStartThread(
+        auto thread = Trading::Core::createPinnedThread(
             NO_AFFINITY_CORE, "basicThread", [&]() {
                 wasExecuted = true;
                 threadId = std::this_thread::get_id();
@@ -35,7 +35,7 @@ TEST_CASE("Basic thread creation and execution") {
     SUBCASE("Thread handles throwing function") {
         std::atomic<bool> exceptionCaught{false};
 
-        auto thread = Common::createAndStartThread(
+        auto thread = Trading::Core::createPinnedThread(
             NO_AFFINITY_CORE, "throwingThread", [&]() {
                 try {
                     throw std::runtime_error("test");
@@ -54,7 +54,7 @@ TEST_CASE("Thread creation with arguments") {
         const int expectedValue = 42;
         std::atomic<int> result{0};
 
-        auto thread = Common::createAndStartThread(
+        auto thread = Trading::Core::createPinnedThread(
             NO_AFFINITY_CORE, "valueArg",
             [](std::atomic<int>& val, int arg) { val = arg; }, std::ref(result),
             expectedValue);
@@ -68,7 +68,7 @@ TEST_CASE("Thread creation with arguments") {
         int value = 0;
         std::atomic<bool> completed{false};
 
-        auto thread = Common::createAndStartThread(
+        auto thread = Trading::Core::createPinnedThread(
             NO_AFFINITY_CORE, "refArg",
             [](int& val, std::atomic<bool>& done) {
                 val = expectedValue;
@@ -86,7 +86,7 @@ TEST_CASE("Thread creation with arguments") {
         std::atomic<bool> moveOccurred{false};
         auto uniquePtr = std::make_unique<int>(expectedValue);
 
-        auto thread = Common::createAndStartThread(
+        auto thread = Trading::Core::createPinnedThread(
             NO_AFFINITY_CORE, "moveArg",
             [&moveOccurred](std::unique_ptr<int> ptr) {
                 moveOccurred = (*ptr == expectedValue);
@@ -106,7 +106,7 @@ TEST_CASE("Linux specific core affinity") {
     std::atomic<bool> threadStarted{false};
 
     try {
-        auto thread = Common::createAndStartThread(
+        auto thread = Trading::Core::createPinnedThread(
             invalidCoreId, "invalidCore",
             [&threadStarted]() { threadStarted = true; });
         thread.join();
@@ -114,15 +114,15 @@ TEST_CASE("Linux specific core affinity") {
     }
 
     CHECK_FALSE(threadStarted);
-    CHECK_FALSE(Common::tryToSetThreadCore(invalidCoreId));
+    CHECK_FALSE(Trading::Core::pinThreadToCore(invalidCoreId));
 
     if (std::thread::hardware_concurrency() > 1) {
         std::atomic<bool> coreAffinitySet{false};
         std::atomic<int> assignedCore{-1};
 
         auto thread =
-            Common::createAndStartThread(testCore, "coreAffinity", [&]() {
-                coreAffinitySet = Common::tryToSetThreadCore(testCore);
+            Trading::Core::createPinnedThread(testCore, "coreAffinity", [&]() {
+                coreAffinitySet = Trading::Core::pinThreadToCore(testCore);
                 cpu_set_t cpuset;
                 CPU_ZERO(&cpuset);
                 pthread_getaffinity_np(pthread_self(), sizeof(cpu_set_t),
@@ -146,12 +146,12 @@ TEST_CASE("Non-Linux core affinity") {
         static_cast<int>(std::thread::hardware_concurrency() + 1);
     std::atomic<bool> threadStarted{false};
 
-    auto thread = Common::createAndStartThread(
+    auto thread = Trading::Core::createPinnedThread(
         invalidCoreId, "invalidCore",
         [&threadStarted]() { threadStarted = true; });
 
     thread.join();
     CHECK(threadStarted);
-    CHECK(Common::tryToSetThreadAffinity(invalidCoreId));
+    CHECK(Trading::Core::pinThreadToCore(invalidCoreId));
 }
 #endif
