@@ -134,11 +134,11 @@ TEST_CASE("Linux specific core affinity") {
             threadRan = false;
             const int invalidCore = static_cast<int>(maxCores + 1);
 
-            // Even if pinning fails, thread should run
-            auto thread = Trading::Core::createPinnedThread(
-                invalidCore, "invalid_core", [&]() { threadRan = true; });
-            thread.join();
-            CHECK(threadRan);
+            CHECK_THROWS_AS(
+                Trading::Core::createPinnedThread(invalidCore, "invalid_core",
+                                                  [&]() { threadRan = true; }),
+                std::runtime_error);
+            CHECK_FALSE(threadRan);
         }
     }
 }
