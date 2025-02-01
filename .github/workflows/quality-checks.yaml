@@ -49,25 +49,38 @@ jobs:
           path: build
           key: build-${{ runner.os }}-${{ github.sha }}
 
+      - name: Cache Dependencies
+        uses: actions/cache@v3
+        with:
+          path: "**/cpm_modules"
+          key: ${{ runner.os }}-cpm-${{ hashFiles('**/CMakeLists.txt', '**/*.cmake') }}
+
       - name: Install dependencies
         run: |
           sudo apt-get update
           sudo apt-get install -y libtbb-dev llvm clang-tools cmake
 
+      - name: Configure CMake using all directory
+        run: |
+          cmake -S all -B build \
+            -DCMAKE_EXPORT_COMPILE_COMMANDS=ON \
+            -DCMAKE_CXX_COMPILER=clang++ \
+            -DCMAKE_CXX_FLAGS="-march=native -mtune=native" && \
+          ln -sf build/compile_commands.json .
+
       - name: clang-tidy review
         if: github.event_name == 'pull_request'
         uses: ZedThree/clang-tidy-review@v0.19.0
         with:
-          cmake_command: 'mkdir -p build && cd build && cmake -DCMAKE_EXPORT_COMPILE_COMMANDS=ON -DCMAKE_CXX_FLAGS="-march=native -mtune=native" ..'
           build_dir: build
           config_file: .clang-tidy
           exclude: "external/**"
           token: ${{ secrets.GITHUB_TOKEN }}
           lgtm_comment_body: 'clang-tidy review says "All clean, LGTM! :+1:"'
           max_comments: 25
+          cmake_command: "" # Empty because we already configured CMake
 
       - name: Run clang-tidy directly
         if: github.event_name == 'push'
         run: |
-          cmake -B build -DCMAKE_EXPORT_COMPILE_COMMANDS=ON -DCMAKE_CXX_FLAGS="-march=native -mtune=native"
           run-clang-tidy -p build
