@@ -6,9 +6,6 @@ on:
   push:
     branches:
       - "**"
-      - "!refs/pull/**"
-      - "!master"
-      - "!main"
 
 # Add top-level permissions
 permissions:
@@ -36,6 +33,7 @@ env:
 
 jobs:
   determine-scope:
+    if: github.event_name == 'pull_request' || (github.event_name == 'push' && !contains(github.ref, 'refs/pull/'))
     runs-on: ubuntu-latest
     outputs:
       run-comprehensive: ${{ steps.check.outputs.run-comprehensive }}
