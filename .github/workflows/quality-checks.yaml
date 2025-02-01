@@ -74,7 +74,7 @@ jobs:
         with:
           build_dir: build
           config_file: .clang-tidy
-          exclude: "external/**"
+          exclude: "external/**,_deps/**"
           token: ${{ secrets.GITHUB_TOKEN }}
           lgtm_comment_body: 'clang-tidy review says "All clean, LGTM! :+1:"'
           max_comments: 25
