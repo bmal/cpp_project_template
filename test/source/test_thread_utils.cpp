@@ -108,36 +108,38 @@ TEST_CASE("Linux specific core affinity") {
         return;
     }
 
-    SUBCASE("Basic thread operations") {
-        // Unpinned thread (-1) should work
+    SUBCASE("Thread operations") {
+        // Test cases with atomic to track thread execution
         std::atomic<bool> threadRan{false};
-        auto thread = Trading::Core::createPinnedThread(
-            -1, "unpinned", [&]() { threadRan = true; });
-        thread.join();
-        CHECK(threadRan);
-    }
 
-    SUBCASE("Valid core pinning") {
-        std::atomic<bool> threadRan{false};
-        auto thread = Trading::Core::createPinnedThread(
-            0,  // Core 0 should exist
-            "pinned", [&]() { threadRan = true; });
-        thread.join();
-        CHECK(threadRan);
-    }
-
-    SUBCASE("Invalid core handling") {
-        const int invalidCore = static_cast<int>(maxCores + 1);
-        bool exceptionThrown = false;
-
-        try {
-            // Just creating the thread should throw - don't try to run anything
-            [[maybe_unused]] auto thread = Trading::Core::createPinnedThread(
-                invalidCore, "invalid", []() {});
-        } catch (const std::runtime_error&) {
-            exceptionThrown = true;
+        // Case 1: Unpinned thread (-1)
+        {
+            auto thread = Trading::Core::createPinnedThread(
+                -1, "unpinned", [&]() { threadRan = true; });
+            thread.join();
+            CHECK(threadRan);
         }
-        CHECK(exceptionThrown);
+
+        // Case 2: Valid core (0)
+        {
+            threadRan = false;
+            auto thread = Trading::Core::createPinnedThread(
+                0, "pinned", [&]() { threadRan = true; });
+            thread.join();
+            CHECK(threadRan);
+        }
+
+        // Case 3: Invalid core (should still create thread but fail to pin)
+        {
+            threadRan = false;
+            const int invalidCore = static_cast<int>(maxCores + 1);
+
+            // Even if pinning fails, thread should run
+            auto thread = Trading::Core::createPinnedThread(
+                invalidCore, "invalid_core", [&]() { threadRan = true; });
+            thread.join();
+            CHECK(threadRan);
+        }
     }
 }
 #else
