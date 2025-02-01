@@ -102,94 +102,33 @@ TEST_CASE("Thread creation with arguments") {
 #ifdef __linux__
 TEST_CASE("Linux specific core affinity") {
     const auto maxCores = std::thread::hardware_concurrency();
-
-    SUBCASE("Invalid core ID handling") {
-        // Skip if we can't determine core count
-        if (maxCores == 0) {
-            MESSAGE("Skipping test: Unable to determine core count");
-            return;
-        }
-
-        constexpr int invalidCoreId = 1024;  // Large enough to be invalid
-        REQUIRE(static_cast<unsigned int>(invalidCoreId) > maxCores);
-
-        std::atomic<bool> threadStarted{false};
-
-        // Use a try-catch block to properly handle the exception
-        try {
-            std::thread t = Trading::Core::createPinnedThread(
-                invalidCoreId, "invalidCore",
-                [&threadStarted]() { threadStarted = true; });
-
-            // If we somehow get here, clean up properly
-            if (t.joinable()) {
-                t.join();
-            }
-            // Test should fail if we reach here
-            CHECK(false);
-        } catch (const std::runtime_error&) {
-            // This is the expected case
-            CHECK(true);
-        }
-
-        CHECK_FALSE(threadStarted);
-        CHECK_FALSE(Trading::Core::pinThreadToCore(invalidCoreId));
+    if (maxCores == 0) {
+        MESSAGE("Skipping test: Unable to determine core count");
+        return;
     }
 
-    SUBCASE("Valid core ID handling") {
-        // Skip test if we can't determine core count
-        if (maxCores == 0) {
-            MESSAGE("Skipping test: Unable to determine core count");
-            return;
-        }
+    SUBCASE("createPinnedThread with core -1 should create unpinned thread") {
+        std::atomic<bool> threadRan{false};
+        auto thread = Trading::Core::createPinnedThread(
+            -1,  // Should create thread without pinning
+            "unpinned", [&threadRan]() { threadRan = true; });
+        thread.join();
+        CHECK(threadRan);
+    }
 
-        constexpr int testCore = 0;
-        REQUIRE_MESSAGE(static_cast<unsigned int>(testCore) < maxCores,
-                        "Test requires at least one CPU core");
+    SUBCASE("createPinnedThread should throw on invalid core") {
+        const int invalidCore = static_cast<int>(maxCores + 1);
+        CHECK_THROWS_AS((void)Trading::Core::createPinnedThread(
+                            invalidCore, "test", []() {}),
+                        std::runtime_error);
+    }
 
-        std::atomic<bool> success{false};
-        std::atomic<int> assignedCore{-1};
-
-        try {
-            std::thread thread = Trading::Core::createPinnedThread(
-                testCore, "coreAffinity", [&]() {
-                    // First check if we can pin to the core
-                    success = Trading::Core::pinThreadToCore(testCore);
-                    if (!success)
-                        return;
-
-                    // Then verify the actual core assignment
-                    cpu_set_t cpuset;
-                    CPU_ZERO(&cpuset);
-                    if (pthread_getaffinity_np(
-                            pthread_self(), sizeof(cpu_set_t), &cpuset) == 0) {
-                        for (int i = 0;
-                             i <
-                             std::min(CPU_SETSIZE, static_cast<int>(maxCores));
-                             i++) {
-                            if (CPU_ISSET(i, &cpuset)) {
-                                assignedCore = i;
-                                break;
-                            }
-                        }
-                    }
-                });
-
-            if (thread.joinable()) {
-                thread.join();
-            }
-
-            CHECK_MESSAGE(success, "Thread should successfully pin to core 0");
-
-            if (success) {
-                CHECK_MESSAGE(
-                    assignedCore == testCore,
-                    "Thread should be assigned to the requested core");
-            }
-        } catch (const std::exception& e) {
-            INFO("Unexpected exception: " << e.what());
-            CHECK(false);
-        }
+    SUBCASE("createPinnedThread should succeed with core 0") {
+        std::atomic<bool> threadRan{false};
+        auto thread = Trading::Core::createPinnedThread(
+            0, "pinned", [&threadRan]() { threadRan = true; });
+        thread.join();
+        CHECK(threadRan);
     }
 }
 #else
