@@ -2,37 +2,16 @@ name: Comprehensive Checks
 
 on:
   workflow_call:
-    secrets:
-      CODECOV_TOKEN:
-        required: true
-
-permissions:
-  checks: write
-  pull-requests: write
 
 jobs:
   quality-checks:
     uses: ./.github/workflows/quality-checks.yaml
-    permissions:
-      checks: write
-      pull-requests: write
 
   safety-checks:
     uses: ./.github/workflows/safety-checks.yaml
-    permissions:
-      checks: write
-      pull-requests: write
 
   coverage-checks:
     uses: ./.github/workflows/coverage-checks.yaml
-    permissions:
-      checks: write
-      pull-requests: write
-    secrets:
-      CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
 
   performance-checks:
     uses: ./.github/workflows/performance-checks.yaml
-    permissions:
-      checks: write
-      pull-requests: write
