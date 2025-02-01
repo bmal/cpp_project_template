@@ -6,10 +6,9 @@ on:
   push:
     branches:
       - "**"
+      - "!refs/pull/**"
       - "!master"
       - "!main"
-    branches-ignore:
-      - "refs/pull/**"
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
