@@ -1,5 +1,4 @@
-# .github/workflows/jobs/coverage.yml
-name: Coverage
+name: Converage Checks
 
 on:
   workflow_call:
