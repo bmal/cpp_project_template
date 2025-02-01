@@ -18,7 +18,10 @@ env:
 
 jobs:
   sanitizers:
-    if: ${{ github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.event == 'pull_request' }}
+    if: |
+      github.event.workflow_run.conclusion == 'success' && 
+      (github.event.workflow_run.event == 'pull_request' ||
+       contains(fromJson('["master", "main"]'), github.event.workflow_run.head_branch))
     runs-on: ubuntu-latest
     container:
       image: silkeh/clang:15

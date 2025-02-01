@@ -14,7 +14,10 @@ env:
 
 jobs:
   build:
-    if: ${{ github.event.workflow_run.conclusion == 'success' }}
+    if: |
+      github.event.workflow_run.conclusion == 'success' && 
+      (github.event.workflow_run.event == 'pull_request' ||
+       contains(fromJson('["master", "main"]'), github.event.workflow_run.head_branch))
     name: ${{ matrix.config.name }}
     runs-on: ${{ matrix.config.os }}
     strategy:

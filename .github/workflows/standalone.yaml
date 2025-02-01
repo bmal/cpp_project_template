@@ -2,9 +2,12 @@ name: Standalone
 
 on:
   push:
-    branches: [master, main]
+    branches:
+      - "**"
   pull_request:
-    branches: [master, main]
+    branches:
+      - master
+      - main
 
 env:
   CPM_SOURCE_CACHE: ${{ github.workspace }}/cpm_modules
