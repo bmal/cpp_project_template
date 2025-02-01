@@ -109,7 +109,7 @@ TEST_CASE("Linux specific core affinity") {
     }
 
     SUBCASE("Basic thread operations") {
-        // Test unpinned (-1) - should always work
+        // Unpinned thread (-1) should work
         std::atomic<bool> threadRan{false};
         auto thread = Trading::Core::createPinnedThread(
             -1, "unpinned", [&]() { threadRan = true; });
@@ -119,33 +119,25 @@ TEST_CASE("Linux specific core affinity") {
 
     SUBCASE("Valid core pinning") {
         std::atomic<bool> threadRan{false};
-        try {
-            auto thread = Trading::Core::createPinnedThread(
-                0,  // Core 0 should exist
-                "pinned", [&]() { threadRan = true; });
-            thread.join();
-            CHECK(threadRan);
-        } catch (const std::exception& e) {
-            MESSAGE("Core 0 pinning failed: ", e.what());
-            CHECK(false);  // Core 0 should work
-        }
+        auto thread = Trading::Core::createPinnedThread(
+            0,  // Core 0 should exist
+            "pinned", [&]() { threadRan = true; });
+        thread.join();
+        CHECK(threadRan);
     }
 
     SUBCASE("Invalid core handling") {
         const int invalidCore = static_cast<int>(maxCores + 1);
-        bool exceptionCaught = false;
+        bool exceptionThrown = false;
 
         try {
-            auto thread = Trading::Core::createPinnedThread(
-                invalidCore, "invalid", []() { /* should not run */ });
-            thread.join();  // Only if no exception
+            // Just creating the thread should throw - don't try to run anything
+            [[maybe_unused]] auto thread = Trading::Core::createPinnedThread(
+                invalidCore, "invalid", []() {});
         } catch (const std::runtime_error&) {
-            exceptionCaught = true;
+            exceptionThrown = true;
         }
-
-        // Either the function threw an exception (preferred)
-        // or it failed gracefully - one of these must be true
-        CHECK(exceptionCaught);
+        CHECK(exceptionThrown);
     }
 }
 #else
