@@ -1,0 +1,17 @@
+name: Comprehensive Checks
+
+on:
+  workflow_call:
+
+jobs:
+  quality-checks:
+    uses: ./.github/workflows/quality-checks.yaml
+
+  safety-checks:
+    uses: ./.github/workflows/safety-checks.yaml
+
+  coverage-checks:
+    uses: ./.github/workflows/coverage-checks.yaml
+
+  performance-checks:
+    uses: ./.github/workflows/performance-checks.yaml

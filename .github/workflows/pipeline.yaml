@@ -40,9 +40,9 @@ jobs:
 
   essential-checks:
     needs: determine-scope
-    uses: ./.github/workflows/jobs/essential-checks.yaml
+    uses: ./.github/workflows/essential-checks.yaml
 
   comprehensive-checks:
     needs: [determine-scope, essential-checks]
     if: needs.determine-scope.outputs.run-comprehensive == 'true'
-    uses: ./.github/workflows/jobs/comprehensive-checks.yaml
+    uses: ./.github/workflows/comprehensive-checks.yaml
