@@ -1,5 +1,6 @@
 #include <doctest/doctest.h>
 #include <atomic>
+#include <exception>
 #include <functional>
 #include <memory>
 #include <stdexcept>
@@ -107,28 +108,44 @@ TEST_CASE("Linux specific core affinity") {
         return;
     }
 
-    SUBCASE("createPinnedThread with core -1 should create unpinned thread") {
+    SUBCASE("Basic thread operations") {
+        // Test unpinned (-1) - should always work
         std::atomic<bool> threadRan{false};
         auto thread = Trading::Core::createPinnedThread(
-            -1,  // Should create thread without pinning
-            "unpinned", [&threadRan]() { threadRan = true; });
+            -1, "unpinned", [&]() { threadRan = true; });
         thread.join();
         CHECK(threadRan);
     }
 
-    SUBCASE("createPinnedThread should throw on invalid core") {
+    SUBCASE("Valid core pinning") {
+        std::atomic<bool> threadRan{false};
+        try {
+            auto thread = Trading::Core::createPinnedThread(
+                0,  // Core 0 should exist
+                "pinned", [&]() { threadRan = true; });
+            thread.join();
+            CHECK(threadRan);
+        } catch (const std::exception& e) {
+            MESSAGE("Core 0 pinning failed: ", e.what());
+            CHECK(false);  // Core 0 should work
+        }
+    }
+
+    SUBCASE("Invalid core handling") {
         const int invalidCore = static_cast<int>(maxCores + 1);
-        CHECK_THROWS_AS((void)Trading::Core::createPinnedThread(
-                            invalidCore, "test", []() {}),
-                        std::runtime_error);
-    }
+        bool exceptionCaught = false;
 
-    SUBCASE("createPinnedThread should succeed with core 0") {
-        std::atomic<bool> threadRan{false};
-        auto thread = Trading::Core::createPinnedThread(
-            0, "pinned", [&threadRan]() { threadRan = true; });
-        thread.join();
-        CHECK(threadRan);
+        try {
+            auto thread = Trading::Core::createPinnedThread(
+                invalidCore, "invalid", []() { /* should not run */ });
+            thread.join();  // Only if no exception
+        } catch (const std::runtime_error&) {
+            exceptionCaught = true;
+        }
+
+        // Either the function threw an exception (preferred)
+        // or it failed gracefully - one of these must be true
+        CHECK(exceptionCaught);
     }
 }
 #else
