@@ -10,6 +10,12 @@ on:
       - "!master"
       - "!main"
 
+# Add top-level permissions
+permissions:
+  checks: write
+  pull-requests: write
+  contents: read
+
 concurrency:
   group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
   cancel-in-progress: true
@@ -45,8 +51,16 @@ jobs:
   essential-checks:
     needs: determine-scope
     uses: ./.github/workflows/essential-checks.yaml
+    permissions:
+      checks: write
+      pull-requests: write
+      contents: read
 
   comprehensive-checks:
     needs: [determine-scope, essential-checks]
     if: needs.determine-scope.outputs.run-comprehensive == 'true'
     uses: ./.github/workflows/comprehensive-checks.yaml
+    permissions:
+      checks: write
+      pull-requests: write
+      contents: read

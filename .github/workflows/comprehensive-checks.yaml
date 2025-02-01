@@ -3,15 +3,36 @@ name: Comprehensive Checks
 on:
   workflow_call:
 
+permissions:
+  checks: write
+  pull-requests: write
+  contents: read
+
 jobs:
   quality-checks:
     uses: ./.github/workflows/quality-checks.yaml
+    permissions:
+      checks: write
+      pull-requests: write
+      contents: read
 
   safety-checks:
     uses: ./.github/workflows/safety-checks.yaml
+    permissions:
+      checks: write
+      pull-requests: write
+      contents: read
 
   coverage-checks:
     uses: ./.github/workflows/coverage-checks.yaml
+    permissions:
+      checks: write
+      pull-requests: write
+      contents: read
 
   performance-checks:
     uses: ./.github/workflows/performance-checks.yaml
+    permissions:
+      checks: write
+      pull-requests: write
+      contents: read
