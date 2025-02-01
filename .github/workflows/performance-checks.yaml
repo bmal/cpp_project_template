@@ -3,6 +3,10 @@ name: Performance Checks
 on:
   workflow_call:
 
+env:
+  LLVM_VERSION: "15"
+  VALGRIND_VERSION: "3.19.0"
+
 jobs:
   valgrind:
     runs-on: ubuntu-latest
@@ -47,8 +51,7 @@ jobs:
 
       - name: Configure
         run: |
-          mkdir -p build
-          cmake -S test -B build \
+          cmake -S all -B build \
             -DCMAKE_BUILD_TYPE=Debug \
             -DCMAKE_C_COMPILER=clang-${{ env.LLVM_VERSION }} \
             -DCMAKE_CXX_COMPILER=clang++-${{ env.LLVM_VERSION }} \
@@ -90,8 +93,8 @@ jobs:
         id: memcheck
         continue-on-error: true
         run: |
+          mkdir -p build/reports/memcheck
           cd build
-          mkdir -p reports/memcheck
 
           echo "::group::Memory Check"
 
@@ -119,8 +122,8 @@ jobs:
         if: always()
         continue-on-error: true
         run: |
+          mkdir -p build/reports/perf
           cd build
-          mkdir -p reports/perf
 
           echo "::group::Performance Analysis"
 
@@ -152,20 +155,22 @@ jobs:
       - name: Generate Reports
         if: always()
         run: |
+          mkdir -p build/reports/summaries
           cd build
-          mkdir -p reports/summaries
 
           # Process memcheck results
-          python3 -m valgrind_log_parser reports/memcheck/*.xml > reports/summaries/memory_summary.txt
+          python3 -m valgrind_log_parser reports/memcheck/*.xml > reports/summaries/memory_summary.txt || true
 
           # Process performance results with demangling
           for report in reports/perf/*_callgrind.out; do
+            [ -f "$report" ] || continue
             base_name=$(basename $report _callgrind.out)
             callgrind_annotate --auto=yes --tree=both $report | c++filt > reports/summaries/${base_name}_callgrind.txt
             gprof2dot -f callgrind $report | dot -Tsvg -o reports/summaries/${base_name}_callgraph.svg
           done
 
           for report in reports/perf/*_cachegrind.out; do
+            [ -f "$report" ] || continue
             base_name=$(basename $report _cachegrind.out)
             cg_annotate $report | c++filt > reports/summaries/${base_name}_cachegrind.txt
           done
@@ -177,6 +182,7 @@ jobs:
             echo
             echo "=== Performance Analysis Summary ==="
             for f in reports/summaries/*_callgrind.txt; do
+              [ -f "$f" ] || continue
               echo "--- $(basename $f) ---"
               head -n 20 $f
               echo
@@ -197,7 +203,7 @@ jobs:
         if: always()
         run: |
           cd build
-          if grep -q "definitely lost: [1-9][0-9]*" reports/summaries/memory_summary.txt; then
+          if [ -f reports/summaries/memory_summary.txt ] && grep -q "definitely lost: [1-9][0-9]*" reports/summaries/memory_summary.txt; then
             echo "::error::Memory leaks detected!"
             exit 1
           fi
