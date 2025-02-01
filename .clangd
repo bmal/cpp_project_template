@@ -75,6 +75,7 @@ Diagnostics:
       # Class layout
       cppcoreguidelines-special-member-functions.AllowSoleDefaultDtor: true
       cppcoreguidelines-non-private-member-variables-in-classes.IgnoreClassesWithAllMemberVariablesBeingPublic: true
+      cppcoreguidelines.LanguageStandard: c++23
 
       # Code readability
       readability-function-cognitive-complexity.Threshold: 25

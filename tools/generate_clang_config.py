@@ -24,6 +24,8 @@ def generate_clang_tidy():
         f.write('WarningsAsErrors: ""\n')
         f.write('HeaderFilterRegex: ""\n')
         f.write('FormatStyle: file\n')
+        f.write('Standard: c++23\n')
+
         
         # Add CheckOptions if present
         if 'CheckOptions' in clang_tidy:
