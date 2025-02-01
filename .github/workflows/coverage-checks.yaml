@@ -1,4 +1,4 @@
-name: Converage Checks
+name: Coverage
 
 on:
   workflow_call:
@@ -14,6 +14,12 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y lcov gcc g++
 
+      - name: Cache Dependencies
+        uses: actions/cache@v3
+        with:
+          path: "**/cpm_modules"
+          key: ${{ runner.os }}-coverage-${{ hashFiles('**/CMakeLists.txt', '**/*.cmake') }}
+
       - name: Configure
         run: |
           cmake -S test -B build/test \
@@ -28,13 +34,10 @@ jobs:
       - name: Run tests with coverage
         working-directory: build/test
         run: |
-          # Run tests
           ctest --output-on-failure
 
-          # Show generated coverage files for debugging
           find . -name "*.gcno" -o -name "*.gcda"
 
-          # Capture coverage
           lcov --capture --directory . \
                --output-file coverage.info \
                --rc branch_coverage=1 \
