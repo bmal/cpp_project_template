@@ -1,13 +1,15 @@
 name: Code Quality Checks
 
 on:
-  pull_request:
-    branches: [master, main]
-  push:
-    branches: [master, main]
+  workflow_run:
+    workflows:
+      - Build and Test
+    types:
+      - completed
 
 jobs:
   clang-tidy:
+    if: ${{ github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.event == 'pull_request' }}
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3

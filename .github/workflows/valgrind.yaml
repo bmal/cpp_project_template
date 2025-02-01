@@ -1,15 +1,11 @@
 name: Memory and Performance Analysis
 
 on:
-  workflow_dispatch:
-  schedule:
-    - cron: "0 0 * * 0"
-  pull_request:
-    paths:
-      - "src/**"
-      - "test/**"
-      - "benchmark/**"
-      - ".github/workflows/valgrind.yaml"
+  workflow_run:
+    workflows:
+      - Build and Test
+    types:
+      - completed
 
 env:
   CTEST_OUTPUT_ON_FAILURE: 1
@@ -19,6 +15,7 @@ env:
 
 jobs:
   analyze:
+    if: ${{ github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.event == 'pull_request' }}
     runs-on: ubuntu-latest
     timeout-minutes: 120
 
