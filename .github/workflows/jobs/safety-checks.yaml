@@ -1,0 +1,106 @@
+name: Safety Checks
+
+on:
+  workflow_call:
+
+jobs:
+  run-sanitizers:
+    runs-on: ubuntu-latest
+    container:
+      image: silkeh/clang:15
+      options: --security-opt seccomp=unconfined
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - sanitizer: Address
+            build_type: Release
+          - sanitizer: Thread
+            build_type: Release
+          - sanitizer: Memory
+            build_type: Release
+          - sanitizer: Undefined
+            build_type: Release
+          - sanitizer: "Address,Undefined"
+            build_type: Debug
+
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Install Dependencies
+        run: |
+          apt-get update
+          apt-get install -y \
+            git \
+            cmake \
+            ninja-build \
+            libtbb-dev \
+            pkg-config
+
+      - name: Cache Dependencies
+        uses: actions/cache@v3
+        with:
+          path: "**/cpm_modules"
+          key: "sanitizer-clang15-${{ matrix.sanitizer }}-${{ hashFiles('**/CMakeLists.txt') }}"
+
+      - name: Cache Build
+        uses: actions/cache@v3
+        with:
+          path: build
+          key: sanitizer-${{ matrix.sanitizer }}-${{ github.sha }}
+          restore-keys: |
+            sanitizer-${{ matrix.sanitizer }}-
+
+      - name: Configure
+        run: |
+          cmake -S test -B build \
+            -DCMAKE_BUILD_TYPE=${{ matrix.build_type }} \
+            -DUSE_SANITIZER=${{ matrix.sanitizer }} \
+            -DCMAKE_CXX_FLAGS="-march=native -mtune=native -fno-omit-frame-pointer -fno-optimize-sibling-calls -stdlib=libstdc++" \
+            -DCMAKE_EXE_LINKER_FLAGS="-fuse-ld=lld" \
+            -DCMAKE_MODULE_LINKER_FLAGS="-fuse-ld=lld"
+
+      - name: Build
+        run: cmake --build build -j$(nproc)
+
+      - name: Test
+        run: |
+          cd build
+          ctest --output-on-failure --timeout 300 --repeat until-pass:2 --output-junit test-results.xml
+
+      - name: Upload test results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-results-${{ matrix.sanitizer }}
+          path: build/test-results.xml
+
+      - name: Process Sanitizer Results
+        if: always()
+        run: |
+          cd build
+          mkdir -p reports/sanitizer
+
+          # Collect all sanitizer output files
+          find . -name "*sanitizer*.log" -exec cp {} reports/sanitizer/ \;
+
+          # Create summary
+          {
+            echo "=== Sanitizer Summary ==="
+            echo
+            echo "Build Type: ${{ matrix.build_type }}"
+            echo "Sanitizer: ${{ matrix.sanitizer }}"
+            echo
+            echo "=== Log Contents ==="
+            find reports/sanitizer -type f -exec cat {} \;
+          } > reports/sanitizer_summary.txt
+
+      - name: Upload Sanitizer Results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: sanitizer-results-${{ matrix.sanitizer }}
+          path: |
+            build/reports/sanitizer/
+            build/reports/sanitizer_summary.txt
+          retention-days: 14

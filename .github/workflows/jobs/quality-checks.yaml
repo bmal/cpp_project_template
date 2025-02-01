@@ -1,0 +1,44 @@
+name: Quality Checks
+
+on:
+  workflow_call:
+
+jobs:
+  clang-tidy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Cache LLVM and Clang
+        uses: actions/cache@v3
+        with:
+          path: |
+            ./llvm
+            ./clang-tools
+          key: llvm-${{ runner.os }}
+
+      - name: Cache build
+        uses: actions/cache@v3
+        with:
+          path: build
+          key: build-${{ runner.os }}-${{ github.sha }}
+
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libtbb-dev llvm clang-tools
+
+      - name: clang-tidy review
+        uses: ZedThree/clang-tidy-review@v0.19.0
+        if: github.event_name == 'pull_request'
+        with:
+          cmake_command: cmake -DCMAKE_EXPORT_COMPILE_COMMANDS=ON -DCMAKE_CXX_FLAGS="-march=native -mtune=native" .
+          build_dir: build
+          config_file: .clang-tidy
+          exclude: "external/**"
+
+      - name: Run clang-tidy directly
+        if: github.event_name == 'push'
+        run: |
+          cmake -B build -DCMAKE_EXPORT_COMPILE_COMMANDS=ON -DCMAKE_CXX_FLAGS="-march=native -mtune=native"
+          run-clang-tidy -p build

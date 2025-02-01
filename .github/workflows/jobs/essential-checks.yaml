@@ -1,0 +1,97 @@
+name: Essential Checks
+
+on:
+  workflow_call:
+
+jobs:
+  build-standalone:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Cache Dependencies
+        uses: actions/cache@v3
+        with:
+          path: "**/cpm_modules"
+          key: ${{ github.workflow }}-cpm-modules-${{ hashFiles('**/CMakeLists.txt', '**/*.cmake') }}
+
+      - name: Configure
+        run: |
+          cmake -S standalone -B build/standalone \
+            -DCMAKE_BUILD_TYPE=Release
+
+      - name: Build
+        run: cmake --build build/standalone -j$(nproc)
+
+      - name: Run
+        working-directory: build/standalone
+        run: ./trading_standalone
+
+  build-variants:
+    needs: build-standalone
+    strategy:
+      fail-fast: false
+      matrix:
+        config:
+          - { name: "Ubuntu Debug", os: ubuntu-latest, build_type: Debug }
+          - { name: "Ubuntu Release", os: ubuntu-latest, build_type: Release }
+          - { name: "macOS Release", os: macos-latest, build_type: Release }
+    name: ${{ matrix.config.name }}
+    runs-on: ${{ matrix.config.os }}
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Setup Compiler Cache
+        uses: hendrikmuhs/ccache-action@v1.2
+        with:
+          key: ${{ matrix.config.os }}-${{ matrix.config.build_type }}
+
+      - name: Cache CPM Dependencies
+        uses: actions/cache@v3
+        with:
+          path: "**/cpm_modules"
+          key: cpm-${{ matrix.config.os }}-${{ hashFiles('**/CMakeLists.txt', '**/*.cmake') }}
+
+      - name: Install Dependencies (Ubuntu)
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libtbb-dev
+
+      - name: Install Dependencies (macOS)
+        if: runner.os == 'macOS'
+        run: brew install libomp tbb ccache
+
+      - name: Configure
+        run: |
+          cmake -S test -B build/test \
+            -DCMAKE_BUILD_TYPE=${{ matrix.config.build_type }} \
+            -DCMAKE_CXX_COMPILER_LAUNCHER=ccache \
+            -DCMAKE_EXPORT_COMPILE_COMMANDS=ON
+
+      - name: Build
+        run: cmake --build build/test -j$(nproc 2>/dev/null || sysctl -n hw.logicalcpu)
+
+      - name: Test
+        working-directory: build/test
+        run: |
+          echo "Available tests:"
+          ctest -N
+          echo "Running tests:"
+          ctest --build-config ${{ matrix.config.build_type }} --output-on-failure --output-junit test-results.xml
+
+      - name: Upload Test Results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-results-${{ matrix.config.name }}
+          path: build/test/test-results.xml
+
+      - name: Upload Test Logs
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-logs-${{ matrix.config.name }}
+          path: |
+            build/test/Testing/Temporary/LastTest.log
+            build/test/CMakeFiles/CMakeError.log
