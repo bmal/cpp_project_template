@@ -101,73 +101,73 @@ TEST_CASE("Thread creation with arguments") {
 
 #ifdef __linux__
 TEST_CASE("Linux specific core affinity") {
+    const auto maxCores = std::thread::hardware_concurrency();
+
     SUBCASE("Invalid core ID handling") {
-        const int invalidCoreId = -1;
-        std::atomic<bool> threadStarted{false};
-
-        std::thread t;
-
-        CHECK_THROWS_AS(
-            {
-                t = Trading::Core::createPinnedThread(
-                    invalidCoreId, "invalidCore", [&threadStarted]() {
-                        threadStarted.store(true, std::memory_order_release);
-                    });
-            },
-            std::runtime_error);
-
-        // If thread was created despite invalid core, join it
-        if (t.joinable()) {
-            t.join();
+        // Skip if we can't determine core count
+        if (maxCores == 0) {
+            MESSAGE("Skipping test: Unable to determine core count");
+            return;
         }
 
-        CHECK_FALSE(threadStarted.load(std::memory_order_acquire));
+        constexpr int invalidCoreId = 1024;  // Large enough to be invalid
+        REQUIRE(static_cast<unsigned int>(invalidCoreId) > maxCores);
+
+        std::atomic<bool> threadStarted{false};
+
+        CHECK_THROWS_AS((void)Trading::Core::createPinnedThread(
+                            invalidCoreId, "invalidCore",
+                            [&threadStarted]() { threadStarted = true; }),
+                        std::runtime_error);
+
+        CHECK_FALSE(threadStarted);
         CHECK_FALSE(Trading::Core::pinThreadToCore(invalidCoreId));
     }
 
     SUBCASE("Valid core ID handling") {
-        if (std::thread::hardware_concurrency() > 1) {
-            const int testCore = 0;
-            std::atomic<bool> coreAffinitySet{false};
-            std::atomic<int> assignedCore{-1};
-            bool threadCompleted = false;
+        // Skip test if we can't determine core count
+        if (maxCores == 0) {
+            MESSAGE("Skipping test: Unable to determine core count");
+            return;
+        }
 
-            try {
-                auto thread = Trading::Core::createPinnedThread(
-                    testCore, "coreAffinity", [&]() {
-                        coreAffinitySet.store(
-                            Trading::Core::pinThreadToCore(testCore),
-                            std::memory_order_release);
+        constexpr int testCore = 0;
+        REQUIRE_MESSAGE(static_cast<unsigned int>(testCore) < maxCores,
+                        "Test requires at least one CPU core");
 
-                        cpu_set_t cpuset;
-                        CPU_ZERO(&cpuset);
-                        if (pthread_getaffinity_np(pthread_self(),
-                                                   sizeof(cpu_set_t),
-                                                   &cpuset) == 0) {
-                            for (int i = 0; i < CPU_SETSIZE; i++) {
-                                if (CPU_ISSET(i, &cpuset)) {
-                                    assignedCore.store(
-                                        i, std::memory_order_release);
-                                    break;
-                                }
-                            }
+        std::atomic<bool> success{false};
+        std::atomic<int> assignedCore{-1};
+
+        auto thread =
+            Trading::Core::createPinnedThread(testCore, "coreAffinity", [&]() {
+                // First check if we can pin to the core
+                success = Trading::Core::pinThreadToCore(testCore);
+                if (!success)
+                    return;
+
+                // Then verify the actual core assignment
+                cpu_set_t cpuset;
+                CPU_ZERO(&cpuset);
+                if (pthread_getaffinity_np(pthread_self(), sizeof(cpu_set_t),
+                                           &cpuset) == 0) {
+                    for (int i = 0;
+                         i < std::min(CPU_SETSIZE, static_cast<int>(maxCores));
+                         i++) {
+                        if (CPU_ISSET(i, &cpuset)) {
+                            assignedCore = i;
+                            break;
                         }
-                    });
-
-                if (thread.joinable()) {
-                    thread.join();
+                    }
                 }
-                threadCompleted = true;
+            });
 
-                CHECK(coreAffinitySet.load(std::memory_order_acquire));
-                CHECK(assignedCore.load(std::memory_order_acquire) == testCore);
+        thread.join();
 
-            } catch (const std::exception& e) {
-                INFO("Thread creation/execution failed: " << e.what());
-                CHECK(false);
-            }
+        CHECK_MESSAGE(success, "Thread should successfully pin to core 0");
 
-            CHECK(threadCompleted);
+        if (success) {
+            CHECK_MESSAGE(assignedCore == testCore,
+                          "Thread should be assigned to the requested core");
         }
     }
 }
