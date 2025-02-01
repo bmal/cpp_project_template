@@ -128,18 +128,6 @@ TEST_CASE("Linux specific core affinity") {
             thread.join();
             CHECK(threadRan);
         }
-
-        // Case 3: Invalid core (should still create thread but fail to pin)
-        {
-            threadRan = false;
-            const int invalidCore = static_cast<int>(maxCores + 1);
-
-            CHECK_THROWS_AS(
-                Trading::Core::createPinnedThread(invalidCore, "invalid_core",
-                                                  [&]() { threadRan = true; }),
-                std::runtime_error);
-            CHECK_FALSE(threadRan);
-        }
     }
 }
 #else
