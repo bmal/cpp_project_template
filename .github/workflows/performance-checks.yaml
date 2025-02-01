@@ -31,7 +31,9 @@ jobs:
             libc++abi-${{ env.LLVM_VERSION }}-dev \
             libtbb-dev \
             python3-pip \
-            graphviz
+            graphviz \
+            xmllint \
+            gawk
 
           # Install specific valgrind version
           wget https://sourceware.org/pub/valgrind/valgrind-${{ env.VALGRIND_VERSION }}.tar.bz2
@@ -45,9 +47,7 @@ jobs:
 
           # Python tools
           python3 -m pip install --upgrade pip
-          python3 -m pip install \
-            valgrind-log-parser==1.0.0 \
-            gprof2dot==2021.2.21
+          python3 -m pip install gprof2dot==2021.2.21
 
       - name: Configure
         run: |
@@ -158,8 +158,26 @@ jobs:
           mkdir -p build/reports/summaries
           cd build
 
-          # Process memcheck results
-          python3 -m valgrind_log_parser reports/memcheck/*.xml > reports/summaries/memory_summary.txt || true
+          # Process memcheck results using custom parsing
+          echo "=== Memory Analysis Summary ===" > reports/summaries/memory_summary.txt
+          for xml in reports/memcheck/*.xml; do
+            if [ -f "$xml" ]; then
+              {
+                echo "Results for: $(basename "$xml")"
+                echo "----------------"
+                # Extract error information
+                grep -A 2 "<error>" "$xml" | sed 's/<[^>]*>//g' || true
+                echo
+                # Extract leak information
+                grep -A 2 "<leak>" "$xml" | sed 's/<[^>]*>//g' || true
+                # Extract leak summary if available
+                awk '/<leak>/{p=1;next} /<\/leak>/{p=0} p{print}' "$xml" | \
+                  sed 's/<[^>]*>//g' | grep "definitely lost:" || true
+                echo "----------------"
+                echo
+              } >> reports/summaries/memory_summary.txt
+            fi
+          done
 
           # Process performance results with demangling
           for report in reports/perf/*_callgrind.out; do
@@ -178,7 +196,7 @@ jobs:
           # Create summary report
           {
             echo "=== Memory Analysis Summary ==="
-            grep -A 5 "LEAK SUMMARY" reports/summaries/memory_summary.txt || true
+            cat reports/summaries/memory_summary.txt
             echo
             echo "=== Performance Analysis Summary ==="
             for f in reports/summaries/*_callgrind.txt; do
