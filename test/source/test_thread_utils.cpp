@@ -115,10 +115,22 @@ TEST_CASE("Linux specific core affinity") {
 
         std::atomic<bool> threadStarted{false};
 
-        CHECK_THROWS_AS((void)Trading::Core::createPinnedThread(
-                            invalidCoreId, "invalidCore",
-                            [&threadStarted]() { threadStarted = true; }),
-                        std::runtime_error);
+        // Use a try-catch block to properly handle the exception
+        try {
+            std::thread t = Trading::Core::createPinnedThread(
+                invalidCoreId, "invalidCore",
+                [&threadStarted]() { threadStarted = true; });
+
+            // If we somehow get here, clean up properly
+            if (t.joinable()) {
+                t.join();
+            }
+            // Test should fail if we reach here
+            CHECK(false);
+        } catch (const std::runtime_error&) {
+            // This is the expected case
+            CHECK(true);
+        }
 
         CHECK_FALSE(threadStarted);
         CHECK_FALSE(Trading::Core::pinThreadToCore(invalidCoreId));
@@ -138,36 +150,45 @@ TEST_CASE("Linux specific core affinity") {
         std::atomic<bool> success{false};
         std::atomic<int> assignedCore{-1};
 
-        auto thread =
-            Trading::Core::createPinnedThread(testCore, "coreAffinity", [&]() {
-                // First check if we can pin to the core
-                success = Trading::Core::pinThreadToCore(testCore);
-                if (!success)
-                    return;
+        try {
+            std::thread thread = Trading::Core::createPinnedThread(
+                testCore, "coreAffinity", [&]() {
+                    // First check if we can pin to the core
+                    success = Trading::Core::pinThreadToCore(testCore);
+                    if (!success)
+                        return;
 
-                // Then verify the actual core assignment
-                cpu_set_t cpuset;
-                CPU_ZERO(&cpuset);
-                if (pthread_getaffinity_np(pthread_self(), sizeof(cpu_set_t),
-                                           &cpuset) == 0) {
-                    for (int i = 0;
-                         i < std::min(CPU_SETSIZE, static_cast<int>(maxCores));
-                         i++) {
-                        if (CPU_ISSET(i, &cpuset)) {
-                            assignedCore = i;
-                            break;
+                    // Then verify the actual core assignment
+                    cpu_set_t cpuset;
+                    CPU_ZERO(&cpuset);
+                    if (pthread_getaffinity_np(
+                            pthread_self(), sizeof(cpu_set_t), &cpuset) == 0) {
+                        for (int i = 0;
+                             i <
+                             std::min(CPU_SETSIZE, static_cast<int>(maxCores));
+                             i++) {
+                            if (CPU_ISSET(i, &cpuset)) {
+                                assignedCore = i;
+                                break;
+                            }
                         }
                     }
-                }
-            });
+                });
 
-        thread.join();
+            if (thread.joinable()) {
+                thread.join();
+            }
 
-        CHECK_MESSAGE(success, "Thread should successfully pin to core 0");
+            CHECK_MESSAGE(success, "Thread should successfully pin to core 0");
 
-        if (success) {
-            CHECK_MESSAGE(assignedCore == testCore,
-                          "Thread should be assigned to the requested core");
+            if (success) {
+                CHECK_MESSAGE(
+                    assignedCore == testCore,
+                    "Thread should be assigned to the requested core");
+            }
+        } catch (const std::exception& e) {
+            INFO("Unexpected exception: " << e.what());
+            CHECK(false);
         }
     }
 }
