@@ -2,6 +2,9 @@ name: Comprehensive Checks
 
 on:
   workflow_call:
+    secrets:
+      CODECOV_TOKEN:
+        required: true
 
 jobs:
   quality-checks:
@@ -12,6 +15,8 @@ jobs:
 
   coverage-checks:
     uses: ./.github/workflows/coverage-checks.yaml
+    secrets:
+      CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
 
   performance-checks:
     uses: ./.github/workflows/performance-checks.yaml

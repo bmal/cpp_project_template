@@ -6,36 +6,48 @@ on:
 jobs:
   clang-tidy:
     runs-on: ubuntu-latest
+    permissions:
+      pull-requests: write
+      contents: read
+      checks: write
     steps:
       - uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
+
+      - name: Cache LLVM and Clang
+        uses: actions/cache@v3
+        with:
+          path: |
+            ./llvm
+            ./clang-tools
+          key: llvm-${{ runner.os }}
+
+      - name: Cache build
+        uses: actions/cache@v3
+        with:
+          path: build
+          key: build-${{ runner.os }}-${{ github.sha }}
 
       - name: Install dependencies
         run: |
           sudo apt-get update
           sudo apt-get install -y libtbb-dev llvm clang-tools cmake
 
-      # Add CPM cache
-      - name: Cache CPM Dependencies
-        uses: actions/cache@v3
-        with:
-          path: "**/cpm_modules"
-          key: cpm-${{ runner.os }}-${{ hashFiles('**/CMakeLists.txt', '**/*.cmake') }}
-
-      # Configure first to generate compile_commands.json
-      - name: Configure CMake
-        run: |
-          cmake -B build -DCMAKE_EXPORT_COMPILE_COMMANDS=ON -DCMAKE_CXX_FLAGS="-march=native -mtune=native"
-
       - name: clang-tidy review
-        uses: ZedThree/clang-tidy-review@v0.19.0
         if: github.event_name == 'pull_request'
+        uses: ZedThree/clang-tidy-review@v0.19.0
         with:
+          cmake_command: cmake -DCMAKE_EXPORT_COMPILE_COMMANDS=ON -DCMAKE_CXX_FLAGS="-march=native -mtune=native" .
           build_dir: build
           config_file: .clang-tidy
           exclude: "external/**"
-          cmake_command: "" # Empty because we already configured CMake
+          token: ${{ secrets.GITHUB_TOKEN }}
+          lgtm_comment_body: 'clang-tidy review says "All clean, LGTM! :+1:"'
+          max_comments: 25
 
       - name: Run clang-tidy directly
         if: github.event_name == 'push'
         run: |
+          cmake -B build -DCMAKE_EXPORT_COMPILE_COMMANDS=ON -DCMAKE_CXX_FLAGS="-march=native -mtune=native"
           run-clang-tidy -p build

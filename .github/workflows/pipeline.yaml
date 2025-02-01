@@ -50,3 +50,4 @@ jobs:
     needs: [determine-scope, essential-checks]
     if: needs.determine-scope.outputs.run-comprehensive == 'true'
     uses: ./.github/workflows/comprehensive-checks.yaml
+    secrets: inherit

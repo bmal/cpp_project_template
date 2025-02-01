@@ -1,4 +1,4 @@
-name: Analysis
+name: Performance Checks
 
 on:
   workflow_call:
@@ -33,6 +33,7 @@ jobs:
           wget https://sourceware.org/pub/valgrind/valgrind-${{ env.VALGRIND_VERSION }}.tar.bz2
           tar xf valgrind-${{ env.VALGRIND_VERSION }}.tar.bz2
           cd valgrind-${{ env.VALGRIND_VERSION }}
+          # Configure valgrind with Clang support
           ./configure CC=clang-${{ env.LLVM_VERSION }} CXX=clang++-${{ env.LLVM_VERSION }}
           make -j$(nproc)
           sudo make install
@@ -44,14 +45,9 @@ jobs:
             valgrind-log-parser==1.0.0 \
             gprof2dot==2021.2.21
 
-      - name: Cache Dependencies
-        uses: actions/cache@v3
-        with:
-          path: "**/cpm_modules"
-          key: valgrind-${{ runner.os }}-clang${{ env.LLVM_VERSION }}-${{ hashFiles('**/CMakeLists.txt') }}
-
       - name: Configure
         run: |
+          mkdir -p build
           cmake -S test -B build \
             -DCMAKE_BUILD_TYPE=Debug \
             -DCMAKE_C_COMPILER=clang-${{ env.LLVM_VERSION }} \
@@ -74,6 +70,7 @@ jobs:
       - name: Setup Test Environment
         run: |
           echo "=== Valgrind Suppression Rules ===" > valgrind.supp
+          # Add Clang-specific suppressions
           cat << EOF >> valgrind.supp
           {
              ignore_libcxx_leaks
@@ -97,6 +94,7 @@ jobs:
           mkdir -p reports/memcheck
 
           echo "::group::Memory Check"
+
           ctest -T memcheck \
             --output-on-failure \
             --parallel $(nproc) \
@@ -113,6 +111,7 @@ jobs:
               --xml-file=reports/memcheck/test-\${TEST_NAME}.xml \
               --suppressions=../valgrind.supp \
               --demangle=yes"
+
           echo "::endgroup::"
 
       - name: Run Performance Analysis
@@ -124,8 +123,11 @@ jobs:
           mkdir -p reports/perf
 
           echo "::group::Performance Analysis"
+
           for bench in $(find . -type f -executable -name '*Benchmark'); do
             bench_name=$(basename $bench)
+            
+            # Callgrind with Clang-specific options
             timeout 20m valgrind --tool=callgrind \
               --dump-instr=yes \
               --collect-jumps=yes \
@@ -135,6 +137,7 @@ jobs:
               --fn-skip="std::*" \
               $bench
             
+            # Cachegrind
             timeout 20m valgrind --tool=cachegrind \
               --branch-sim=yes \
               --I1=32768,8,64 \
@@ -143,6 +146,7 @@ jobs:
               --cachegrind-out-file=reports/perf/${bench_name}_cachegrind.out \
               $bench
           done
+
           echo "::endgroup::"
 
       - name: Generate Reports
@@ -150,8 +154,11 @@ jobs:
         run: |
           cd build
           mkdir -p reports/summaries
+
+          # Process memcheck results
           python3 -m valgrind_log_parser reports/memcheck/*.xml > reports/summaries/memory_summary.txt
 
+          # Process performance results with demangling
           for report in reports/perf/*_callgrind.out; do
             base_name=$(basename $report _callgrind.out)
             callgrind_annotate --auto=yes --tree=both $report | c++filt > reports/summaries/${base_name}_callgrind.txt
@@ -163,6 +170,7 @@ jobs:
             cg_annotate $report | c++filt > reports/summaries/${base_name}_cachegrind.txt
           done
 
+          # Create summary report
           {
             echo "=== Memory Analysis Summary ==="
             grep -A 5 "LEAK SUMMARY" reports/summaries/memory_summary.txt || true
@@ -177,7 +185,7 @@ jobs:
 
       - name: Upload Analysis Results
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v3
         with:
           name: analysis-reports
           path: |

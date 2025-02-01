@@ -2,23 +2,26 @@ name: Coverage
 
 on:
   workflow_call:
+    secrets:
+      CODECOV_TOKEN:
+        required: true
 
 jobs:
   coverage:
     runs-on: ubuntu-latest
+    permissions:
+      contents: read # Required for checkout
+      pull-requests: write # Required for Codecov PR comments
+
     steps:
       - uses: actions/checkout@v3
+        with:
+          fetch-depth: 0 # Required for accurate coverage reporting
 
       - name: Install dependencies
         run: |
           sudo apt-get update
           sudo apt-get install -y lcov gcc g++
-
-      - name: Cache Dependencies
-        uses: actions/cache@v3
-        with:
-          path: "**/cpm_modules"
-          key: ${{ runner.os }}-coverage-${{ hashFiles('**/CMakeLists.txt', '**/*.cmake') }}
 
       - name: Configure
         run: |
@@ -34,10 +37,13 @@ jobs:
       - name: Run tests with coverage
         working-directory: build/test
         run: |
+          # Run tests
           ctest --output-on-failure
 
+          # Show generated coverage files for debugging
           find . -name "*.gcno" -o -name "*.gcda"
 
+          # Capture coverage
           lcov --capture --directory . \
                --output-file coverage.info \
                --rc branch_coverage=1 \
@@ -47,8 +53,9 @@ jobs:
 
       - name: Upload coverage to Codecov
         uses: codecov/codecov-action@v3
+        env:
+          CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
         with:
           files: ./build/test/coverage.info
-          token: ${{ secrets.CODECOV_TOKEN }}
           fail_ci_if_error: true
           verbose: true
