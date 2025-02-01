@@ -28,6 +28,10 @@ env:
   VALGRIND_VERSION: 3.19.0
   LLVM_VERSION: 15
 
+permissions:
+  checks: write
+  pull-requests: write
+
 jobs:
   determine-scope:
     runs-on: ubuntu-latest
@@ -45,9 +49,15 @@ jobs:
   essential-checks:
     needs: determine-scope
     uses: ./.github/workflows/essential-checks.yaml
+    permissions:
+      checks: write
+      pull-requests: write
 
   comprehensive-checks:
     needs: [determine-scope, essential-checks]
     if: needs.determine-scope.outputs.run-comprehensive == 'true'
     uses: ./.github/workflows/comprehensive-checks.yaml
+    permissions:
+      checks: write
+      pull-requests: write
     secrets: inherit
