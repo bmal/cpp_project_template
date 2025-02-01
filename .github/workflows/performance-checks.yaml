@@ -4,8 +4,10 @@ on:
   workflow_call:
 
 env:
-  LLVM_VERSION: "15"
-  VALGRIND_VERSION: "3.19.0"
+  CTEST_OUTPUT_ON_FAILURE: 1
+  CPM_SOURCE_CACHE: ${{ github.workspace }}/cpm_modules
+  VALGRIND_VERSION: 3.19.0
+  LLVM_VERSION: 15
 
 jobs:
   valgrind:
@@ -31,9 +33,7 @@ jobs:
             libc++abi-${{ env.LLVM_VERSION }}-dev \
             libtbb-dev \
             python3-pip \
-            graphviz \
-            xmllint \
-            gawk
+            graphviz
 
           # Install specific valgrind version
           wget https://sourceware.org/pub/valgrind/valgrind-${{ env.VALGRIND_VERSION }}.tar.bz2
@@ -47,11 +47,19 @@ jobs:
 
           # Python tools
           python3 -m pip install --upgrade pip
-          python3 -m pip install gprof2dot==2021.2.21
+          python3 -m pip install \
+            valgrind-log-parser==1.0.0 \
+            gprof2dot==2021.2.21
+
+      - name: Cache Dependencies
+        uses: actions/cache@v3
+        with:
+          path: "**/cpm_modules"
+          key: valgrind-${{ runner.os }}-clang${{ env.LLVM_VERSION }}-${{ hashFiles('**/CMakeLists.txt') }}
 
       - name: Configure
         run: |
-          cmake -S all -B build \
+          cmake -S test -B build \
             -DCMAKE_BUILD_TYPE=Debug \
             -DCMAKE_C_COMPILER=clang-${{ env.LLVM_VERSION }} \
             -DCMAKE_CXX_COMPILER=clang++-${{ env.LLVM_VERSION }} \
@@ -93,8 +101,8 @@ jobs:
         id: memcheck
         continue-on-error: true
         run: |
-          mkdir -p build/reports/memcheck
           cd build
+          mkdir -p reports/memcheck
 
           echo "::group::Memory Check"
 
@@ -122,8 +130,8 @@ jobs:
         if: always()
         continue-on-error: true
         run: |
-          mkdir -p build/reports/perf
           cd build
+          mkdir -p reports/perf
 
           echo "::group::Performance Analysis"
 
@@ -155,40 +163,20 @@ jobs:
       - name: Generate Reports
         if: always()
         run: |
-          mkdir -p build/reports/summaries
           cd build
+          mkdir -p reports/summaries
 
-          # Process memcheck results using custom parsing
-          echo "=== Memory Analysis Summary ===" > reports/summaries/memory_summary.txt
-          for xml in reports/memcheck/*.xml; do
-            if [ -f "$xml" ]; then
-              {
-                echo "Results for: $(basename "$xml")"
-                echo "----------------"
-                # Extract error information
-                grep -A 2 "<error>" "$xml" | sed 's/<[^>]*>//g' || true
-                echo
-                # Extract leak information
-                grep -A 2 "<leak>" "$xml" | sed 's/<[^>]*>//g' || true
-                # Extract leak summary if available
-                awk '/<leak>/{p=1;next} /<\/leak>/{p=0} p{print}' "$xml" | \
-                  sed 's/<[^>]*>//g' | grep "definitely lost:" || true
-                echo "----------------"
-                echo
-              } >> reports/summaries/memory_summary.txt
-            fi
-          done
+          # Process memcheck results
+          python3 -m valgrind_log_parser reports/memcheck/*.xml > reports/summaries/memory_summary.txt
 
           # Process performance results with demangling
           for report in reports/perf/*_callgrind.out; do
-            [ -f "$report" ] || continue
             base_name=$(basename $report _callgrind.out)
             callgrind_annotate --auto=yes --tree=both $report | c++filt > reports/summaries/${base_name}_callgrind.txt
             gprof2dot -f callgrind $report | dot -Tsvg -o reports/summaries/${base_name}_callgraph.svg
           done
 
           for report in reports/perf/*_cachegrind.out; do
-            [ -f "$report" ] || continue
             base_name=$(basename $report _cachegrind.out)
             cg_annotate $report | c++filt > reports/summaries/${base_name}_cachegrind.txt
           done
@@ -196,11 +184,10 @@ jobs:
           # Create summary report
           {
             echo "=== Memory Analysis Summary ==="
-            cat reports/summaries/memory_summary.txt
+            grep -A 5 "LEAK SUMMARY" reports/summaries/memory_summary.txt || true
             echo
             echo "=== Performance Analysis Summary ==="
             for f in reports/summaries/*_callgrind.txt; do
-              [ -f "$f" ] || continue
               echo "--- $(basename $f) ---"
               head -n 20 $f
               echo
@@ -209,7 +196,7 @@ jobs:
 
       - name: Upload Analysis Results
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v3
         with:
           name: analysis-reports
           path: |
@@ -221,7 +208,7 @@ jobs:
         if: always()
         run: |
           cd build
-          if [ -f reports/summaries/memory_summary.txt ] && grep -q "definitely lost: [1-9][0-9]*" reports/summaries/memory_summary.txt; then
+          if grep -q "definitely lost: [1-9][0-9]*" reports/summaries/memory_summary.txt; then
             echo "::error::Memory leaks detected!"
             exit 1
           fi
