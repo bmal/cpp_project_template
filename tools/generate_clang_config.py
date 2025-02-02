@@ -24,22 +24,28 @@ def generate_clang_tidy():
         f.write('WarningsAsErrors: ""\n')
         f.write('HeaderFilterRegex: ""\n')
         f.write('FormatStyle: file\n')
-        f.write('Standard: c++23\n')
 
+        # Initialize CheckOptions with C++23 standard
+        check_options = {
+            'cppcoreguidelines.CppStandard': 'c++23'
+        }
         
-        # Add CheckOptions if present
+        # Add additional CheckOptions if present
         if 'CheckOptions' in clang_tidy:
-            f.write('CheckOptions:\n')
-            for key, value in sorted(clang_tidy['CheckOptions'].items()):
-                # Handle different value types (string, bool, int)
-                if isinstance(value, bool):
-                    value_str = str(value).lower()
-                elif isinstance(value, (int, float)):
-                    value_str = str(value)
-                else:
-                    value_str = f'"{value}"'
-                f.write(f'  - key: {key}\n')
-                f.write(f'    value: {value_str}\n')
+            check_options.update(clang_tidy['CheckOptions'])
+
+        # Write all CheckOptions
+        f.write('CheckOptions:\n')
+        for key, value in sorted(check_options.items()):
+            # Handle different value types (string, bool, int)
+            if isinstance(value, bool):
+                value_str = str(value).lower()
+            elif isinstance(value, (int, float)):
+                value_str = str(value)
+            else:
+                value_str = f'"{value}"'
+            f.write(f'  - key: {key}\n')
+            f.write(f'    value: {value_str}\n')
 
 if __name__ == '__main__':
     generate_clang_tidy()
