@@ -248,11 +248,10 @@ jobs:
           name: analysis-reports
           path: |
             build/reports/summaries/memory_summary.txt
-            build/reports/summaries/*callgrind.txt
-            build/reports/summaries/*cachegrind.txt
-            build/reports/summaries/*callgraph.svg
+            build/reports/summaries/summary.txt
             build/reports/summary.txt
             valgrind.supp
+            build/reports/summaries/
           retention-days: 14
 
       - name: Check for Leaks
