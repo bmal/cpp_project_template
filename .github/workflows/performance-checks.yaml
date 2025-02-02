@@ -157,13 +157,15 @@ jobs:
 
       - name: Build Project
         run: |
+          export CXXFLAGS="-std=c++2b -stdlib=libc++"
           cmake -S test -B build \
             -DCMAKE_BUILD_TYPE=Debug \
             -DCMAKE_CXX_COMPILER=clang++-${{ env.LLVM_VERSION }} \
-            -DCMAKE_CXX_FLAGS="-g3 -fno-inline-functions -fno-optimize-sibling-calls -fno-omit-frame-pointer -O1 -glldb -std=c++23 -stdlib=libc++" \
+            -DCMAKE_CXX_FLAGS="-g3 -fno-inline-functions -fno-optimize-sibling-calls -fno-omit-frame-pointer -O1 -glldb" \
             -DCMAKE_EXE_LINKER_FLAGS="-fuse-ld=lld-${{ env.LLVM_VERSION }} -stdlib=libc++" \
             -DCMAKE_MODULE_LINKER_FLAGS="-fuse-ld=lld-${{ env.LLVM_VERSION }} -stdlib=libc++" \
             -DCMAKE_SHARED_LINKER_FLAGS="-stdlib=libc++" \
+            -DCMAKE_CXX_STANDARD=23 \
             -DTesting_ENABLE_TESTING=ON \
             -DTesting_BUILD_BENCHMARKS=ON
 
