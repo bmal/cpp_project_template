@@ -163,12 +163,11 @@ jobs:
         continue-on-error: true
         run: |
           echo "::group::Memory Check"
-          ctest -T memcheck \
-            --output-on-failure \
-            --parallel $(nproc) \
-            --timeout 300 \
-            --overwrite MemoryCheckCommand=/usr/local/bin/valgrind \
-            --overwrite MemoryCheckCommandOptions="\
+          # Run tests directly with valgrind
+          for test in $(find . -type f -executable -name '*Test'); do
+            name=$(basename "$test")
+            echo "Running memory check for $name"
+            valgrind \
               --tool=memcheck \
               --leak-check=full \
               --show-leak-kinds=all \
@@ -176,9 +175,11 @@ jobs:
               --num-callers=50 \
               --error-exitcode=1 \
               --xml=yes \
-              --xml-file=reports/memcheck/test-\${TEST_NAME}.xml \
+              --xml-file="reports/memcheck/${name}.xml" \
               --suppressions=../valgrind.supp \
-              --demangle=yes"
+              --demangle=yes \
+              "$test"
+          done
           echo "::endgroup::"
 
       - name: Run Performance Analysis
@@ -215,42 +216,49 @@ jobs:
         if: always()
         working-directory: build
         run: |
-          # Process memory check results
-          python3 ../parse_valgrind.py > reports/summaries/memory_summary.txt
+          # Ensure directory exists
+          mkdir -p reports/summaries
 
-          # Process performance results - Callgrind
-          shopt -s nullglob  # Handle case of no matching files
-          for report in reports/perf/*_callgrind.out; do
-            if [ -f "$report" ]; then
-              name=$(basename "$report" _callgrind.out)
-              callgrind_annotate --auto=yes --tree=both "$report" | c++filt > "reports/summaries/${name}_callgrind.txt"
-              gprof2dot -f callgrind "$report" | dot -Tsvg > "reports/summaries/${name}_callgraph.svg"
-            fi
-          done
+          # Process memory check results if any exist
+          if [ -d "reports/memcheck" ] && [ "$(ls -A reports/memcheck)" ]; then
+            python3 ../parse_valgrind.py > reports/summaries/memory_summary.txt
+          else
+            echo "No memory check results found" > reports/summaries/memory_summary.txt
+          fi
 
-          # Process performance results - Cachegrind
-          for report in reports/perf/*_cachegrind.out; do
-            if [ -f "$report" ]; then
-              name=$(basename "$report" _cachegrind.out)
-              cg_annotate "$report" | c++filt > "reports/summaries/${name}_cachegrind.txt"
-            fi
-          done
-
-          # Create summary report
-          {
-            echo "=== Memory Analysis Summary ==="
-            cat reports/summaries/memory_summary.txt
-            echo -e "\n=== Performance Analysis Summary ==="
-            for f in reports/summaries/*_callgrind.txt; do
-              if [ -f "$f" ]; then
-                echo -e "\n--- $(basename "$f") ---"
-                head -n 20 "$f"
+          # Process performance results if any exist
+          if [ -d "reports/perf" ] && [ "$(ls -A reports/perf)" ]; then
+            # Process Callgrind results
+            for report in reports/perf/*_callgrind.out; do
+              if [ -f "$report" ]; then
+                name=$(basename "$report" _callgrind.out)
+                callgrind_annotate --auto=yes --tree=both "$report" | c++filt > "reports/summaries/${name}_callgrind.txt"
+                gprof2dot -f callgrind "$report" | dot -Tsvg > "reports/summaries/${name}_callgraph.svg"
               fi
             done
-          } > reports/summary.txt
 
-          # Remove empty files
-          find reports/summaries/ -type f -empty -delete
+            # Process Cachegrind results
+            for report in reports/perf/*_cachegrind.out; do
+              if [ -f "$report" ]; then
+                name=$(basename "$report" _cachegrind.out)
+                cg_annotate "$report" | c++filt > "reports/summaries/${name}_cachegrind.txt"
+              fi
+            done
+          else
+            echo "No performance analysis results found" > reports/summaries/perf_summary.txt
+          fi
+
+          # Create final summary
+          {
+            echo "=== Analysis Summary ==="
+            echo -e "\nMemory Check Results:"
+            cat reports/summaries/memory_summary.txt
+            
+            if [ -f "reports/summaries/perf_summary.txt" ]; then
+              echo -e "\nPerformance Analysis Results:"
+              cat reports/summaries/perf_summary.txt
+            fi
+          } > reports/summaries/summary.txt
 
       - name: Verify Reports Directory
         if: always()
