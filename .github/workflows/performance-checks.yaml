@@ -147,14 +147,13 @@ jobs:
         run: |
           cmake -S test -B build \
             -DCMAKE_BUILD_TYPE=Debug \
-            -DCMAKE_C_COMPILER=clang-${{ env.LLVM_VERSION }} \
             -DCMAKE_CXX_COMPILER=clang++-${{ env.LLVM_VERSION }} \
             -DCMAKE_CXX_FLAGS="-g3 -fno-inline-functions -fno-optimize-sibling-calls -fno-omit-frame-pointer -O1 -glldb -std=c++23 -stdlib=libc++" \
             -DCMAKE_EXE_LINKER_FLAGS="-fuse-ld=lld-${{ env.LLVM_VERSION }} -stdlib=libc++" \
             -DCMAKE_MODULE_LINKER_FLAGS="-fuse-ld=lld-${{ env.LLVM_VERSION }} -stdlib=libc++" \
             -DCMAKE_SHARED_LINKER_FLAGS="-stdlib=libc++" \
-            -DBUILD_TESTING=ON \
-            -DBUILD_BENCHMARKS=ON
+            -DTesting_ENABLE_TESTING=ON \
+            -DTesting_BUILD_BENCHMARKS=ON
 
           cmake --build build -j$(nproc)
 
@@ -163,10 +162,11 @@ jobs:
         continue-on-error: true
         run: |
           echo "::group::Memory Check"
-          # Run tests directly with valgrind
-          for test in $(find . -type f -executable -name '*Test'); do
-            name=$(basename "$test")
-            echo "Running memory check for $name"
+          mkdir -p reports/memcheck
+
+          # Run tests with valgrind
+          if [ -f "./TradingTests" ]; then
+            echo "Running memory check for TradingTests"
             valgrind \
               --tool=memcheck \
               --leak-check=full \
@@ -175,11 +175,13 @@ jobs:
               --num-callers=50 \
               --error-exitcode=1 \
               --xml=yes \
-              --xml-file="reports/memcheck/${name}.xml" \
+              --xml-file="reports/memcheck/TradingTests.xml" \
               --suppressions=../valgrind.supp \
               --demangle=yes \
-              "$test"
-          done
+              ./TradingTests
+          else
+            echo "No test executable found"
+          fi
           echo "::endgroup::"
 
       - name: Run Performance Analysis
@@ -188,27 +190,31 @@ jobs:
         continue-on-error: true
         run: |
           echo "::group::Performance Analysis"
-          for bench in $(find . -type f -executable -name '*Benchmark'); do
-            name=$(basename $bench)
-            
-            echo "Running Callgrind analysis for $name"
-            timeout 20m valgrind --tool=callgrind \
-              --dump-instr=yes \
-              --collect-jumps=yes \
-              --collect-systime=yes \
-              --callgrind-out-file=reports/perf/${name}_callgrind.out \
-              --fn-skip="__cxx_*" \
-              --fn-skip="std::*" \
-              $bench
-            
-            echo "Running Cachegrind analysis for $name"
-            timeout 20m valgrind --tool=cachegrind \
-              --branch-sim=yes \
-              --I1=32768,8,64 \
-              --D1=32768,8,64 \
-              --LL=8388608,16,64 \
-              --cachegrind-out-file=reports/perf/${name}_cachegrind.out \
-              $bench
+          mkdir -p reports/perf
+
+          # Find benchmark executables
+          find . -type f -executable -name '*Benchmark' | while read bench; do
+            if [ -x "$bench" ]; then
+              name=$(basename "$bench")
+              echo "Running Callgrind analysis for $name"
+              timeout 20m valgrind --tool=callgrind \
+                --dump-instr=yes \
+                --collect-jumps=yes \
+                --collect-systime=yes \
+                --callgrind-out-file="reports/perf/${name}_callgrind.out" \
+                --fn-skip="__cxx_*" \
+                --fn-skip="std::*" \
+                "$bench"
+              
+              echo "Running Cachegrind analysis for $name"
+              timeout 20m valgrind --tool=cachegrind \
+                --branch-sim=yes \
+                --I1=32768,8,64 \
+                --D1=32768,8,64 \
+                --LL=8388608,16,64 \
+                --cachegrind-out-file="reports/perf/${name}_cachegrind.out" \
+                "$bench"
+            fi
           done
           echo "::endgroup::"
 
