@@ -65,7 +65,7 @@ jobs:
           cmake -S all -B build \
             -DCMAKE_EXPORT_COMPILE_COMMANDS=ON \
             -DCMAKE_CXX_COMPILER=clang++ \
-            -DCMAKE_CXX_FLAGS="-march=native -mtune=native" -std=c++23" && \
+            -DCMAKE_CXX_FLAGS="-march=native -mtune=native -std=c++23" && \
           ln -sf build/compile_commands.json .
 
       - name: clang-tidy review
