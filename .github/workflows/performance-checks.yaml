@@ -155,21 +155,62 @@ jobs:
           chmod +x parse_valgrind.py
           mkdir -p build/reports/{memcheck,perf,summaries}
 
-      - name: Build Project
+- name: Build Project
         run: |
+          echo "=== Compiler Information ==="
+          clang++-${{ env.LLVM_VERSION }} -v
+          clang++-${{ env.LLVM_VERSION }} --print-search-dirs
+          
+          echo -e "\n=== LLVM Installation ==="
+          ls -la /usr/lib/llvm-${{ env.LLVM_VERSION }}/lib/
+          ls -la /usr/lib/x86_64-linux-gnu/libc++*
+          ls -la /usr/lib/x86_64-linux-gnu/libc++abi*
+          
+          echo -e "\n=== Library Search Paths ==="
+          ldconfig -p | grep -E "libc++|libpthread|libunwind"
+          
+          echo -e "\n=== Library Dependencies ==="
+          ldd /usr/lib/llvm-${{ env.LLVM_VERSION }}/lib/libc++.so.1 || true
+          ldd /usr/lib/llvm-${{ env.LLVM_VERSION }}/lib/libc++abi.so.1 || true
+          
+          echo -e "\n=== System Information ==="
+          cat /etc/os-release
+          uname -a
+          
+          echo -e "\n=== Environment Setup ==="
+          export LD_LIBRARY_PATH="/usr/lib/llvm-${{ env.LLVM_VERSION }}/lib:/usr/lib/x86_64-linux-gnu:${LD_LIBRARY_PATH:-}"
+          export LIBRARY_PATH="/usr/lib/llvm-${{ env.LLVM_VERSION }}/lib:/usr/lib/x86_64-linux-gnu:${LIBRARY_PATH:-}"
           export CXXFLAGS="-std=c++2b -stdlib=libc++"
+          export LDFLAGS="-L/usr/lib/llvm-${{ env.LLVM_VERSION }}/lib -L/usr/lib/x86_64-linux-gnu"
+          
+          echo "LD_LIBRARY_PATH=$LD_LIBRARY_PATH"
+          echo "LIBRARY_PATH=$LIBRARY_PATH"
+          echo "CXXFLAGS=$CXXFLAGS"
+          echo "LDFLAGS=$LDFLAGS"
+          
+          echo -e "\n=== CMake Configuration ==="
           cmake -S test -B build \
             -DCMAKE_BUILD_TYPE=Debug \
             -DCMAKE_CXX_COMPILER=clang++-${{ env.LLVM_VERSION }} \
             -DCMAKE_CXX_FLAGS="-g3 -fno-inline-functions -fno-optimize-sibling-calls -fno-omit-frame-pointer -O1 -glldb" \
-            -DCMAKE_EXE_LINKER_FLAGS="-fuse-ld=lld-${{ env.LLVM_VERSION }} -L/usr/lib/llvm-${{ env.LLVM_VERSION }}/lib -stdlib=libc++ -Wl,--whole-archive -lpthread -Wl,--no-whole-archive" \
-            -DCMAKE_MODULE_LINKER_FLAGS="-fuse-ld=lld-${{ env.LLVM_VERSION }} -L/usr/lib/llvm-${{ env.LLVM_VERSION }}/lib -stdlib=libc++" \
-            -DCMAKE_SHARED_LINKER_FLAGS="-L/usr/lib/llvm-${{ env.LLVM_VERSION }}/lib -stdlib=libc++" \
+            -DCMAKE_EXE_LINKER_FLAGS="-fuse-ld=lld-${{ env.LLVM_VERSION }} -stdlib=libc++ -L/usr/lib/llvm-${{ env.LLVM_VERSION }}/lib -L/usr/lib/x86_64-linux-gnu -Wl,--start-group -lc++ -lc++abi -pthread -lunwind -Wl,--end-group -Wl,-rpath,/usr/lib/llvm-${{ env.LLVM_VERSION }}/lib" \
+            -DCMAKE_MODULE_LINKER_FLAGS="-fuse-ld=lld-${{ env.LLVM_VERSION }} -stdlib=libc++" \
+            -DCMAKE_SHARED_LINKER_FLAGS="-stdlib=libc++" \
             -DCMAKE_CXX_STANDARD=23 \
-            -DTesting_ENABLE_TESTING=ON \
-            -DTesting_BUILD_BENCHMARKS=ON
-
-          cmake --build build -j$(nproc) -- VERBOSE=1
+            -DCMAKE_VERBOSE_MAKEFILE=ON
+          
+          echo -e "\n=== CMake Build ==="
+          cmake --build build -j$(nproc)
+          
+          echo -e "\n=== Verify Build Output ==="
+          if [ -f "build/TradingTests" ]; then
+            echo "Build succeeded, checking dependencies:"
+            ldd build/TradingTests
+            file build/TradingTests
+          else
+            echo "Build failed, executable not found"
+            exit 1
+          fi
 
       - name: Run Memory Analysis
         working-directory: build
