@@ -155,40 +155,31 @@ jobs:
           chmod +x parse_valgrind.py
           mkdir -p build/reports/{memcheck,perf,summaries}
 
-- name: Build Project
+      - name: Build Project
         run: |
-          echo "=== Compiler Information ==="
-          clang++-${{ env.LLVM_VERSION }} -v
-          clang++-${{ env.LLVM_VERSION }} --print-search-dirs
-          
-          echo -e "\n=== LLVM Installation ==="
-          ls -la /usr/lib/llvm-${{ env.LLVM_VERSION }}/lib/
-          ls -la /usr/lib/x86_64-linux-gnu/libc++*
-          ls -la /usr/lib/x86_64-linux-gnu/libc++abi*
-          
-          echo -e "\n=== Library Search Paths ==="
-          ldconfig -p | grep -E "libc++|libpthread|libunwind"
-          
-          echo -e "\n=== Library Dependencies ==="
-          ldd /usr/lib/llvm-${{ env.LLVM_VERSION }}/lib/libc++.so.1 || true
-          ldd /usr/lib/llvm-${{ env.LLVM_VERSION }}/lib/libc++abi.so.1 || true
-          
-          echo -e "\n=== System Information ==="
-          cat /etc/os-release
-          uname -a
-          
-          echo -e "\n=== Environment Setup ==="
+          echo "=== Compiler Information ===" >> $GITHUB_STEP_SUMMARY
+          clang++-${{ env.LLVM_VERSION }} -v >> $GITHUB_STEP_SUMMARY 2>&1
+          clang++-${{ env.LLVM_VERSION }} --print-search-dirs >> $GITHUB_STEP_SUMMARY
+
+          echo -e "\n=== LLVM Installation ===" >> $GITHUB_STEP_SUMMARY
+          ls -la /usr/lib/llvm-${{ env.LLVM_VERSION }}/lib/ >> $GITHUB_STEP_SUMMARY
+          ls -la /usr/lib/x86_64-linux-gnu/libc++* >> $GITHUB_STEP_SUMMARY 2>&1
+          ls -la /usr/lib/x86_64-linux-gnu/libc++abi* >> $GITHUB_STEP_SUMMARY 2>&1
+
+          echo -e "\n=== Library Search Paths ===" >> $GITHUB_STEP_SUMMARY
+          ldconfig -p | grep -E "libc++|libpthread|libunwind" >> $GITHUB_STEP_SUMMARY
+
+          echo -e "\n=== Library Dependencies ===" >> $GITHUB_STEP_SUMMARY
+          ldd /usr/lib/llvm-${{ env.LLVM_VERSION }}/lib/libc++.so.1 >> $GITHUB_STEP_SUMMARY 2>&1 || true
+          ldd /usr/lib/llvm-${{ env.LLVM_VERSION }}/lib/libc++abi.so.1 >> $GITHUB_STEP_SUMMARY 2>&1 || true
+
+          # Set up environment variables
           export LD_LIBRARY_PATH="/usr/lib/llvm-${{ env.LLVM_VERSION }}/lib:/usr/lib/x86_64-linux-gnu:${LD_LIBRARY_PATH:-}"
           export LIBRARY_PATH="/usr/lib/llvm-${{ env.LLVM_VERSION }}/lib:/usr/lib/x86_64-linux-gnu:${LIBRARY_PATH:-}"
           export CXXFLAGS="-std=c++2b -stdlib=libc++"
           export LDFLAGS="-L/usr/lib/llvm-${{ env.LLVM_VERSION }}/lib -L/usr/lib/x86_64-linux-gnu"
-          
-          echo "LD_LIBRARY_PATH=$LD_LIBRARY_PATH"
-          echo "LIBRARY_PATH=$LIBRARY_PATH"
-          echo "CXXFLAGS=$CXXFLAGS"
-          echo "LDFLAGS=$LDFLAGS"
-          
-          echo -e "\n=== CMake Configuration ==="
+
+          # Configure and build
           cmake -S test -B build \
             -DCMAKE_BUILD_TYPE=Debug \
             -DCMAKE_CXX_COMPILER=clang++-${{ env.LLVM_VERSION }} \
@@ -198,18 +189,14 @@ jobs:
             -DCMAKE_SHARED_LINKER_FLAGS="-stdlib=libc++" \
             -DCMAKE_CXX_STANDARD=23 \
             -DCMAKE_VERBOSE_MAKEFILE=ON
-          
-          echo -e "\n=== CMake Build ==="
-          cmake --build build -j$(nproc)
-          
-          echo -e "\n=== Verify Build Output ==="
+
+          cmake --build build -j$(nproc) -- VERBOSE=1
+
+          # Verify build output
           if [ -f "build/TradingTests" ]; then
-            echo "Build succeeded, checking dependencies:"
-            ldd build/TradingTests
-            file build/TradingTests
-          else
-            echo "Build failed, executable not found"
-            exit 1
+            echo -e "\n=== Build Output Information ===" >> $GITHUB_STEP_SUMMARY
+            ldd build/TradingTests >> $GITHUB_STEP_SUMMARY
+            file build/TradingTests >> $GITHUB_STEP_SUMMARY
           fi
 
       - name: Run Memory Analysis
