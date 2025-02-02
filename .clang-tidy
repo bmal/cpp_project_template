@@ -3,6 +3,7 @@ Checks: 'modernize-*,readability-*,bugprone-*,performance-*,clang-analyzer-*,cpp
 WarningsAsErrors: ""
 HeaderFilterRegex: ""
 FormatStyle: file
+Standard: c++23
 CheckOptions:
   - key: cppcoreguidelines-non-private-member-variables-in-classes.IgnoreClassesWithAllMemberVariablesBeingPublic
     value: true
