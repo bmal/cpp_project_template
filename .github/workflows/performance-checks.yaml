@@ -218,16 +218,22 @@ jobs:
           # Process memory check results
           python3 ../parse_valgrind.py > reports/summaries/memory_summary.txt
 
-          # Process performance results
+          # Process performance results - Callgrind
+          shopt -s nullglob  # Handle case of no matching files
           for report in reports/perf/*_callgrind.out; do
-            name=$(basename "$report" _callgrind.out)
-            callgrind_annotate --auto=yes --tree=both "$report" | c++filt > "reports/summaries/${name}_callgrind.txt"
-            gprof2dot -f callgrind "$report" | dot -Tsvg > "reports/summaries/${name}_callgraph.svg"
+            if [ -f "$report" ]; then
+              name=$(basename "$report" _callgrind.out)
+              callgrind_annotate --auto=yes --tree=both "$report" | c++filt > "reports/summaries/${name}_callgrind.txt"
+              gprof2dot -f callgrind "$report" | dot -Tsvg > "reports/summaries/${name}_callgraph.svg"
+            fi
           done
 
+          # Process performance results - Cachegrind
           for report in reports/perf/*_cachegrind.out; do
-            name=$(basename "$report" _cachegrind.out)
-            cg_annotate "$report" | c++filt > "reports/summaries/${name}_cachegrind.txt"
+            if [ -f "$report" ]; then
+              name=$(basename "$report" _cachegrind.out)
+              cg_annotate "$report" | c++filt > "reports/summaries/${name}_cachegrind.txt"
+            fi
           done
 
           # Create summary report
@@ -236,10 +242,15 @@ jobs:
             cat reports/summaries/memory_summary.txt
             echo -e "\n=== Performance Analysis Summary ==="
             for f in reports/summaries/*_callgrind.txt; do
-              echo -e "\n--- $(basename "$f") ---"
-              head -n 20 "$f"
+              if [ -f "$f" ]; then
+                echo -e "\n--- $(basename "$f") ---"
+                head -n 20 "$f"
+              fi
             done
           } > reports/summary.txt
+
+          # Remove empty files
+          find reports/summaries/ -type f -empty -delete
 
       - name: Verify Reports Directory
         if: always()
