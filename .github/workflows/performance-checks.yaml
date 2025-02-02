@@ -163,15 +163,17 @@ jobs:
           export CXXFLAGS="-stdlib=libc++"
           export LDFLAGS="-fuse-ld=lld-16"
 
-          # Ensure proper library paths
-          export LD_LIBRARY_PATH="/usr/lib/llvm-16/lib:/usr/lib/x86_64-linux-gnu:${LD_LIBRARY_PATH:-}"
-          export LIBRARY_PATH="/usr/lib/llvm-16/lib:/usr/lib/x86_64-linux-gnu:${LIBRARY_PATH:-}"
-
-          # Configure with correct flags
+          # Configure with Valgrind-compatible debug flags
           cmake -S test -B build \
             -DCMAKE_BUILD_TYPE=Debug \
             -DCMAKE_CXX_COMPILER=clang++-16 \
-            -DCMAKE_CXX_FLAGS="-g3 -fno-inline-functions -fno-optimize-sibling-calls -fno-omit-frame-pointer -O1 -glldb -stdlib=libc++" \
+            -DCMAKE_CXX_FLAGS="\
+              -stdlib=libc++ \
+              -gdwarf-4 \
+              -fno-omit-frame-pointer \
+              -fno-optimize-sibling-calls \
+              -fno-inline \
+              -O1" \
             -DCMAKE_EXE_LINKER_FLAGS="\
               -fuse-ld=lld-16 \
               -stdlib=libc++ \
@@ -181,14 +183,7 @@ jobs:
             -DCMAKE_CXX_STANDARD=23 \
             -DCMAKE_VERBOSE_MAKEFILE=ON
 
-          # Build with verbose output
           cmake --build build -j$(nproc) --verbose
-
-          # Verify the build output
-          if [ -f "build/TradingTests" ]; then
-            echo -e "\n=== Build Output Information ===" >> $GITHUB_STEP_SUMMARY
-            ldd build/TradingTests >> $GITHUB_STEP_SUMMARY
-          fi
 
       - name: Run Memory Analysis
         working-directory: build
@@ -205,12 +200,15 @@ jobs:
               --leak-check=full \
               --show-leak-kinds=all \
               --track-origins=yes \
-              --num-callers=50 \
+              --num-callers=20 \
               --error-exitcode=1 \
               --xml=yes \
               --xml-file="reports/memcheck/TradingTests.xml" \
               --suppressions=../valgrind.supp \
               --demangle=yes \
+              --read-inline-info=no \
+              --read-var-info=no \
+              --smc-check=all \
               ./TradingTests
           else
             echo "No test executable found"
