@@ -6,6 +6,8 @@ on:
   push:
     branches:
       - "**"
+    paths-ignore:
+      - "refs/pull/**"
 
 # Add top-level permissions
 permissions:
@@ -33,13 +35,26 @@ env:
 
 jobs:
   determine-scope:
-    if: github.event_name == 'pull_request' || (github.event_name == 'push' && !contains(github.ref, 'refs/pull/'))
+    if: |
+      github.event_name == 'pull_request' ||
+      (github.event_name == 'push' && !contains(github.ref, 'refs/pull/'))
     runs-on: ubuntu-latest
     outputs:
       run-comprehensive: ${{ steps.check.outputs.run-comprehensive }}
+      should-run: ${{ steps.check.outputs.should-run }}
     steps:
       - id: check
         run: |
+          # Determine if this is a PR push or direct push
+          if [[ "${{ github.event_name }}" == "pull_request" ]]; then
+            echo "should-run=true" >> $GITHUB_OUTPUT
+          elif [[ "${{ github.event_name }}" == "push" && ! "${{ github.ref }}" =~ ^refs/pull/ ]]; then
+            echo "should-run=true" >> $GITHUB_OUTPUT
+          else
+            echo "should-run=false" >> $GITHUB_OUTPUT
+          fi
+
+          # Determine comprehensive checks
           if [[ "${{ github.event_name }}" == "pull_request" ]] || [[ "${{ github.ref }}" == "refs/heads/master" ]] || [[ "${{ github.ref }}" == "refs/heads/main" ]]; then
             echo "run-comprehensive=true" >> $GITHUB_OUTPUT
           else
@@ -48,6 +63,7 @@ jobs:
 
   essential-checks:
     needs: determine-scope
+    if: needs.determine-scope.outputs.should-run == 'true'
     uses: ./.github/workflows/essential-checks.yaml
     permissions:
       checks: write
@@ -56,7 +72,9 @@ jobs:
 
   comprehensive-checks:
     needs: [determine-scope, essential-checks]
-    if: needs.determine-scope.outputs.run-comprehensive == 'true'
+    if: |
+      needs.determine-scope.outputs.should-run == 'true' &&
+      needs.determine-scope.outputs.run-comprehensive == 'true'
     uses: ./.github/workflows/comprehensive-checks.yaml
     permissions:
       checks: write
