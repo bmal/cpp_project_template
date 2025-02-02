@@ -64,9 +64,13 @@ jobs:
         run: |
           cmake -S all -B build \
             -DCMAKE_EXPORT_COMPILE_COMMANDS=ON \
-            -DCMAKE_CXX_COMPILER=clang++ \
+            -DCMAKE_CXX_COMPILER=clang++-${{ env.LLVM_VERSION }} \
             -DCMAKE_CXX_STANDARD=23 \
-            -DCMAKE_CXX_FLAGS="-march=native -mtune=native" && \
+            -DCMAKE_CXX_STANDARD_REQUIRED=ON \
+            -DCMAKE_CXX_EXTENSIONS=OFF \
+            -DCMAKE_CXX_FLAGS="-march=native -mtune=native -stdlib=libc++" \
+            -DCMAKE_EXE_LINKER_FLAGS="-stdlib=libc++" \
+            -DCMAKE_SHARED_LINKER_FLAGS="-stdlib=libc++" && \
           ln -sf build/compile_commands.json .
 
       - name: clang-tidy review
@@ -80,6 +84,7 @@ jobs:
           lgtm_comment_body: 'clang-tidy review says "All clean, LGTM! :+1:"'
           max_comments: 25
           cmake_command: "" # Empty because we already configured CMake
+          clang_tidy_checks: "" # Use the checks from .clang-tidy file
 
       - name: Run clang-tidy directly
         if: github.event_name == 'push'

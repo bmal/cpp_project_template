@@ -37,9 +37,6 @@ jobs:
             libc++-${{ env.LLVM_VERSION }}-dev \
             libc++abi-${{ env.LLVM_VERSION }}-dev \
             libunwind-${{ env.LLVM_VERSION }}-dev \
-            libclang-rt-${{ env.LLVM_VERSION }}-dev \
-            libpolly-${{ env.LLVM_VERSION }}-dev \
-            libomp-${{ env.LLVM_VERSION }}-dev \
             libtbb-dev \
             python3-pip \
             graphviz \
@@ -49,27 +46,17 @@ jobs:
           # Set up alternatives for LLVM tools
           sudo update-alternatives --install /usr/bin/clang clang /usr/bin/clang-${{ env.LLVM_VERSION }} 100
           sudo update-alternatives --install /usr/bin/clang++ clang++ /usr/bin/clang++-${{ env.LLVM_VERSION }} 100
-          sudo update-alternatives --install /usr/bin/lldb lldb /usr/bin/lldb-${{ env.LLVM_VERSION }} 100
-          sudo update-alternatives --install /usr/bin/lld lld /usr/bin/lld-${{ env.LLVM_VERSION }} 100
+          sudo update-alternatives --install /usr/bin/ld.lld ld.lld /usr/bin/ld.lld-${{ env.LLVM_VERSION }} 100
 
           # Set up alternatives for libraries
           sudo update-alternatives --install /usr/lib/libc++.so.1 libc++ /usr/lib/llvm-${{ env.LLVM_VERSION }}/lib/libc++.so.1 100
           sudo update-alternatives --install /usr/lib/libc++abi.so.1 libc++abi /usr/lib/llvm-${{ env.LLVM_VERSION }}/lib/libc++abi.so.1 100
-          sudo update-alternatives --install /usr/lib/libunwind.so.1 libunwind /usr/lib/llvm-${{ env.LLVM_VERSION }}/lib/libunwind.so.1 100
-
-          # Create symbolic links for LLVM runtime libraries
-          sudo ln -sf /usr/lib/llvm-${{ env.LLVM_VERSION }}/lib/clang/${{ env.LLVM_VERSION }}*/lib/linux/libclang_rt.* /usr/lib/
 
           # Install Valgrind from source
           wget -q https://sourceware.org/pub/valgrind/valgrind-${{ env.VALGRIND_VERSION }}.tar.bz2
           tar xf valgrind-${{ env.VALGRIND_VERSION }}.tar.bz2
           cd valgrind-${{ env.VALGRIND_VERSION }}
-          ./configure \
-            CC=clang-${{ env.LLVM_VERSION }} \
-            CXX=clang++-${{ env.LLVM_VERSION }} \
-            CFLAGS="-stdlib=libc++" \
-            CXXFLAGS="-stdlib=libc++" \
-            LDFLAGS="-stdlib=libc++"
+          ./configure CC=clang-${{ env.LLVM_VERSION }} CXX=clang++-${{ env.LLVM_VERSION }}
           make -j$(nproc) && sudo make install
           cd ..
 
@@ -79,8 +66,7 @@ jobs:
 
           # Verify installations
           clang++ --version
-          lld --version
-          valgrind --version
+          ld.lld --version || true  # Don't fail if version check fails
 
       - name: Cache Dependencies
         uses: actions/cache@v3

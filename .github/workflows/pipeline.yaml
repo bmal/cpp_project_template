@@ -31,7 +31,7 @@ env:
   LSAN_OPTIONS: print_suppressions=1:report_objects=1
   # Tool versions
   VALGRIND_VERSION: 3.19.0
-  LLVM_VERSION: 15
+  LLVM_VERSION: 17
 
 jobs:
   determine-scope:
