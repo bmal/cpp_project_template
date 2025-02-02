@@ -241,15 +241,25 @@ jobs:
             done
           } > reports/summary.txt
 
+      - name: Verify Reports Directory
+        if: always()
+        run: |
+          if [ ! -d build/reports/summaries ]; then
+            echo "Reports directory does not exist. Skipping upload."
+            exit 0
+          fi
+
+      - name: List Files to Upload
+        if: always()
+        run: ls -lh build/reports/summaries/
+
       - name: Upload Results
         if: always()
         uses: actions/upload-artifact@v4
         with:
           name: analysis-reports
-          path: |
-            build/reports/summaries/
-            valgrind.supp
-          retention-days: 14
+          path: build/reports/summaries/
+          retention-days: 3
 
       - name: Check for Leaks
         if: always()
