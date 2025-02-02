@@ -3,13 +3,13 @@ name: Pipeline
 on:
   pull_request:
     branches: [master, main]
+    types: [opened, synchronize] # Explicitly define PR event types
   push:
     branches:
       - "**"
     paths-ignore:
       - "refs/pull/**"
 
-# Add top-level permissions
 permissions:
   checks: write
   pull-requests: write
@@ -35,9 +35,10 @@ env:
 
 jobs:
   determine-scope:
+    # Modified condition to prevent double-triggering on PR pushes
     if: |
-      github.event_name == 'pull_request' ||
-      (github.event_name == 'push' && !contains(github.ref, 'refs/pull/'))
+      (github.event_name == 'pull_request') ||
+      (github.event_name == 'push' && !contains(github.ref, 'refs/pull/') && !contains(github.ref, 'refs/heads/pull/'))
     runs-on: ubuntu-latest
     outputs:
       run-comprehensive: ${{ steps.check.outputs.run-comprehensive }}
@@ -48,7 +49,7 @@ jobs:
           # Determine if this is a PR push or direct push
           if [[ "${{ github.event_name }}" == "pull_request" ]]; then
             echo "should-run=true" >> $GITHUB_OUTPUT
-          elif [[ "${{ github.event_name }}" == "push" && ! "${{ github.ref }}" =~ ^refs/pull/ ]]; then
+          elif [[ "${{ github.event_name }}" == "push" && ! "${{ github.ref }}" =~ ^refs/pull/ && ! "${{ github.ref }}" =~ ^refs/heads/pull/ ]]; then
             echo "should-run=true" >> $GITHUB_OUTPUT
           else
             echo "should-run=false" >> $GITHUB_OUTPUT
