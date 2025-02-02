@@ -7,7 +7,7 @@ env:
   CTEST_OUTPUT_ON_FAILURE: 1
   CPM_SOURCE_CACHE: ${{ github.workspace }}/cpm_modules
   VALGRIND_VERSION: 3.19.0
-  LLVM_VERSION: 17 # Updated to Clang 17
+  LLVM_VERSION: 16 # Updated to Clang 17
 
 jobs:
   valgrind:
