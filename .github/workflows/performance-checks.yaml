@@ -7,7 +7,7 @@ env:
   CTEST_OUTPUT_ON_FAILURE: 1
   CPM_SOURCE_CACHE: ${{ github.workspace }}/cpm_modules
   VALGRIND_VERSION: 3.19.0
-  LLVM_VERSION: 15
+  LLVM_VERSION: 17 # Updated to Clang 17
 
 jobs:
   valgrind:
@@ -21,6 +21,10 @@ jobs:
 
       - name: Install Dependencies
         run: |
+          # Add LLVM repository
+          wget -O - https://apt.llvm.org/llvm-snapshot.gpg.key | sudo apt-key add -
+          sudo add-apt-repository "deb http://apt.llvm.org/jammy/ llvm-toolchain-jammy-${{ env.LLVM_VERSION }} main"
+
           # System packages
           sudo apt-get update
           sudo apt-get install -y \
@@ -28,10 +32,16 @@ jobs:
             lld-${{ env.LLVM_VERSION }} \
             libc++-${{ env.LLVM_VERSION }}-dev \
             libc++abi-${{ env.LLVM_VERSION }}-dev \
+            libunwind-${{ env.LLVM_VERSION }}-dev \
             libtbb-dev \
             python3-pip \
             graphviz \
             libxml2-utils
+
+          # Set Clang as default
+          sudo update-alternatives --install /usr/bin/clang clang /usr/bin/clang-${{ env.LLVM_VERSION }} 100
+          sudo update-alternatives --install /usr/bin/clang++ clang++ /usr/bin/clang++-${{ env.LLVM_VERSION }} 100
+          sudo update-alternatives --install /usr/bin/lld lld /usr/bin/lld-${{ env.LLVM_VERSION }} 100
 
           # Valgrind installation
           wget -q https://sourceware.org/pub/valgrind/valgrind-${{ env.VALGRIND_VERSION }}.tar.bz2
@@ -125,9 +135,9 @@ jobs:
             -DCMAKE_BUILD_TYPE=Debug \
             -DCMAKE_C_COMPILER=clang-${{ env.LLVM_VERSION }} \
             -DCMAKE_CXX_COMPILER=clang++-${{ env.LLVM_VERSION }} \
-            -DCMAKE_CXX_FLAGS="-g3 -fno-inline-functions -fno-optimize-sibling-calls -fno-omit-frame-pointer -O1 -glldb -std=c++2b" \
-            -DCMAKE_EXE_LINKER_FLAGS="-fuse-ld=lld" \
-            -DCMAKE_MODULE_LINKER_FLAGS="-fuse-ld=lld" \
+            -DCMAKE_CXX_FLAGS="-g3 -fno-inline-functions -fno-optimize-sibling-calls -fno-omit-frame-pointer -O1 -glldb -std=c++23" \
+            -DCMAKE_EXE_LINKER_FLAGS="-fuse-ld=lld-${{ env.LLVM_VERSION }}" \
+            -DCMAKE_MODULE_LINKER_FLAGS="-fuse-ld=lld-${{ env.LLVM_VERSION }}" \
             -DBUILD_TESTING=ON \
             -DBUILD_BENCHMARKS=ON
 
