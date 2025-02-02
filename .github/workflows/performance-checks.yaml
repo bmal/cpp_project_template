@@ -7,7 +7,7 @@ env:
   CTEST_OUTPUT_ON_FAILURE: 1
   CPM_SOURCE_CACHE: ${{ github.workspace }}/cpm_modules
   VALGRIND_VERSION: 3.19.0
-  LLVM_VERSION: 16 # Updated to Clang 17
+  LLVM_VERSION: 16
 
 jobs:
   valgrind:
@@ -37,11 +37,19 @@ jobs:
             libc++-${{ env.LLVM_VERSION }}-dev \
             libc++abi-${{ env.LLVM_VERSION }}-dev \
             libunwind-${{ env.LLVM_VERSION }}-dev \
+            libclang-rt-${{ env.LLVM_VERSION }}-dev \
+            libclang-${{ env.LLVM_VERSION }}-dev \
+            libllvm-${{ env.LLVM_VERSION }}-ocaml-dev \
+            llvm-${{ env.LLVM_VERSION }}-dev \
+            llvm-${{ env.LLVM_VERSION }}-runtime \
             libtbb-dev \
             python3-pip \
             graphviz \
             libxml2-utils \
             ninja-build
+
+          # Ensure all LLVM components are properly linked
+          sudo ln -sf /usr/lib/llvm-${{ env.LLVM_VERSION }}/lib/clang /usr/lib/clang
 
           # Set up alternatives for LLVM tools
           sudo update-alternatives --install /usr/bin/clang clang /usr/bin/clang-${{ env.LLVM_VERSION }} 100
@@ -67,6 +75,10 @@ jobs:
           # Verify installations
           clang++ --version
           ld.lld --version || true  # Don't fail if version check fails
+
+          # Display LLVM installation information
+          ls -l /usr/lib/llvm-${{ env.LLVM_VERSION }}/lib/
+          ls -l /usr/lib/clang/
 
       - name: Cache Dependencies
         uses: actions/cache@v3
