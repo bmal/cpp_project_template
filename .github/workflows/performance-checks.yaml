@@ -31,9 +31,7 @@ jobs:
           # Install debug symbols for Valgrind
           sudo apt-get install -y \
             libc6-dbg \
-            libc6-dbg:i386 \
-            linux-libc-dev \
-            linux-libc-dev:i386
+            linux-libc-dev
 
           # Install required packages
           sudo apt-get install -y \
