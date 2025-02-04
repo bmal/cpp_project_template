@@ -22,7 +22,6 @@ jobs:
           - sanitizer: Undefined
             build_type: Release
             cache_key: ubsan
-          # Proper way to pass multiple sanitizers
           - sanitizer: '"Address\;Undefined"'
             build_type: Debug
             cache_key: asan_ubsan
@@ -85,30 +84,21 @@ jobs:
             -DCMAKE_MODULE_LINKER_FLAGS="-fuse-ld=lld" \
             -DCMAKE_VERBOSE_MAKEFILE=ON
 
-          echo "=== Generated compile commands ==="
-          if [ -f build/compile_commands.json ]; then
-            cat build/compile_commands.json | grep -E "command|file"
-          fi
-
       - name: Build
         shell: bash
         run: |
           echo "=== Build with verbose output ==="
-          cmake --build build -j$(nproc) VERBOSE=1
+          cmake --build build -j$(nproc) --verbose
 
       - name: Test
         shell: bash
         run: |
           cd build
-          echo "=== Test execution ==="
-          echo "Current environment:"
-          env | grep -E "ASAN_OPTIONS|UBSAN_OPTIONS|TSAN_OPTIONS"
-          echo "=== Running tests ==="
-          TSAN_OPTIONS="$TSAN_OPTIONS:log_path=thread_sanitizer.log:verbosity=2" \
+          echo "=== Test execution with sanitizer ==="
+          ASAN_OPTIONS="${ASAN_OPTIONS}:log_path=asan.log:verbosity=1" \
+          UBSAN_OPTIONS="${UBSAN_OPTIONS}:log_path=ubsan.log:verbosity=1" \
+          TSAN_OPTIONS="${TSAN_OPTIONS}:log_path=tsan.log:verbosity=1" \
           ctest --output-on-failure --timeout 300 --repeat until-pass:2 --output-junit test-results.xml
-
-          echo "=== Checking for sanitizer outputs in current directory ==="
-          find . -type f -name "*san*.log*" -ls
 
       - name: Process Sanitizer Results
         if: always()
@@ -120,14 +110,11 @@ jobs:
           echo "=== Looking for sanitizer outputs ==="
           find . -type f \( -name "*sanitizer*.log*" -o -name "*san*.log*" -o -name "asan.*" -o -name "ubsan.*" -o -name "tsan.*" \) -ls
 
-          # Collect all sanitizer output files with broader pattern matching
+          # Collect all sanitizer output files
           find . -type f \( -name "*sanitizer*.log*" -o -name "*san*.log*" -o -name "asan.*" -o -name "ubsan.*" -o -name "tsan.*" \) \
             -exec cp {} reports/sanitizer/ \;
 
-          echo "=== Directory listing of reports/sanitizer ==="
-          ls -la reports/sanitizer/
-
-          # Create summary with more debug info
+          # Create summary
           {
             echo "=== Sanitizer Summary ==="
             echo
@@ -138,9 +125,7 @@ jobs:
             env | grep -E "ASAN_OPTIONS|UBSAN_OPTIONS|TSAN_OPTIONS" || echo "No sanitizer options set"
             echo
             echo "=== CMake Cache Values ==="
-            if [ -f "CMakeCache.txt" ]; then
-              grep -E "SANITIZER|CXX_FLAGS|LINKER_FLAGS" CMakeCache.txt || echo "No relevant cache entries found"
-            fi
+            grep -E "SANITIZER|CXX_FLAGS|LINKER_FLAGS" CMakeCache.txt || echo "No relevant cache entries found"
             echo
             echo "=== Log Contents ==="
             if [ -d "reports/sanitizer" ] && [ "$(ls -A reports/sanitizer)" ]; then
