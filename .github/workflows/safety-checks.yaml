@@ -79,7 +79,7 @@ jobs:
           cmake -S test -B build \
             -DCMAKE_BUILD_TYPE=${{ matrix.build_type }} \
             -DUSE_SANITIZER="$SANITIZER" \
-            -DCMAKE_CXX_FLAGS="-march=native -mtune=native -fno-omit-frame-pointer -fno-optimize-sibling-calls -stdlib=libstdc++" \
+            -DCMAKE_CXX_FLAGS="-march=native -mtune=native -fno-omit-frame-pointer -fno-optimize-sibling-calls -stdlib=libstdc++ -g" \
             -DCMAKE_EXE_LINKER_FLAGS="-fuse-ld=lld" \
             -DCMAKE_MODULE_LINKER_FLAGS="-fuse-ld=lld" \
             -DCMAKE_VERBOSE_MAKEFILE=ON
