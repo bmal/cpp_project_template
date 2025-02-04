@@ -255,22 +255,23 @@ jobs:
           append_if_exists "reports/massif/analysis.txt" "Memory Usage Patterns"
 
       - name: Detailed Analysis
+        working-directory: build # Add this line to set working directory
         run: |
           echo "Starting detailed analysis..."
 
           # Directory structure check
           echo "Checking directory structure:"
-          find analysis-results -type d -ls
+          find reports -type d -ls || echo "No reports directory found"
 
           # File check
           echo "Checking all result files:"
-          find analysis-results -type f -ls
+          find reports -type f -ls || echo "No report files found"
 
           # Memory check diagnostics
           echo "Memory check file content check:"
-          for f in $(find analysis-results -name "results.xml" -path "*/memcheck/*"); do
+          for f in $(find reports -name "results.xml" -path "*/memcheck/*" 2>/dev/null); do
             echo "Found memcheck file: $f"
-            echo "File size: $(stat -f%z "$f") bytes"
+            echo "File size: $(stat -f%z "$f" 2>/dev/null || stat --format="%s" "$f") bytes"
             echo "First 20 lines:"
             head -n 20 "$f"
             echo "Searching for leak indicators:"
@@ -281,9 +282,9 @@ jobs:
 
           # Thread check diagnostics
           echo "Thread check file content check:"
-          for f in $(find analysis-results -name "results.xml" -path "*/helgrind/*"); do
+          for f in $(find reports -name "results.xml" -path "*/helgrind/*" 2>/dev/null); do
             echo "Found helgrind file: $f"
-            echo "File size: $(stat -f%z "$f") bytes"
+            echo "File size: $(stat -f%z "$f" 2>/dev/null || stat --format="%s" "$f") bytes"
             echo "First 20 lines:"
             head -n 20 "$f"
             echo "Searching for race conditions:"
@@ -296,15 +297,15 @@ jobs:
           echo "Performance file checks:"
           for type in callgrind cachegrind massif; do
             echo "Checking $type results:"
-            for f in $(find analysis-results -path "*/$type/*"); do
-              echo "Found $type file: $f"
-              echo "File size: $(stat -f%z "$f") bytes"
-              echo "File type: $(file "$f")"
+            find reports -path "*/$type/*" -type f 2>/dev/null | while read f; do
               if [ -f "$f" ]; then
+                echo "Found $type file: $f"
+                echo "File size: $(stat -f%z "$f" 2>/dev/null || stat --format="%s" "$f") bytes"
+                echo "File type: $(file "$f")"
                 echo "First 20 lines:"
                 head -n 20 "$f"
               fi
-            done
+            done || echo "No $type files found"
           done
 
           # Create summary
@@ -312,20 +313,20 @@ jobs:
           {
             echo "# Analysis Results Summary"
             echo "## Directory Structure"
-            find analysis-results -type d | sed 's/^/    /'
+            find reports -type d 2>/dev/null | sed 's/^/    /' || echo "    No directories found"
             
             echo "## Memory Check Results"
-            if find analysis-results -name "results.xml" -path "*/memcheck/*" | grep -q .; then
+            if find reports -name "results.xml" -path "*/memcheck/*" 2>/dev/null | grep -q .; then
               echo "Memory check files found:"
-              find analysis-results -name "results.xml" -path "*/memcheck/*" | sed 's/^/    /'
+              find reports -name "results.xml" -path "*/memcheck/*" | sed 's/^/    /'
             else
               echo "No memory check files found"
             fi
             
             echo "## Thread Safety Results"
-            if find analysis-results -name "results.xml" -path "*/helgrind/*" | grep -q .; then
+            if find reports -name "results.xml" -path "*/helgrind/*" 2>/dev/null | grep -q .; then
               echo "Thread check files found:"
-              find analysis-results -name "results.xml" -path "*/helgrind/*" | sed 's/^/    /'
+              find reports -name "results.xml" -path "*/helgrind/*" | sed 's/^/    /'
             else
               echo "No thread check files found"
             fi
@@ -333,15 +334,15 @@ jobs:
             echo "## Performance Results"
             for type in callgrind cachegrind massif; do
               echo "### $type Results"
-              if find analysis-results -path "*/$type/*" | grep -q .; then
-                find analysis-results -path "*/$type/*" | sed 's/^/    /'
+              if find reports -path "*/$type/*" 2>/dev/null | grep -q .; then
+                find reports -path "*/$type/*" | sed 's/^/    /'
               else
                 echo "No $type results found"
               fi
             done
-          } > detailed_analysis_summary.md
+          } > ../detailed_analysis_summary.md
 
-          cat detailed_analysis_summary.md
+          cat ../detailed_analysis_summary.md
 
       - name: Upload Detailed Analysis Results
         uses: actions/upload-artifact@v4
