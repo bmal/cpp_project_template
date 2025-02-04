@@ -1,4 +1,4 @@
-name: Safety Checks Debug
+name: Safety Checks
 
 on:
   workflow_call:
@@ -22,39 +22,16 @@ jobs:
           - sanitizer: Undefined
             build_type: Release
             cache_key: ubsan
-          - sanitizer: Address;Undefined
+          # Proper way to pass multiple sanitizers
+          - sanitizer: '"Address\;Undefined"'
             build_type: Debug
             cache_key: asan_ubsan
 
     steps:
       - uses: actions/checkout@v3
 
-      - name: Debug System Info
-        run: |
-          echo "=== OS Release ==="
-          cat /etc/os-release
-          echo
-          echo "=== Shell Info ==="
-          echo "SHELL=$SHELL"
-          echo "Current shell path: $(readlink -f /bin/sh)"
-          ls -la /bin/sh
-          echo
-          echo "=== Available Shells ==="
-          cat /etc/shells || echo "No /etc/shells found"
-          echo
-          echo "=== Environment ==="
-          env
-          echo
-          echo "=== Shell Features ==="
-          /bin/sh -c 'echo "sh version: $BASH_VERSION"' || echo "Not bash"
-          echo
-          echo "=== Directory Structure ==="
-          pwd
-          ls -la
-
       - name: Install Dependencies
         run: |
-          echo "=== Package Installation ==="
           apt-get update
           apt-get install -y \
             git \
@@ -62,24 +39,6 @@ jobs:
             ninja-build \
             libtbb-dev \
             pkg-config
-          echo
-          echo "=== Installed Versions ==="
-          cmake --version
-          git --version
-          ninja --version
-          pkg-config --version
-
-      - name: Debug CMake Setup
-        run: |
-          echo "=== CMake Files ==="
-          find . -name CMakeLists.txt -o -name "*.cmake" | while read -r file; do
-            echo "=== Content of $file ==="
-            cat "$file"
-            echo
-          done
-
-          echo "=== Directory Structure After Dependencies ==="
-          ls -R
 
       - name: Cache Dependencies
         uses: actions/cache@v3
@@ -87,21 +46,9 @@ jobs:
           path: "**/cpm_modules"
           key: "sanitizer-clang15-${{ matrix.cache_key }}-${{ hashFiles('**/CMakeLists.txt') }}"
 
-      - name: Debug Shell Compatibility
-        run: |
-          echo "=== Testing Shell Features ==="
-          echo "Testing [[]]..."
-          sh -c '[[ "test" == "test" ]]' && echo "[[]] works" || echo "[[]] doesn't work"
-          echo "Testing []..."
-          sh -c '[ "test" = "test" ]' && echo "[] works" || echo "[] doesn't work"
-          echo
-          echo "=== Current Shell Settings ==="
-          sh -c 'set -o'
-
       - name: Configure Environment
+        shell: bash
         run: |
-          echo "Setting up sanitizer options for: ${{ matrix.sanitizer }}"
-          # Using POSIX-compatible test syntax
           case "${{ matrix.sanitizer }}" in
             *Address*)
               echo "ASAN_OPTIONS=detect_stack_use_after_return=1:check_initialization_order=1:strict_string_checks=1:detect_leaks=1:halt_on_error=1" >> $GITHUB_ENV
@@ -120,58 +67,45 @@ jobs:
               ;;
           esac
 
-          echo "=== Resulting Environment ==="
-          env | grep -E "ASAN_OPTIONS|UBSAN_OPTIONS|TSAN_OPTIONS" || echo "No sanitizer options set"
-
-      - name: Debug CMake Configuration
+      - name: Configure
+        shell: bash
         run: |
-          echo "=== CMake Configure Debug ==="
-          cmake -S test -B build --debug-trycompile \
+          # Remove escaped semicolon and quotes for CMake
+          SANITIZER=$(echo ${{ matrix.sanitizer }} | sed 's/[\"]//g' | sed 's/\\;/;/g')
+
+          cmake -S test -B build \
             -DCMAKE_BUILD_TYPE=${{ matrix.build_type }} \
-            -DUSE_SANITIZER=${{ matrix.sanitizer }} \
+            -DUSE_SANITIZER="$SANITIZER" \
             -DCMAKE_CXX_FLAGS="-march=native -mtune=native -fno-omit-frame-pointer -fno-optimize-sibling-calls -stdlib=libstdc++" \
             -DCMAKE_EXE_LINKER_FLAGS="-fuse-ld=lld" \
             -DCMAKE_MODULE_LINKER_FLAGS="-fuse-ld=lld" \
             -DCMAKE_VERBOSE_MAKEFILE=ON
 
-          echo "=== CMake Cache ==="
-          cat build/CMakeCache.txt
-
-          echo "=== CMake Files After Configure ==="
-          find build -name "*.cmake" | while read -r file; do
-            echo "=== Content of $file ==="
-            cat "$file"
-            echo
-          done
-
       - name: Build
-        run: |
-          echo "=== Build Process ==="
-          cmake --build build -j$(nproc) --verbose
+        shell: bash
+        run: cmake --build build -j$(nproc)
 
       - name: Test
+        shell: bash
         run: |
-          echo "=== Test Execution ==="
           cd build
-          ctest --output-on-failure --timeout 300 --repeat until-pass:2 --output-junit test-results.xml --debug
+          ctest --output-on-failure --timeout 300 --repeat until-pass:2 --output-junit test-results.xml
 
       - name: Process Sanitizer Results
         if: always()
+        shell: bash
         run: |
-          echo "=== Processing Sanitizer Results ==="
           cd build
           mkdir -p reports/sanitizer
 
-          echo "Looking for sanitizer outputs..."
-          find . -name "*sanitizer*.log" -o -name "asan.*" -o -name "ubsan.*" -o -name "tsan.*"
+          echo "=== Looking for sanitizer outputs ==="
+          find . -type f \( -name "*sanitizer*.log" -o -name "asan.*" -o -name "ubsan.*" -o -name "tsan.*" \) -ls
 
           # Collect all sanitizer output files
-          find . -name "*sanitizer*.log" -exec cp {} reports/sanitizer/ \;
-          find . -name "asan.*" -exec cp {} reports/sanitizer/ \;
-          find . -name "ubsan.*" -exec cp {} reports/sanitizer/ \;
-          find . -name "tsan.*" -exec cp {} reports/sanitizer/ \;
+          find . -type f \( -name "*sanitizer*.log" -o -name "asan.*" -o -name "ubsan.*" -o -name "tsan.*" \) \
+            -exec cp {} reports/sanitizer/ \;
 
-          echo "=== Sanitizer Files Found ==="
+          echo "=== Directory listing of reports/sanitizer ==="
           ls -la reports/sanitizer/
 
           # Create summary
@@ -181,8 +115,15 @@ jobs:
             echo "Build Type: ${{ matrix.build_type }}"
             echo "Sanitizer: ${{ matrix.sanitizer }}"
             echo
+            echo "=== Environment Variables ==="
+            env | grep -E "ASAN_OPTIONS|UBSAN_OPTIONS|TSAN_OPTIONS" || echo "No sanitizer options set"
+            echo
             echo "=== Log Contents ==="
-            find reports/sanitizer -type f -exec cat {} \;
+            if [ -d "reports/sanitizer" ] && [ "$(ls -A reports/sanitizer)" ]; then
+              find reports/sanitizer -type f -exec echo "=== {} ===" \; -exec cat {} \; -exec echo \;
+            else
+              echo "No sanitizer output files found"
+            fi
           } > reports/sanitizer_summary.txt
 
           echo "=== Final Summary ==="
