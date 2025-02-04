@@ -2,20 +2,12 @@ name: Coverage
 
 on:
   workflow_call:
-  pull_request_target:
-
-permissions:
-  contents: read
-  pull-requests: write
 
 jobs:
   coverage:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
-        with:
-          fetch-depth: 0
-          ref: ${{ github.event.pull_request.head.sha }}
 
       - name: Install dependencies
         run: |
@@ -51,15 +43,7 @@ jobs:
                --ignore-errors empty,unused
 
       - name: Upload coverage to Codecov
-        uses: codecov/codecov-action@v4
+        uses: codecov/codecov-action@v3 # Note: Stay with v3 for now
         with:
-          token: ${{ secrets.CODECOV_TOKEN }}
           files: ./build/test/coverage.info
           fail_ci_if_error: true
-          verbose: true
-          use_oidc: true
-          directory: ./build/test/
-          root_dir: .
-          working-directory: .
-          flags: unittests
-          name: codecov-umbrella
