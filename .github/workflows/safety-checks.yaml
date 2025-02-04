@@ -1,4 +1,4 @@
-name: Safety Checks
+name: Safety Checks Debug
 
 on:
   workflow_call:
@@ -29,8 +29,32 @@ jobs:
     steps:
       - uses: actions/checkout@v3
 
+      - name: Debug System Info
+        run: |
+          echo "=== OS Release ==="
+          cat /etc/os-release
+          echo
+          echo "=== Shell Info ==="
+          echo "SHELL=$SHELL"
+          echo "Current shell path: $(readlink -f /bin/sh)"
+          ls -la /bin/sh
+          echo
+          echo "=== Available Shells ==="
+          cat /etc/shells || echo "No /etc/shells found"
+          echo
+          echo "=== Environment ==="
+          env
+          echo
+          echo "=== Shell Features ==="
+          /bin/sh -c 'echo "sh version: $BASH_VERSION"' || echo "Not bash"
+          echo
+          echo "=== Directory Structure ==="
+          pwd
+          ls -la
+
       - name: Install Dependencies
         run: |
+          echo "=== Package Installation ==="
           apt-get update
           apt-get install -y \
             git \
@@ -38,6 +62,24 @@ jobs:
             ninja-build \
             libtbb-dev \
             pkg-config
+          echo
+          echo "=== Installed Versions ==="
+          cmake --version
+          git --version
+          ninja --version
+          pkg-config --version
+
+      - name: Debug CMake Setup
+        run: |
+          echo "=== CMake Files ==="
+          find . -name CMakeLists.txt -o -name "*.cmake" | while read -r file; do
+            echo "=== Content of $file ==="
+            cat "$file"
+            echo
+          done
+
+          echo "=== Directory Structure After Dependencies ==="
+          ls -R
 
       - name: Cache Dependencies
         uses: actions/cache@v3
@@ -45,22 +87,46 @@ jobs:
           path: "**/cpm_modules"
           key: "sanitizer-clang15-${{ matrix.cache_key }}-${{ hashFiles('**/CMakeLists.txt') }}"
 
+      - name: Debug Shell Compatibility
+        run: |
+          echo "=== Testing Shell Features ==="
+          echo "Testing [[]]..."
+          sh -c '[[ "test" == "test" ]]' && echo "[[]] works" || echo "[[]] doesn't work"
+          echo "Testing []..."
+          sh -c '[ "test" = "test" ]' && echo "[] works" || echo "[] doesn't work"
+          echo
+          echo "=== Current Shell Settings ==="
+          sh -c 'set -o'
+
       - name: Configure Environment
         run: |
-          # Set sanitizer-specific options
-          if [[ "${{ matrix.sanitizer }}" == *"Address"* ]]; then
-            echo "ASAN_OPTIONS=detect_stack_use_after_return=1:check_initialization_order=1:strict_string_checks=1:detect_leaks=1:halt_on_error=1" >> $GITHUB_ENV
-          fi
-          if [[ "${{ matrix.sanitizer }}" == *"Undefined"* ]]; then
-            echo "UBSAN_OPTIONS=print_stacktrace=1:halt_on_error=1:print_summary=1" >> $GITHUB_ENV
-          fi
-          if [[ "${{ matrix.sanitizer }}" == "Thread" ]]; then
-            echo "TSAN_OPTIONS=second_deadlock_stack=1:report_signal_unsafe=1:memory_limit_mb=4096" >> $GITHUB_ENV
-          fi
+          echo "Setting up sanitizer options for: ${{ matrix.sanitizer }}"
+          # Using POSIX-compatible test syntax
+          case "${{ matrix.sanitizer }}" in
+            *Address*)
+              echo "ASAN_OPTIONS=detect_stack_use_after_return=1:check_initialization_order=1:strict_string_checks=1:detect_leaks=1:halt_on_error=1" >> $GITHUB_ENV
+              ;;
+          esac
 
-      - name: Configure
+          case "${{ matrix.sanitizer }}" in
+            *Undefined*)
+              echo "UBSAN_OPTIONS=print_stacktrace=1:halt_on_error=1:print_summary=1" >> $GITHUB_ENV
+              ;;
+          esac
+
+          case "${{ matrix.sanitizer }}" in
+            Thread)
+              echo "TSAN_OPTIONS=second_deadlock_stack=1:report_signal_unsafe=1:memory_limit_mb=4096" >> $GITHUB_ENV
+              ;;
+          esac
+
+          echo "=== Resulting Environment ==="
+          env | grep -E "ASAN_OPTIONS|UBSAN_OPTIONS|TSAN_OPTIONS" || echo "No sanitizer options set"
+
+      - name: Debug CMake Configuration
         run: |
-          cmake -S test -B build \
+          echo "=== CMake Configure Debug ==="
+          cmake -S test -B build --debug-trycompile \
             -DCMAKE_BUILD_TYPE=${{ matrix.build_type }} \
             -DUSE_SANITIZER=${{ matrix.sanitizer }} \
             -DCMAKE_CXX_FLAGS="-march=native -mtune=native -fno-omit-frame-pointer -fno-optimize-sibling-calls -stdlib=libstdc++" \
@@ -68,32 +134,45 @@ jobs:
             -DCMAKE_MODULE_LINKER_FLAGS="-fuse-ld=lld" \
             -DCMAKE_VERBOSE_MAKEFILE=ON
 
+          echo "=== CMake Cache ==="
+          cat build/CMakeCache.txt
+
+          echo "=== CMake Files After Configure ==="
+          find build -name "*.cmake" | while read -r file; do
+            echo "=== Content of $file ==="
+            cat "$file"
+            echo
+          done
+
       - name: Build
-        run: cmake --build build -j$(nproc)
+        run: |
+          echo "=== Build Process ==="
+          cmake --build build -j$(nproc) --verbose
 
       - name: Test
         run: |
+          echo "=== Test Execution ==="
           cd build
-          ctest --output-on-failure --timeout 300 --repeat until-pass:2 --output-junit test-results.xml
-
-      - name: Upload test results
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: test-results-${{ matrix.cache_key }}
-          path: build/test-results.xml
+          ctest --output-on-failure --timeout 300 --repeat until-pass:2 --output-junit test-results.xml --debug
 
       - name: Process Sanitizer Results
         if: always()
         run: |
+          echo "=== Processing Sanitizer Results ==="
           cd build
           mkdir -p reports/sanitizer
+
+          echo "Looking for sanitizer outputs..."
+          find . -name "*sanitizer*.log" -o -name "asan.*" -o -name "ubsan.*" -o -name "tsan.*"
 
           # Collect all sanitizer output files
           find . -name "*sanitizer*.log" -exec cp {} reports/sanitizer/ \;
           find . -name "asan.*" -exec cp {} reports/sanitizer/ \;
           find . -name "ubsan.*" -exec cp {} reports/sanitizer/ \;
           find . -name "tsan.*" -exec cp {} reports/sanitizer/ \;
+
+          echo "=== Sanitizer Files Found ==="
+          ls -la reports/sanitizer/
 
           # Create summary
           {
@@ -105,6 +184,16 @@ jobs:
             echo "=== Log Contents ==="
             find reports/sanitizer -type f -exec cat {} \;
           } > reports/sanitizer_summary.txt
+
+          echo "=== Final Summary ==="
+          cat reports/sanitizer_summary.txt
+
+      - name: Upload Test Results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-results-${{ matrix.cache_key }}
+          path: build/test-results.xml
 
       - name: Upload Sanitizer Results
         if: always()
