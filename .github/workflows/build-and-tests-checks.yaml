@@ -1,4 +1,4 @@
-name: Essential Checks
+name: Build and tests
 
 on:
   workflow_call:

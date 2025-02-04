@@ -1,4 +1,4 @@
-name: Safety Checks
+name: Sanitizer Checks
 
 on:
   workflow_call:

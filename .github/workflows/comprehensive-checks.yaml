@@ -17,14 +17,14 @@ jobs:
       contents: read
 
   safety-checks:
-    uses: ./.github/workflows/safety-checks.yaml
+    uses: ./.github/workflows/sanitizer-checks.yaml
     permissions:
       checks: write
       pull-requests: write
       contents: read
 
   performance-checks:
-    uses: ./.github/workflows/performance-checks.yaml
+    uses: ./.github/workflows/valgrind-checks.yaml
     permissions:
       checks: write
       pull-requests: write

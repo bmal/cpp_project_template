@@ -62,17 +62,17 @@ jobs:
             echo "run-comprehensive=false" >> $GITHUB_OUTPUT
           fi
 
-  essential-checks:
+  build-and-tests-checks:
     needs: determine-scope
     if: needs.determine-scope.outputs.should-run == 'true'
-    uses: ./.github/workflows/essential-checks.yaml
+    uses: ./.github/workflows/build-and-tests-checks.yaml
     permissions:
       checks: write
       pull-requests: write
       contents: read
 
   comprehensive-checks:
-    needs: [determine-scope, essential-checks]
+    needs: [determine-scope, build-and-tests-checks]
     if: |
       needs.determine-scope.outputs.should-run == 'true' &&
       needs.determine-scope.outputs.run-comprehensive == 'true'
