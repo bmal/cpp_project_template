@@ -1,0 +1,99 @@
+name: Quality Checks
+
+on:
+  workflow_call:
+
+env:
+  LLVM_VERSION: 17 # Explicitly set LLVM version
+
+jobs:
+  clang-tidy:
+    runs-on: ubuntu-latest
+    permissions:
+      pull-requests: write
+      contents: read
+      checks: write
+    steps:
+      - uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
+
+      - name: Setup Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: "3.11"
+
+      - name: Setup Python virtual environment
+        run: |
+          python -m venv .venv
+          source .venv/bin/activate
+          python -m pip install --upgrade pip
+          pip install pyyaml
+
+      - name: Install Python dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install pyyaml
+
+      - name: Generate clang-tidy config
+        run: python tools/generate_clang_config.py
+
+      - name: Cache LLVM and Clang
+        uses: actions/cache@v3
+        with:
+          path: |
+            ./llvm
+            ./clang-tools
+          key: llvm-${{ runner.os }}
+
+      - name: Cache build
+        uses: actions/cache@v3
+        with:
+          path: build
+          key: build-${{ runner.os }}-${{ github.sha }}
+
+      - name: Cache Dependencies
+        uses: actions/cache@v3
+        with:
+          path: "**/cpm_modules"
+          key: ${{ runner.os }}-cpm-${{ hashFiles('**/CMakeLists.txt', '**/*.cmake') }}
+
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libtbb-dev
+          wget https://apt.llvm.org/llvm.sh
+          chmod +x llvm.sh
+          sudo ./llvm.sh ${{ env.LLVM_VERSION }}
+          sudo apt-get install -y clang-${{ env.LLVM_VERSION }} clang-tidy-${{ env.LLVM_VERSION }} libc++-${{ env.LLVM_VERSION }}-dev libc++abi-${{ env.LLVM_VERSION }}-dev
+
+      - name: Configure CMake using all directory
+        run: |
+          cmake -S all -B build \
+            -DCMAKE_EXPORT_COMPILE_COMMANDS=ON \
+            -DCMAKE_CXX_COMPILER=/usr/bin/clang++-${{ env.LLVM_VERSION }} \
+            -DCMAKE_CXX_STANDARD=23 \
+            -DCMAKE_CXX_STANDARD_REQUIRED=ON \
+            -DCMAKE_CXX_EXTENSIONS=OFF \
+            -DCMAKE_CXX_FLAGS="-march=native -mtune=native -stdlib=libc++" \
+            -DCMAKE_EXE_LINKER_FLAGS="-stdlib=libc++" \
+            -DCMAKE_SHARED_LINKER_FLAGS="-stdlib=libc++" && \
+          ln -sf build/compile_commands.json .
+
+      - name: clang-tidy review
+        if: github.event_name == 'pull_request'
+        uses: ZedThree/clang-tidy-review@v0.19.0
+        with:
+          build_dir: build
+          config_file: .clang-tidy
+          exclude: "external/**,_deps/**"
+          token: ${{ secrets.GITHUB_TOKEN }}
+          lgtm_comment_body: 'clang-tidy review says "All clean, LGTM! :+1:"'
+          max_comments: 25
+          cmake_command: "" # Empty because we already configured CMake
+          clang_tidy_checks: "" # Use the checks from .clang-tidy file
+
+      - name: Run clang-tidy directly
+        if: github.event_name == 'push'
+        run: |
+          run-clang-tidy-${{ env.LLVM_VERSION }} -p build

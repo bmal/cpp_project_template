@@ -1,0 +1,158 @@
+name: Sanitizer Checks
+
+on:
+  workflow_call:
+
+jobs:
+  run-sanitizers:
+    runs-on: ubuntu-latest
+    container:
+      image: silkeh/clang:15
+      options: --security-opt seccomp=unconfined
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - sanitizer: Address
+            build_type: Release
+            cache_key: asan
+          - sanitizer: Thread
+            build_type: Release
+            cache_key: tsan
+          - sanitizer: Undefined
+            build_type: Release
+            cache_key: ubsan
+          - sanitizer: '"Address\;Undefined"'
+            build_type: Debug
+            cache_key: asan_ubsan
+
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Install Dependencies
+        run: |
+          apt-get update
+          apt-get install -y \
+            git \
+            cmake \
+            ninja-build \
+            libtbb-dev \
+            pkg-config
+
+      - name: Cache Dependencies
+        uses: actions/cache@v3
+        with:
+          path: "**/cpm_modules"
+          key: "sanitizer-clang15-${{ matrix.cache_key }}-${{ hashFiles('**/CMakeLists.txt') }}"
+
+      - name: Configure Environment
+        shell: bash
+        run: |
+          case "${{ matrix.sanitizer }}" in
+            *Address*)
+              echo "ASAN_OPTIONS=detect_stack_use_after_return=1:check_initialization_order=1:strict_string_checks=1:detect_leaks=1:halt_on_error=1" >> $GITHUB_ENV
+              ;;
+          esac
+
+          case "${{ matrix.sanitizer }}" in
+            *Undefined*)
+              echo "UBSAN_OPTIONS=print_stacktrace=1:halt_on_error=1:print_summary=1" >> $GITHUB_ENV
+              ;;
+          esac
+
+          case "${{ matrix.sanitizer }}" in
+            Thread)
+              echo "TSAN_OPTIONS=second_deadlock_stack=1:report_signal_unsafe=1:memory_limit_mb=4096" >> $GITHUB_ENV
+              ;;
+          esac
+
+      - name: Configure
+        shell: bash
+        run: |
+          # Remove escaped semicolon and quotes for CMake
+          SANITIZER=$(echo ${{ matrix.sanitizer }} | sed 's/[\"]//g' | sed 's/\\;/;/g')
+
+          echo "=== CMake Configure Debug ==="
+          echo "Sanitizer value: $SANITIZER"
+          echo "Build type: ${{ matrix.build_type }}"
+
+          cmake -S test -B build \
+            -DCMAKE_BUILD_TYPE=${{ matrix.build_type }} \
+            -DUSE_SANITIZER="$SANITIZER" \
+            -DCMAKE_CXX_FLAGS="-march=native -mtune=native -fno-omit-frame-pointer -fno-optimize-sibling-calls -stdlib=libstdc++ -g" \
+            -DCMAKE_EXE_LINKER_FLAGS="-fuse-ld=lld" \
+            -DCMAKE_MODULE_LINKER_FLAGS="-fuse-ld=lld" \
+            -DCMAKE_VERBOSE_MAKEFILE=ON
+
+      - name: Build
+        shell: bash
+        run: |
+          echo "=== Build with verbose output ==="
+          cmake --build build -j$(nproc) --verbose
+
+      - name: Test
+        shell: bash
+        run: |
+          cd build
+          echo "=== Test execution with sanitizer ==="
+          ASAN_OPTIONS="${ASAN_OPTIONS}:log_path=asan.log:verbosity=1" \
+          UBSAN_OPTIONS="${UBSAN_OPTIONS}:log_path=ubsan.log:verbosity=1" \
+          TSAN_OPTIONS="${TSAN_OPTIONS}:log_path=tsan.log:verbosity=1" \
+          ctest --output-on-failure --timeout 300 --repeat until-pass:2 --output-junit test-results.xml
+
+      - name: Process Sanitizer Results
+        if: always()
+        shell: bash
+        run: |
+          cd build
+          mkdir -p reports/sanitizer
+
+          echo "=== Looking for sanitizer outputs ==="
+          find . -type f \( -name "*sanitizer*.log*" -o -name "*san*.log*" -o -name "asan.*" -o -name "ubsan.*" -o -name "tsan.*" \) -ls
+
+          # Collect all sanitizer output files
+          find . -type f \( -name "*sanitizer*.log*" -o -name "*san*.log*" -o -name "asan.*" -o -name "ubsan.*" -o -name "tsan.*" \) \
+            -exec cp {} reports/sanitizer/ \;
+
+          # Create summary
+          {
+            echo "=== Sanitizer Summary ==="
+            echo
+            echo "Build Type: ${{ matrix.build_type }}"
+            echo "Sanitizer: ${{ matrix.sanitizer }}"
+            echo
+            echo "=== Environment Variables ==="
+            env | grep -E "ASAN_OPTIONS|UBSAN_OPTIONS|TSAN_OPTIONS" || echo "No sanitizer options set"
+            echo
+            echo "=== CMake Cache Values ==="
+            grep -E "SANITIZER|CXX_FLAGS|LINKER_FLAGS" CMakeCache.txt || echo "No relevant cache entries found"
+            echo
+            echo "=== Log Contents ==="
+            if [ -d "reports/sanitizer" ] && [ "$(ls -A reports/sanitizer)" ]; then
+              find reports/sanitizer -type f -exec echo "=== {} ===" \; -exec cat {} \; -exec echo \;
+            else
+              echo "No sanitizer output files found"
+              echo "Contents of current directory:"
+              ls -la
+            fi
+          } > reports/sanitizer_summary.txt
+
+          echo "=== Final Summary ==="
+          cat reports/sanitizer_summary.txt
+
+      - name: Upload Test Results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-results-${{ matrix.cache_key }}
+          path: build/test-results.xml
+
+      - name: Upload Sanitizer Results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: sanitizer-results-${{ matrix.cache_key }}
+          path: |
+            build/reports/sanitizer/
+            build/reports/sanitizer_summary.txt
+          retention-days: 7

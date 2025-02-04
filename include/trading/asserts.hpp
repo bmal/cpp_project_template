@@ -4,8 +4,8 @@
 #include <cstdlib>
 #include <cstring>
 
-namespace sysUtils {
-namespace detail {
+namespace Common {
+namespace Detail {
 #ifdef _WIN32
 #include <windows.h>
 inline void writeError(const char* str) noexcept {
@@ -20,7 +20,7 @@ inline void writeError(const char* str) noexcept {
 }
 #define DEBUG_TRAP() __builtin_trap()
 #endif
-}  // namespace detail
+}  // namespace Detail
 
 #ifdef NDEBUG
 #define ASSERT(condition, message)
@@ -29,17 +29,17 @@ inline void writeError(const char* str) noexcept {
                                     const char* message,
                                     const char* file,
                                     unsigned line) noexcept {
-    detail::writeError("ASSERT FAILED: '");
-    detail::writeError(condition);
-    detail::writeError("' - ");
-    detail::writeError(message);
-    detail::writeError(" at ");
-    detail::writeError(file);
-    detail::writeError(":");
+    Detail::writeError("ASSERT FAILED: '");
+    Detail::writeError(condition);
+    Detail::writeError("' - ");
+    Detail::writeError(message);
+    Detail::writeError(" at ");
+    Detail::writeError(file);
+    Detail::writeError(":");
 
     char lineBuf[20];
     snprintf(lineBuf, sizeof(lineBuf), "%u\n", line);
-    detail::writeError(lineBuf);
+    Detail::writeError(lineBuf);
 
 #ifdef DEBUG_BREAK_ON_ASSERT
     DEBUG_TRAP();
@@ -48,22 +48,22 @@ inline void writeError(const char* str) noexcept {
     _Exit(EXIT_FAILURE);
 }
 
-#define ASSERT(condition, message)                                         \
-    /* NOLINTBEGIN(cppcoreguidelines-avoid-do-while) */                    \
-    do {                                                                   \
-        if (!(condition)) [[unlikely]] {                                   \
-            sysUtils::assertFail(#condition, message, __FILE__, __LINE__); \
-        }                                                                  \
+#define ASSERT(condition, message)                                       \
+    /* NOLINTBEGIN(cppcoreguidelines-avoid-do-while) */                  \
+    do {                                                                 \
+        if (!(condition)) [[unlikely]] {                                 \
+            Common::assertFail(#condition, message, __FILE__, __LINE__); \
+        }                                                                \
     } while (0)  // NOLINTEND(cppcoreguidelines-avoid-do-while)
 #endif
 
 [[noreturn]] inline void fatal(const char* message) noexcept {
-    detail::writeError("FATAL: ");
-    detail::writeError(message);
-    detail::writeError("\n");
+    Detail::writeError("FATAL: ");
+    Detail::writeError(message);
+    Detail::writeError("\n");
     _Exit(EXIT_FAILURE);
 }
 
-#define FATAL(message) ::sysUtils::fatal(message)
+#define FATAL(message) ::Common::fatal(message)
 
-}  // namespace sysUtils
+}  // namespace Common

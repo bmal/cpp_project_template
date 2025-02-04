@@ -1,0 +1,419 @@
+name: Valgrind Analysis
+
+on:
+  workflow_call:
+
+env:
+  CTEST_OUTPUT_ON_FAILURE: 1
+  CPM_SOURCE_CACHE: ${{ github.workspace }}/cpm_modules
+  LLVM_VERSION: 16
+
+jobs:
+  essential-checks:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
+
+      - name: Install Build Dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            cmake \
+            ninja-build \
+            clang-${{ env.LLVM_VERSION }} \
+            libtbb-dev \
+            valgrind \
+            linux-tools-common \
+            linux-tools-generic \
+            python3-pip \
+            libc6-dbg
+
+      - name: Cache Dependencies
+        uses: actions/cache@v3
+        with:
+          path: "**/cpm_modules"
+          key: ${{ runner.os }}-cpm-${{ hashFiles('**/CMakeLists.txt', '**/*.cmake') }}
+
+      - name: Build Project
+        run: |
+          echo "Building with debug info..."
+          cmake -S test -B build \
+            -DCMAKE_BUILD_TYPE=RelWithDebInfo \
+            -DCMAKE_CXX_COMPILER=clang++-${{ env.LLVM_VERSION }} \
+            -DCMAKE_CXX_FLAGS="-g -fno-omit-frame-pointer -fno-inline" \
+            -DCMAKE_CXX_STANDARD=23
+
+          cmake --build build -j$(nproc)
+
+          # Verify debug symbols
+          echo "Checking debug symbols..."
+          file build/TradingTests
+          nm build/TradingTests | grep -i debug || echo "No debug symbols found"
+
+      - name: Memory Checks
+        working-directory: build
+        run: |
+          echo "Starting memory checks..."
+          mkdir -p reports/memcheck
+
+          # Run with increased verbosity and slower validation
+          valgrind \
+            --tool=memcheck \
+            --leak-check=full \
+            --show-leak-kinds=all \
+            --track-origins=yes \
+            --xml=yes \
+            --xml-file=reports/memcheck/results.xml \
+            --verbose \
+            --fair-sched=yes \
+            --num-callers=50 \
+            ./TradingTests || { 
+              echo "Valgrind memory check failed with exit code $?"
+              if [ -f reports/memcheck/results.xml ]; then
+                echo "Memory check output:"
+                cat reports/memcheck/results.xml
+              else
+                echo "No memory check output generated"
+              fi
+              exit 1
+            }
+
+      - name: Thread Safety Analysis
+        working-directory: build
+        run: |
+          echo "Starting thread safety analysis..."
+          mkdir -p reports/helgrind
+
+          # Run with increased thread validation
+          valgrind \
+            --tool=helgrind \
+            --xml=yes \
+            --xml-file=reports/helgrind/results.xml \
+            --verbose \
+            --fair-sched=yes \
+            --history-level=full \
+            ./TradingTests || {
+              echo "Valgrind helgrind check failed with exit code $?"
+              if [ -f reports/helgrind/results.xml ]; then
+                echo "Thread safety output:"
+                cat reports/helgrind/results.xml
+              else
+                echo "No thread safety output generated"
+              fi
+              exit 1
+            }
+
+      - name: Upload Essential Check Results
+        uses: actions/upload-artifact@v4
+        with:
+          name: essential-check-reports
+          path: |
+            build/reports/memcheck/
+            build/reports/helgrind/
+          retention-days: 14
+          if-no-files-found: error # This will fail if files aren't found
+
+  detailed-analysis:
+    needs: essential-checks
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Install Dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            cmake \
+            ninja-build \
+            clang-${{ env.LLVM_VERSION }} \
+            libtbb-dev \
+            valgrind \
+            linux-tools-common \
+            linux-tools-generic \
+            python3-pip \
+            libc6-dbg
+
+      - name: Cache Dependencies
+        uses: actions/cache@v3
+        with:
+          path: "**/cpm_modules"
+          key: ${{ runner.os }}-cpm-${{ hashFiles('**/CMakeLists.txt', '**/*.cmake') }}
+
+      - name: Build with Performance Flags
+        run: |
+          cmake -S test -B build \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DCMAKE_CXX_COMPILER=clang++-${{ env.LLVM_VERSION }} \
+            -DCMAKE_CXX_FLAGS="-g -fno-omit-frame-pointer -march=native" \
+            -DCMAKE_CXX_STANDARD=23
+
+          cmake --build build -j$(nproc)
+
+      - name: Verify Tools
+        run: |
+          valgrind --version || {
+            echo "Valgrind not installed properly"
+            exit 1
+          }
+
+      - name: CPU Profile Analysis
+        working-directory: build
+        run: |
+          mkdir -p reports/callgrind
+          valgrind \
+            --tool=callgrind \
+            --dump-instr=yes \
+            --collect-jumps=yes \
+            --callgrind-out-file=reports/callgrind/profile.out \
+            ./TradingTests || exit 1
+
+          callgrind_annotate \
+            --auto=yes \
+            --context=8 \
+            reports/callgrind/profile.out > reports/callgrind/analysis.txt || exit 1
+
+      - name: Cache Analysis
+        working-directory: build
+        run: |
+          mkdir -p reports/cachegrind
+          valgrind \
+            --tool=cachegrind \
+            --branch-sim=yes \
+            --cache-sim=yes \
+            --cachegrind-out-file=reports/cachegrind/cache.out \
+            ./TradingTests || exit 1
+
+          cg_annotate \
+            reports/cachegrind/cache.out > reports/cachegrind/analysis.txt || exit 1
+
+      - name: Memory Usage Profile
+        working-directory: build
+        run: |
+          mkdir -p reports/massif
+          valgrind \
+            --tool=massif \
+            --heap=yes \
+            --detailed-freq=10 \
+            --massif-out-file=reports/massif/heap.out \
+            ./TradingTests || exit 1
+
+          ms_print reports/massif/heap.out > reports/massif/analysis.txt || exit 1
+
+      - name: Generate Summary Report
+        working-directory: build
+        run: |
+          mkdir -p reports
+
+          # Function to safely append file content
+          append_if_exists() {
+            local file=$1
+            local section=$2
+            echo "## $section" >> performance_summary.md
+            echo "\`\`\`" >> performance_summary.md
+            if [ -f "$file" ]; then
+              head -n 20 "$file" >> performance_summary.md || echo "No data available" >> performance_summary.md
+            else
+              echo "File not found: $file" >> performance_summary.md
+            fi
+            echo "\`\`\`" >> performance_summary.md
+            echo >> performance_summary.md
+          }
+
+          # Create summary
+          echo "Performance Analysis Summary" > performance_summary.md
+          echo "==========================" >> performance_summary.md
+          echo >> performance_summary.md
+
+          # Memory Check Results
+          echo "## Memory Check Results" >> performance_summary.md
+          echo "\`\`\`" >> performance_summary.md
+          if [ -f "reports/memcheck/results.xml" ]; then
+            grep -A 5 "definitely lost:" reports/memcheck/results.xml >> performance_summary.md || echo "No memory leaks found" >> performance_summary.md
+          else
+            echo "Memory check results not found" >> performance_summary.md
+          fi
+          echo "\`\`\`" >> performance_summary.md
+          echo >> performance_summary.md
+
+          # Thread Safety Issues
+          echo "## Thread Safety Issues" >> performance_summary.md
+          echo "\`\`\`" >> performance_summary.md
+          if [ -f "reports/helgrind/results.xml" ]; then
+            grep -A 5 "<error>" reports/helgrind/results.xml >> performance_summary.md || echo "No thread safety issues found" >> performance_summary.md
+          else
+            echo "Thread safety results not found" >> performance_summary.md
+          fi
+          echo "\`\`\`" >> performance_summary.md
+          echo >> performance_summary.md
+
+          append_if_exists "reports/callgrind/analysis.txt" "CPU Hotspots"
+          append_if_exists "reports/cachegrind/analysis.txt" "Cache Performance"
+          append_if_exists "reports/massif/analysis.txt" "Memory Usage Patterns"
+
+      - name: Detailed Analysis
+        working-directory: build # Add this line to set working directory
+        run: |
+          echo "Starting detailed analysis..."
+
+          # Directory structure check
+          echo "Checking directory structure:"
+          find reports -type d -ls || echo "No reports directory found"
+
+          # File check
+          echo "Checking all result files:"
+          find reports -type f -ls || echo "No report files found"
+
+          # Memory check diagnostics
+          echo "Memory check file content check:"
+          for f in $(find reports -name "results.xml" -path "*/memcheck/*" 2>/dev/null); do
+            echo "Found memcheck file: $f"
+            echo "File size: $(stat -f%z "$f" 2>/dev/null || stat --format="%s" "$f") bytes"
+            echo "First 20 lines:"
+            head -n 20 "$f"
+            echo "Searching for leak indicators:"
+            grep -i "leak" "$f" || echo "No leaks found"
+            echo "Searching for error indicators:"
+            grep -i "error" "$f" || echo "No errors found"
+          done
+
+          # Thread check diagnostics
+          echo "Thread check file content check:"
+          for f in $(find reports -name "results.xml" -path "*/helgrind/*" 2>/dev/null); do
+            echo "Found helgrind file: $f"
+            echo "File size: $(stat -f%z "$f" 2>/dev/null || stat --format="%s" "$f") bytes"
+            echo "First 20 lines:"
+            head -n 20 "$f"
+            echo "Searching for race conditions:"
+            grep -i "race" "$f" || echo "No race conditions found"
+            echo "Searching for deadlock indicators:"
+            grep -i "deadlock" "$f" || echo "No deadlocks found"
+          done
+
+          # Performance diagnostics
+          echo "Performance file checks:"
+          for type in callgrind cachegrind massif; do
+            echo "Checking $type results:"
+            find reports -path "*/$type/*" -type f 2>/dev/null | while read f; do
+              if [ -f "$f" ]; then
+                echo "Found $type file: $f"
+                echo "File size: $(stat -f%z "$f" 2>/dev/null || stat --format="%s" "$f") bytes"
+                echo "File type: $(file "$f")"
+                echo "First 20 lines:"
+                head -n 20 "$f"
+              fi
+            done || echo "No $type files found"
+          done
+
+          # Create summary
+          echo "Creating detailed summary..."
+          {
+            echo "# Analysis Results Summary"
+            echo "## Directory Structure"
+            find reports -type d 2>/dev/null | sed 's/^/    /' || echo "    No directories found"
+            
+            echo "## Memory Check Results"
+            if find reports -name "results.xml" -path "*/memcheck/*" 2>/dev/null | grep -q .; then
+              echo "Memory check files found:"
+              find reports -name "results.xml" -path "*/memcheck/*" | sed 's/^/    /'
+            else
+              echo "No memory check files found"
+            fi
+            
+            echo "## Thread Safety Results"
+            if find reports -name "results.xml" -path "*/helgrind/*" 2>/dev/null | grep -q .; then
+              echo "Thread check files found:"
+              find reports -name "results.xml" -path "*/helgrind/*" | sed 's/^/    /'
+            else
+              echo "No thread check files found"
+            fi
+            
+            echo "## Performance Results"
+            for type in callgrind cachegrind massif; do
+              echo "### $type Results"
+              if find reports -path "*/$type/*" 2>/dev/null | grep -q .; then
+                find reports -path "*/$type/*" | sed 's/^/    /'
+              else
+                echo "No $type results found"
+              fi
+            done
+          } > ../detailed_analysis_summary.md
+
+          cat ../detailed_analysis_summary.md
+
+      - name: Upload Detailed Analysis Results
+        uses: actions/upload-artifact@v4
+        with:
+          name: detailed-analysis-reports
+          path: |
+            build/reports/
+            build/performance_summary.md
+          retention-days: 14
+
+  analyze-results:
+    needs: [detailed-analysis]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download Analysis Reports
+        uses: actions/download-artifact@v4
+        with:
+          path: analysis-results
+
+      - name: Check for Critical Issues
+        run: |
+          echo "Checking for analysis files..."
+
+          # Function to check memory leaks
+          check_memory_leaks() {
+            local file=$1
+            if grep -A 5 "definitely lost:" "$file" > /dev/null; then
+              echo "Memory leaks found:"
+              grep -A 5 "definitely lost:" "$file"
+              return 1
+            else
+              echo "No memory leaks detected"
+              return 0
+            fi
+          }
+
+          # Function to check thread issues
+          check_thread_issues() {
+            local file=$1
+            if grep -A 5 "<error>" "$file" > /dev/null; then
+              echo "Thread safety issues found:"
+              grep -A 5 "<error>" "$file"
+              return 1
+            else
+              echo "No thread safety issues detected"
+              return 0
+            fi
+          }
+
+          echo "## Memory Check Results"
+          if [ -f "analysis-results/essential-check-reports/memcheck/results.xml" ]; then
+            check_memory_leaks "analysis-results/essential-check-reports/memcheck/results.xml"
+          else
+            echo "Memory check results file not found"
+          fi
+
+          echo "## Thread Safety Results"
+          if [ -f "analysis-results/essential-check-reports/helgrind/results.xml" ]; then
+            check_thread_issues "analysis-results/essential-check-reports/helgrind/results.xml"
+          else
+            echo "Thread safety results file not found"
+          fi
+
+          # Check CPU profiling data
+          if [ -f "analysis-results/detailed-analysis-reports/reports/callgrind/analysis.txt" ]; then
+            echo "CPU profiling data available"
+            head -n 20 "analysis-results/detailed-analysis-reports/reports/callgrind/analysis.txt"
+          fi
+
+          # Check cache performance data
+          if [ -f "analysis-results/detailed-analysis-reports/reports/cachegrind/analysis.txt" ]; then
+            echo "Cache performance data available"
+            head -n 20 "analysis-results/detailed-analysis-reports/reports/cachegrind/analysis.txt"
+          fi

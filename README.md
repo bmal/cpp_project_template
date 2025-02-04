@@ -1,8 +1,8 @@
-[![Build and Test](https://github.com/bmal/trading/actions/workflows/build-and-test.yaml/badge.svg)](https://github.com/bmal/trading/actions/workflows/build-and-test.yaml)
-[![Code Quality](https://github.com/bmal/trading/actions/workflows/code-quality.yaml/badge.svg)](https://github.com/bmal/trading/actions/workflows/code-quality.yaml)
-[![Sanitizers](https://github.com/bmal/trading/actions/workflows/sanitizers.yaml/badge.svg)](https://github.com/bmal/trading/actions/workflows/sanitizers.yaml)
-[![Standalone](https://github.com/bmal/trading/actions/workflows/standalone.yaml/badge.svg)](https://github.com/bmal/trading/actions/workflows/standalone.yaml)
-[![Valgrind](https://github.com/bmal/trading/actions/workflows/valgrind.yaml/badge.svg)](https://github.com/bmal/trading/actions/workflows/valgrind.yaml)
+[![Build and Tests](https://github.com/bmal/trading/actions/workflows/build-and-tests-checks.yaml/badge.svg)](https://github.com/bmal/trading/actions/workflows/build-and-tests-checks.yaml)
+[![Quality Checks](https://github.com/bmal/trading/actions/workflows/quality-checks.yaml/badge.svg)](https://github.com/bmal/trading/actions/workflows/quality-checks.yaml)
+[![Sanitizer Checks](https://github.com/bmal/trading/actions/workflows/sanitizer-checks.yaml/badge.svg)](https://github.com/bmal/trading/actions/workflows/sanitizer-checks.yaml)
+[![Valgrind Analysis](https://github.com/bmal/trading/actions/workflows/valgrind-checks.yaml/badge.svg)](https://github.com/bmal/trading/actions/workflows/valgrind-checks.yaml)
+[![Coverage Status](https://github.com/bmal/trading/actions/workflows/coverage-checks.yaml/badge.svg)](https://github.com/bmal/trading/actions/workflows/coverage-checks.yaml)
 [![codecov](https://codecov.io/gh/bmal/trading/branch/main/graph/badge.svg)](https://codecov.io/gh/bmal/trading)
 
 <p align="center">
