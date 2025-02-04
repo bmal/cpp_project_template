@@ -1,12 +1,18 @@
 #include <doctest/doctest.h>
 #include <atomic>
+#include <chrono>
+#include <cstdint>
+#include <cstring>
 #include <exception>
 #include <functional>
+#include <iostream>
 #include <memory>
+#include <mutex>
 #include <stdexcept>
 #include <thread>
 #include <trading/thread_utils.hpp>
 #include <utility>
+#include <vector>
 
 namespace {
 constexpr int NO_AFFINITY_CORE = 0;
@@ -148,3 +154,82 @@ TEST_CASE("Non-Linux core affinity") {
     CHECK(Trading::Core::pinThreadToCore(invalidCoreId));
 }
 #endif
+
+// below tests are temporary
+TEST_CASE("Thread Safety Diagnostic Test") {
+    std::cout << "Starting Thread Safety Test...\n";
+
+    const int NUM_THREADS = 4;
+    std::atomic<int> counter{0};
+    std::atomic<bool> should_continue{true};
+    std::vector<std::thread> threads;
+    std::mutex mtx;
+
+    std::cout << "Launching " << NUM_THREADS << " threads...\n";
+
+    // Create threads that will contend for resources
+    for (int i = 0; i < NUM_THREADS; ++i) {
+        threads.emplace_back([&, i]() {
+            std::cout << "Thread " << i << " started\n";
+
+            while (should_continue) {
+                {
+                    std::lock_guard<std::mutex> lock(mtx);
+                    counter++;
+
+                    // Deliberate race condition if mutex wasn't working
+                    if (counter % 100 == 0) {
+                        std::cout << "Thread " << i << " counter: " << counter
+                                  << "\n";
+                    }
+                }
+
+                std::this_thread::sleep_for(std::chrono::microseconds(1));
+            }
+
+            std::cout << "Thread " << i << " finished\n";
+        });
+    }
+
+    // Let threads run for a bit
+    std::this_thread::sleep_for(std::chrono::milliseconds(100));
+    should_continue = false;
+
+    // Join all threads
+    for (auto& thread : threads) {
+        thread.join();
+    }
+
+    std::cout << "Final counter value: " << counter << "\n";
+}
+
+TEST_CASE("Memory Diagnostic Test") {
+    std::cout << "Starting Memory Test...\n";
+
+    const size_t NUM_ALLOCATIONS = 1000;
+    const size_t ALLOCATION_SIZE = 1024;  // 1KB
+    std::vector<std::unique_ptr<uint8_t[]>> allocations;
+
+    std::cout << "Performing " << NUM_ALLOCATIONS << " allocations of "
+              << ALLOCATION_SIZE << " bytes each...\n";
+
+    // Perform many allocations
+    for (size_t i = 0; i < NUM_ALLOCATIONS; ++i) {
+        allocations.push_back(std::make_unique<uint8_t[]>(ALLOCATION_SIZE));
+
+        // Write to memory to ensure it's actually allocated
+        std::memset(allocations.back().get(), i & 0xFF, ALLOCATION_SIZE);
+
+        if (i % 100 == 0) {
+            std::cout << "Allocation " << i << " complete\n";
+        }
+    }
+
+    // Clear half the allocations
+    std::cout << "Clearing half of allocations...\n";
+    allocations.erase(allocations.begin(),
+                      allocations.begin() + (NUM_ALLOCATIONS / 2));
+
+    std::cout << "Memory test complete. Remaining allocations: "
+              << allocations.size() << "\n";
+}

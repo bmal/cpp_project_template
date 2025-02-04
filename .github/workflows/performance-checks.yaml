@@ -254,6 +254,95 @@ jobs:
           append_if_exists "reports/cachegrind/analysis.txt" "Cache Performance"
           append_if_exists "reports/massif/analysis.txt" "Memory Usage Patterns"
 
+      - name: Detailed Analysis
+        run: |
+          echo "Starting detailed analysis..."
+
+          # Directory structure check
+          echo "Checking directory structure:"
+          find analysis-results -type d -ls
+
+          # File check
+          echo "Checking all result files:"
+          find analysis-results -type f -ls
+
+          # Memory check diagnostics
+          echo "Memory check file content check:"
+          for f in $(find analysis-results -name "results.xml" -path "*/memcheck/*"); do
+            echo "Found memcheck file: $f"
+            echo "File size: $(stat -f%z "$f") bytes"
+            echo "First 20 lines:"
+            head -n 20 "$f"
+            echo "Searching for leak indicators:"
+            grep -i "leak" "$f" || echo "No leaks found"
+            echo "Searching for error indicators:"
+            grep -i "error" "$f" || echo "No errors found"
+          done
+
+          # Thread check diagnostics
+          echo "Thread check file content check:"
+          for f in $(find analysis-results -name "results.xml" -path "*/helgrind/*"); do
+            echo "Found helgrind file: $f"
+            echo "File size: $(stat -f%z "$f") bytes"
+            echo "First 20 lines:"
+            head -n 20 "$f"
+            echo "Searching for race conditions:"
+            grep -i "race" "$f" || echo "No race conditions found"
+            echo "Searching for deadlock indicators:"
+            grep -i "deadlock" "$f" || echo "No deadlocks found"
+          done
+
+          # Performance diagnostics
+          echo "Performance file checks:"
+          for type in callgrind cachegrind massif; do
+            echo "Checking $type results:"
+            for f in $(find analysis-results -path "*/$type/*"); do
+              echo "Found $type file: $f"
+              echo "File size: $(stat -f%z "$f") bytes"
+              echo "File type: $(file "$f")"
+              if [ -f "$f" ]; then
+                echo "First 20 lines:"
+                head -n 20 "$f"
+              fi
+            done
+          done
+
+          # Create summary
+          echo "Creating detailed summary..."
+          {
+            echo "# Analysis Results Summary"
+            echo "## Directory Structure"
+            find analysis-results -type d | sed 's/^/    /'
+            
+            echo "## Memory Check Results"
+            if find analysis-results -name "results.xml" -path "*/memcheck/*" | grep -q .; then
+              echo "Memory check files found:"
+              find analysis-results -name "results.xml" -path "*/memcheck/*" | sed 's/^/    /'
+            else
+              echo "No memory check files found"
+            fi
+            
+            echo "## Thread Safety Results"
+            if find analysis-results -name "results.xml" -path "*/helgrind/*" | grep -q .; then
+              echo "Thread check files found:"
+              find analysis-results -name "results.xml" -path "*/helgrind/*" | sed 's/^/    /'
+            else
+              echo "No thread check files found"
+            fi
+            
+            echo "## Performance Results"
+            for type in callgrind cachegrind massif; do
+              echo "### $type Results"
+              if find analysis-results -path "*/$type/*" | grep -q .; then
+                find analysis-results -path "*/$type/*" | sed 's/^/    /'
+              else
+                echo "No $type results found"
+              fi
+            done
+          } > detailed_analysis_summary.md
+
+          cat detailed_analysis_summary.md
+
       - name: Upload Detailed Analysis Results
         uses: actions/upload-artifact@v4
         with:
