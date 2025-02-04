@@ -56,11 +56,10 @@ jobs:
       - name: Memory Checks
         working-directory: build
         run: |
-          # Add debug output
           echo "Starting memory checks..."
           mkdir -p reports/memcheck
 
-          # Run valgrind with additional debug flags
+          # Run with increased verbosity and slower validation
           valgrind \
             --tool=memcheck \
             --leak-check=full \
@@ -69,16 +68,18 @@ jobs:
             --xml=yes \
             --xml-file=reports/memcheck/results.xml \
             --verbose \
+            --fair-sched=yes \
+            --num-callers=50 \
             ./TradingTests || { 
               echo "Valgrind memory check failed with exit code $?"
-              cat reports/memcheck/results.xml || echo "XML file not generated"
+              if [ -f reports/memcheck/results.xml ]; then
+                echo "Memory check output:"
+                cat reports/memcheck/results.xml
+              else
+                echo "No memory check output generated"
+              fi
               exit 1
             }
-
-          # Verify file exists and has content
-          echo "Checking results file..."
-          ls -l reports/memcheck/results.xml || echo "File not found"
-          test -s reports/memcheck/results.xml || echo "File is empty"
 
       - name: Thread Safety Analysis
         working-directory: build
@@ -86,21 +87,24 @@ jobs:
           echo "Starting thread safety analysis..."
           mkdir -p reports/helgrind
 
+          # Run with increased thread validation
           valgrind \
             --tool=helgrind \
             --xml=yes \
             --xml-file=reports/helgrind/results.xml \
             --verbose \
+            --fair-sched=yes \
+            --history-level=full \
             ./TradingTests || {
               echo "Valgrind helgrind check failed with exit code $?"
-              cat reports/helgrind/results.xml || echo "XML file not generated"
+              if [ -f reports/helgrind/results.xml ]; then
+                echo "Thread safety output:"
+                cat reports/helgrind/results.xml
+              else
+                echo "No thread safety output generated"
+              fi
               exit 1
             }
-
-          # Verify file exists and has content
-          echo "Checking results file..."
-          ls -l reports/helgrind/results.xml || echo "File not found"
-          test -s reports/helgrind/results.xml || echo "File is empty"
 
       - name: Upload Essential Check Results
         uses: actions/upload-artifact@v4
@@ -289,21 +293,52 @@ jobs:
           }
 
           # Check memory check results
-          for report in analysis-results/*/reports/memcheck/results.xml; do
-            echo "Checking memory report: $report"
-            check_xml_file "$report"
-            if [ -f "$report" ]; then
-              echo "Memory check content:"
-              head -n 20 "$report"
-            fi
-          done
+          echo "Checking memory reports..."
+          MEMCHECK_FILES=$(find analysis-results -name "results.xml" -path "*/memcheck/*")
+          if [ -z "$MEMCHECK_FILES" ]; then
+            echo "No memory check results found"
+          else
+            for report in $MEMCHECK_FILES; do
+              echo "Checking memory report: $report"
+              check_xml_file "$report"
+              if [ -f "$report" ]; then
+                echo "Memory check content:"
+                head -n 20 "$report"
+                if grep -q "definitely lost:" "$report"; then
+                  echo "::error::Memory leaks detected"
+                  exit 1
+                fi
+              fi
+            done
+          fi
 
           # Check thread safety results
-          for report in analysis-results/*/reports/helgrind/results.xml; do
-            echo "Checking thread safety report: $report"
-            check_xml_file "$report"
-            if [ -f "$report" ]; then
-              echo "Thread safety content:"
+          echo "Checking thread safety reports..."
+          HELGRIND_FILES=$(find analysis-results -name "results.xml" -path "*/helgrind/*")
+          if [ -z "$HELGRIND_FILES" ]; then
+            echo "No thread safety results found"
+          else
+            for report in $HELGRIND_FILES; do
+              echo "Checking thread safety report: $report"
+              check_xml_file "$report"
+              if [ -f "$report" ]; then
+                echo "Thread safety content:"
+                head -n 20 "$report"
+                if grep -q "<error>" "$report"; then
+                  echo "::error::Race conditions detected"
+                  exit 1
+                fi
+              fi
+            done
+          fi
+
+          # Check for performance regressions
+          echo "Checking performance reports..."
+          CALLGRIND_FILES=$(find analysis-results -name "analysis.txt" -path "*/callgrind/*")
+          if [ -n "$CALLGRIND_FILES" ]; then
+            echo "Found callgrind analysis files:"
+            for report in $CALLGRIND_FILES; do
+              echo "Content of $report:"
               head -n 20 "$report"
-            fi
-          done
+            done
+          fi
