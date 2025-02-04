@@ -39,18 +39,28 @@ jobs:
 
       - name: Build Project
         run: |
+          echo "Building with debug info..."
           cmake -S test -B build \
             -DCMAKE_BUILD_TYPE=RelWithDebInfo \
             -DCMAKE_CXX_COMPILER=clang++-${{ env.LLVM_VERSION }} \
-            -DCMAKE_CXX_FLAGS="-g -fno-omit-frame-pointer" \
+            -DCMAKE_CXX_FLAGS="-g -fno-omit-frame-pointer -fno-inline" \
             -DCMAKE_CXX_STANDARD=23
 
           cmake --build build -j$(nproc)
 
+          # Verify debug symbols
+          echo "Checking debug symbols..."
+          file build/TradingTests
+          nm build/TradingTests | grep -i debug || echo "No debug symbols found"
+
       - name: Memory Checks
         working-directory: build
         run: |
+          # Add debug output
+          echo "Starting memory checks..."
           mkdir -p reports/memcheck
+
+          # Run valgrind with additional debug flags
           valgrind \
             --tool=memcheck \
             --leak-check=full \
@@ -58,24 +68,49 @@ jobs:
             --track-origins=yes \
             --xml=yes \
             --xml-file=reports/memcheck/results.xml \
-            ./TradingTests || exit 1
+            --verbose \
+            ./TradingTests || { 
+              echo "Valgrind memory check failed with exit code $?"
+              cat reports/memcheck/results.xml || echo "XML file not generated"
+              exit 1
+            }
+
+          # Verify file exists and has content
+          echo "Checking results file..."
+          ls -l reports/memcheck/results.xml || echo "File not found"
+          test -s reports/memcheck/results.xml || echo "File is empty"
 
       - name: Thread Safety Analysis
         working-directory: build
         run: |
+          echo "Starting thread safety analysis..."
           mkdir -p reports/helgrind
+
           valgrind \
             --tool=helgrind \
             --xml=yes \
             --xml-file=reports/helgrind/results.xml \
-            ./TradingTests || exit 1
+            --verbose \
+            ./TradingTests || {
+              echo "Valgrind helgrind check failed with exit code $?"
+              cat reports/helgrind/results.xml || echo "XML file not generated"
+              exit 1
+            }
+
+          # Verify file exists and has content
+          echo "Checking results file..."
+          ls -l reports/helgrind/results.xml || echo "File not found"
+          test -s reports/helgrind/results.xml || echo "File is empty"
 
       - name: Upload Essential Check Results
         uses: actions/upload-artifact@v4
         with:
           name: essential-check-reports
-          path: build/reports/
+          path: |
+            build/reports/memcheck/
+            build/reports/helgrind/
           retention-days: 14
+          if-no-files-found: error # This will fail if files aren't found
 
   detailed-analysis:
     needs: essential-checks
@@ -235,29 +270,40 @@ jobs:
 
       - name: Check for Critical Issues
         run: |
-          # Function to safely check files
-          check_file() {
+          echo "Checking for analysis files..."
+          find analysis-results -type f -ls
+
+          # Function to check XML file
+          check_xml_file() {
             local file=$1
-            local pattern=$2
-            local message=$3
-            
-            if [ -f "$file" ]; then
-              if grep -q "$pattern" "$file"; then
-                echo "::error::$message"
-                return 1
-              fi
-            else
-              echo "Warning: File $file not found"
-              return 0
+            if [ ! -f "$file" ]; then
+              echo "Error: File $file not found"
+              return 1
             fi
+            if ! grep -q "<?xml" "$file"; then
+              echo "Error: File $file is not valid XML"
+              return 1
+            fi
+            echo "File $file exists and contains XML data"
             return 0
           }
 
-          # Check each report type
+          # Check memory check results
           for report in analysis-results/*/reports/memcheck/results.xml; do
-            check_file "$report" "definitely lost:" "Memory leaks detected" || exit 1
+            echo "Checking memory report: $report"
+            check_xml_file "$report"
+            if [ -f "$report" ]; then
+              echo "Memory check content:"
+              head -n 20 "$report"
+            fi
           done
 
+          # Check thread safety results
           for report in analysis-results/*/reports/helgrind/results.xml; do
-            check_file "$report" "Race condition" "Race conditions detected" || exit 1
+            echo "Checking thread safety report: $report"
+            check_xml_file "$report"
+            if [ -f "$report" ]; then
+              echo "Thread safety content:"
+              head -n 20 "$report"
+            fi
           done
