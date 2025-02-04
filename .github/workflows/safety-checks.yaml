@@ -19,18 +19,17 @@ jobs:
           - sanitizer: Thread
             build_type: Release
             cache_key: tsan
+          - sanitizer: Undefined
+            build_type: Release
+            cache_key: ubsan
+          - sanitizer: '"Address;Undefined"'
+            build_type: Debug
+            cache_key: asan_ubsan
           # Memory sanitizer needs all code including stdlib to be instrumented
           # Skipping as it requires custom-built libc++
           # - sanitizer: Memory
           #   build_type: Release
           #   cache_key: msan
-          - sanitizer: Undefined
-            build_type: Release
-            cache_key: ubsan
-          - sanitizer: "Address;Undefined" # Note the semicolon separator
-            build_type: Debug
-            cache_key: asan_ubsan
-
     steps:
       - uses: actions/checkout@v3
 
@@ -52,7 +51,6 @@ jobs:
 
       - name: Configure Environment
         run: |
-          # Set common sanitizer options
           echo "UBSAN_OPTIONS=print_stacktrace=1:halt_on_error=1:print_summary=1" >> $GITHUB_ENV
           echo "ASAN_OPTIONS=detect_stack_use_after_return=1:check_initialization_order=1:strict_string_checks=1:detect_leaks=1" >> $GITHUB_ENV
           echo "TSAN_OPTIONS=second_deadlock_stack=1:report_signal_unsafe=1:memory_limit_mb=4096" >> $GITHUB_ENV
