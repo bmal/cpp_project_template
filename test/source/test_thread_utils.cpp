@@ -1,19 +1,13 @@
 #include <doctest/doctest.h>
-#include <algorithm>
 #include <atomic>
-#include <chrono>
-#include <cstdint>
 #include <cstring>
 #include <exception>
 #include <functional>
-#include <iostream>
 #include <memory>
-#include <mutex>
 #include <stdexcept>
 #include <thread>
 #include <trading/thread_utils.hpp>
 #include <utility>
-#include <vector>
 
 namespace {
 constexpr int NO_AFFINITY_CORE = 0;
@@ -155,3 +149,20 @@ TEST_CASE("Non-Linux core affinity") {
     CHECK(Trading::Core::pinThreadToCore(invalidCoreId));
 }
 #endif
+
+TEST_CASE("Deliberate data race for TSan") {
+    int shared_var = 0;  // Non-atomic variable
+
+    auto thread1 = std::thread([&]() {
+        shared_var++;  // Data race here
+    });
+
+    auto thread2 = std::thread([&]() {
+        shared_var++;  // Data race here
+    });
+
+    thread1.join();
+    thread2.join();
+
+    CHECK(shared_var == 2);  // Value might be 1 or 2 due to race
+}
