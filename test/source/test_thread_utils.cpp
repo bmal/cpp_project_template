@@ -1,4 +1,5 @@
 #include <doctest/doctest.h>
+#include <algorithm>
 #include <atomic>
 #include <chrono>
 #include <cstdint>
@@ -157,79 +158,97 @@ TEST_CASE("Non-Linux core affinity") {
 
 // below tests are temporary
 TEST_CASE("Thread Safety Diagnostic Test") {
-    std::cout << "Starting Thread Safety Test...\n";
-
     const int NUM_THREADS = 4;
+    const int NUM_ITERATIONS = 1000;
+
+    // Protected shared resources
     std::atomic<int> counter{0};
     std::atomic<bool> should_continue{true};
-    std::vector<std::thread> threads;
     std::mutex mtx;
+    std::vector<std::string> log_messages;
 
-    std::cout << "Launching " << NUM_THREADS << " threads...\n";
+    // Thread storage
+    std::vector<std::thread> threads;
+    threads.reserve(NUM_THREADS);
 
-    // Create threads that will contend for resources
+    // Create threads with proper synchronization
     for (int i = 0; i < NUM_THREADS; ++i) {
         threads.emplace_back([&, i]() {
-            std::cout << "Thread " << i << " started\n";
+            int local_counter = 0;
 
-            while (should_continue) {
+            while (should_continue.load(std::memory_order_acquire) &&
+                   local_counter < NUM_ITERATIONS) {
                 {
                     std::lock_guard<std::mutex> lock(mtx);
-                    counter++;
+                    counter.fetch_add(1, std::memory_order_relaxed);
+                    local_counter++;
 
-                    // Deliberate race condition if mutex wasn't working
-                    if (counter % 100 == 0) {
-                        std::cout << "Thread " << i << " counter: " << counter
-                                  << "\n";
+                    if (local_counter % 100 == 0) {
+                        log_messages.push_back("Thread " + std::to_string(i) +
+                                               " reached " +
+                                               std::to_string(local_counter));
                     }
                 }
 
-                std::this_thread::sleep_for(std::chrono::microseconds(1));
+                // Prevent tight loop, allow other threads to run
+                std::this_thread::yield();
             }
-
-            std::cout << "Thread " << i << " finished\n";
         });
     }
 
-    // Let threads run for a bit
+    // Let threads run for a fixed duration
     std::this_thread::sleep_for(std::chrono::milliseconds(100));
-    should_continue = false;
+    should_continue.store(false, std::memory_order_release);
 
-    // Join all threads
+    // Clean shutdown
     for (auto& thread : threads) {
-        thread.join();
-    }
-
-    std::cout << "Final counter value: " << counter << "\n";
-}
-
-TEST_CASE("Memory Diagnostic Test") {
-    std::cout << "Starting Memory Test...\n";
-
-    const size_t NUM_ALLOCATIONS = 1000;
-    const size_t ALLOCATION_SIZE = 1024;  // 1KB
-    std::vector<std::unique_ptr<uint8_t[]>> allocations;
-
-    std::cout << "Performing " << NUM_ALLOCATIONS << " allocations of "
-              << ALLOCATION_SIZE << " bytes each...\n";
-
-    // Perform many allocations
-    for (size_t i = 0; i < NUM_ALLOCATIONS; ++i) {
-        allocations.push_back(std::make_unique<uint8_t[]>(ALLOCATION_SIZE));
-
-        // Write to memory to ensure it's actually allocated
-        std::memset(allocations.back().get(), i & 0xFF, ALLOCATION_SIZE);
-
-        if (i % 100 == 0) {
-            std::cout << "Allocation " << i << " complete\n";
+        if (thread.joinable()) {
+            thread.join();
         }
     }
 
-    // Clear half the allocations
-    std::cout << "Clearing half of allocations...\n";
-    allocations.erase(allocations.begin(),
-                      allocations.begin() + (NUM_ALLOCATIONS / 2));
+    // Verify results
+    CHECK(counter.load(std::memory_order_relaxed) <=
+          NUM_THREADS * NUM_ITERATIONS);
+    CHECK(!threads.empty());
+    CHECK(!log_messages.empty());
+}
 
-    std::cout << "Memory test complete. Remaining allocations: "
-              << allocations.size() << "\n";
+TEST_CASE("Memory Diagnostic Test") {
+    const size_t NUM_ALLOCATIONS = 100;
+    const size_t ALLOCATION_SIZE = 1024;  // 1KB
+
+    // Use RAII containers
+    std::vector<std::unique_ptr<std::vector<uint8_t>>> allocations;
+    allocations.reserve(NUM_ALLOCATIONS);
+
+    // Controlled allocation
+    for (size_t i = 0; i < NUM_ALLOCATIONS; ++i) {
+        // Use make_unique for exception safety
+        auto data = std::make_unique<std::vector<uint8_t>>();
+        data->resize(ALLOCATION_SIZE, static_cast<uint8_t>(i & 0xFF));
+
+        // Verify allocation
+        CHECK(data->size() == ALLOCATION_SIZE);
+        CHECK((*data)[0] == static_cast<uint8_t>(i & 0xFF));
+
+        allocations.push_back(std::move(data));
+    }
+
+    // Verify all allocations
+    CHECK(allocations.size() == NUM_ALLOCATIONS);
+
+    // Controlled deallocation
+    for (size_t i = 0; i < allocations.size(); i += 2) {
+        allocations[i].reset();  // Explicit cleanup of every other allocation
+    }
+
+    // Partial cleanup verification
+    CHECK(allocations.size() == NUM_ALLOCATIONS);
+    auto null_count = static_cast<size_t>(
+        std::count_if(allocations.begin(), allocations.end(),
+                      [](const auto& ptr) { return ptr == nullptr; }));
+    CHECK(null_count == (NUM_ALLOCATIONS + 1) / 2);
+
+    // Vector will clean up remaining allocations automatically
 }
