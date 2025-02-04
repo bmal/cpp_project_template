@@ -19,13 +19,24 @@ jobs:
 
       - name: Install Dependencies
         run: |
+          # Add repositories for latest versions
           sudo apt-get update
+
+          # Install Valgrind and related tools
           sudo apt-get install -y \
             valgrind \
+            kcachegrind \
+            graphviz \
             linux-tools-common \
             linux-tools-generic \
             python3-pip \
-            graphviz
+            libc6-dbg
+
+          # Verify installations
+          valgrind --version
+          which callgrind_annotate
+          which cg_annotate
+          which ms_print
 
       - name: Build Project
         run: |
