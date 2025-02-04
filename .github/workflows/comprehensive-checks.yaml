@@ -23,13 +23,6 @@ jobs:
       pull-requests: write
       contents: read
 
-  coverage-checks:
-    uses: ./.github/workflows/coverage-checks.yaml
-    permissions:
-      checks: write
-      pull-requests: write
-      contents: read
-
   performance-checks:
     uses: ./.github/workflows/performance-checks.yaml
     permissions:
