@@ -22,14 +22,10 @@ jobs:
           - sanitizer: Undefined
             build_type: Release
             cache_key: ubsan
-          - sanitizer: '"Address;Undefined"'
+          - sanitizer: Address;Undefined
             build_type: Debug
             cache_key: asan_ubsan
-          # Memory sanitizer needs all code including stdlib to be instrumented
-          # Skipping as it requires custom-built libc++
-          # - sanitizer: Memory
-          #   build_type: Release
-          #   cache_key: msan
+
     steps:
       - uses: actions/checkout@v3
 
@@ -51,9 +47,16 @@ jobs:
 
       - name: Configure Environment
         run: |
-          echo "UBSAN_OPTIONS=print_stacktrace=1:halt_on_error=1:print_summary=1" >> $GITHUB_ENV
-          echo "ASAN_OPTIONS=detect_stack_use_after_return=1:check_initialization_order=1:strict_string_checks=1:detect_leaks=1" >> $GITHUB_ENV
-          echo "TSAN_OPTIONS=second_deadlock_stack=1:report_signal_unsafe=1:memory_limit_mb=4096" >> $GITHUB_ENV
+          # Set sanitizer-specific options
+          if [[ "${{ matrix.sanitizer }}" == *"Address"* ]]; then
+            echo "ASAN_OPTIONS=detect_stack_use_after_return=1:check_initialization_order=1:strict_string_checks=1:detect_leaks=1:halt_on_error=1" >> $GITHUB_ENV
+          fi
+          if [[ "${{ matrix.sanitizer }}" == *"Undefined"* ]]; then
+            echo "UBSAN_OPTIONS=print_stacktrace=1:halt_on_error=1:print_summary=1" >> $GITHUB_ENV
+          fi
+          if [[ "${{ matrix.sanitizer }}" == "Thread" ]]; then
+            echo "TSAN_OPTIONS=second_deadlock_stack=1:report_signal_unsafe=1:memory_limit_mb=4096" >> $GITHUB_ENV
+          fi
 
       - name: Configure
         run: |
@@ -62,7 +65,8 @@ jobs:
             -DUSE_SANITIZER=${{ matrix.sanitizer }} \
             -DCMAKE_CXX_FLAGS="-march=native -mtune=native -fno-omit-frame-pointer -fno-optimize-sibling-calls -stdlib=libstdc++" \
             -DCMAKE_EXE_LINKER_FLAGS="-fuse-ld=lld" \
-            -DCMAKE_MODULE_LINKER_FLAGS="-fuse-ld=lld"
+            -DCMAKE_MODULE_LINKER_FLAGS="-fuse-ld=lld" \
+            -DCMAKE_VERBOSE_MAKEFILE=ON
 
       - name: Build
         run: cmake --build build -j$(nproc)
@@ -87,6 +91,9 @@ jobs:
 
           # Collect all sanitizer output files
           find . -name "*sanitizer*.log" -exec cp {} reports/sanitizer/ \;
+          find . -name "asan.*" -exec cp {} reports/sanitizer/ \;
+          find . -name "ubsan.*" -exec cp {} reports/sanitizer/ \;
+          find . -name "tsan.*" -exec cp {} reports/sanitizer/ \;
 
           # Create summary
           {
