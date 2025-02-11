@@ -9,6 +9,11 @@ jobs:
     steps:
       - uses: actions/checkout@v3
 
+      - name: Setup Compiler Cache
+        uses: hendrikmuhs/ccache-action@v1.2
+        with:
+          key: standalone-${{ runner.os }}-${{ github.sha }}
+
       - name: Cache Dependencies
         uses: actions/cache@v3
         with:
@@ -18,7 +23,8 @@ jobs:
       - name: Configure
         run: |
           cmake -S standalone -B build/standalone \
-            -DCMAKE_BUILD_TYPE=Release
+            -DCMAKE_BUILD_TYPE=Release \
+            -DCMAKE_CXX_COMPILER_LAUNCHER=ccache
 
       - name: Build
         run: cmake --build build/standalone -j$(nproc)
@@ -67,18 +73,17 @@ jobs:
           cmake -S test -B build/test \
             -DCMAKE_BUILD_TYPE=${{ matrix.config.build_type }} \
             -DCMAKE_CXX_COMPILER_LAUNCHER=ccache \
-            -DCMAKE_EXPORT_COMPILE_COMMANDS=ON
+            -DCMAKE_EXPORT_COMPILE_COMMANDS=ON \
+            -DENABLE_BENCHMARKS=OFF
 
       - name: Build
         run: cmake --build build/test -j$(nproc 2>/dev/null || sysctl -n hw.logicalcpu)
 
-      - name: Test
+      - name: Run Unit Tests
         working-directory: build/test
         run: |
-          echo "Available tests:"
-          ctest -N
-          echo "Running tests:"
-          ctest --build-config ${{ matrix.config.build_type }} --output-on-failure --output-junit test-results.xml
+          echo "Running functional tests:"
+          ./functional/TradingTests --gtest_output=xml:test-results.xml
 
       - name: Upload Test Results
         if: always()
@@ -86,12 +91,22 @@ jobs:
         with:
           name: test-results-${{ matrix.config.name }}
           path: build/test/test-results.xml
+          retention-days: 14
 
-      - name: Upload Test Logs
+      - name: Upload Build Logs
         if: failure()
         uses: actions/upload-artifact@v4
         with:
-          name: test-logs-${{ matrix.config.name }}
+          name: build-logs-${{ matrix.config.name }}
           path: |
-            build/test/Testing/Temporary/LastTest.log
+            build/test/CMakeFiles/CMakeOutput.log
             build/test/CMakeFiles/CMakeError.log
+          retention-days: 7
+
+      - name: Upload Compile Commands
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: compile-commands-${{ matrix.config.name }}
+          path: build/test/compile_commands.json
+          retention-days: 7

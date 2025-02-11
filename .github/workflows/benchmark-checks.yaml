@@ -1,0 +1,113 @@
+name: Benchmark Checks
+
+on:
+  workflow_call:
+
+jobs:
+  run-benchmarks:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Setup Compiler Cache
+        uses: hendrikmuhs/ccache-action@v1.2
+        with:
+          key: ${{ runner.os }}-Release-Benchmark
+
+      - name: Cache CPM Dependencies
+        uses: actions/cache@v3
+        with:
+          path: "**/cpm_modules"
+          key: cpm-${{ runner.os }}-${{ hashFiles('**/CMakeLists.txt', '**/*.cmake') }}
+
+      - name: Install Dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            libtbb-dev \
+            linux-tools-common \
+            linux-tools-generic \
+            cpufrequtils \
+            util-linux \
+            procps
+
+      - name: System Information
+        run: |
+          echo "=== CPU Information ==="
+          lscpu | grep -E "Model name|CPU\(s\)|Thread|CPU MHz"
+
+          echo "=== Memory Info ==="
+          free -h | grep "Mem:"
+
+      - name: Configure
+        run: |
+          cmake -S test -B build/test \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DCMAKE_CXX_COMPILER_LAUNCHER=ccache \
+            -DCMAKE_CXX_FLAGS="-O3 -march=native -fno-omit-frame-pointer" \
+            -DCMAKE_EXPORT_COMPILE_COMMANDS=ON \
+            -DENABLE_BENCHMARKS=ON
+
+      - name: Build
+        run: |
+          cmake --build build/test -j$(nproc) --target TradingBenchmarks --verbose
+
+      - name: Setup CPU for benchmarking
+        run: |
+          if [ -d "/sys/devices/system/cpu/cpu0/cpufreq" ]; then
+            echo "Setting CPU governor to performance mode..."
+            for cpu in /sys/devices/system/cpu/cpu*/cpufreq/scaling_governor; do
+              echo performance | sudo tee $cpu || echo "Failed to set governor for $cpu"
+            done
+          fi
+
+      - name: Run Benchmarks
+        working-directory: build/test
+        run: |
+          echo "=== Running Benchmarks ==="
+          ./benchmark/TradingBenchmarks \
+            --benchmark_format=console \
+            --benchmark_repetitions=10 \
+            --benchmark_min_time=2.0 \
+            --benchmark_counters_tabular=true \
+            --benchmark_display_aggregates_only=true \
+            --benchmark_report_aggregates_only=true \
+            --benchmark_color=true \
+            --v=0 2>&1 | tee benchmark_results.txt
+
+          # Create a simplified summary
+          echo -e "\n=== Summary ===" >> benchmark_results.txt
+          echo "Memory Allocation Performance:" >> benchmark_results.txt
+          grep "_mean" benchmark_results.txt | \
+            awk '{ printf "%-30s Time: %12.2f ns    Throughput: %12.2f ops/sec\n", $1, $3, $5 }' \
+            >> benchmark_results.txt
+
+      - name: Display Results
+        run: cat build/test/benchmark_results.txt
+
+      - name: Store Results
+        uses: actions/upload-artifact@v4
+        with:
+          name: benchmark-results
+          path: build/test/benchmark_results.txt
+          retention-days: 7
+
+      - name: Comment PR with Results
+        if: github.event_name == 'pull_request'
+        uses: actions/github-script@v7
+        with:
+          github-token: ${{secrets.GITHUB_TOKEN}}
+          script: |
+            const fs = require('fs');
+            const { owner, repo } = context.repo;
+            const issue_number = context.issue.number;
+
+            const results = fs.readFileSync('build/test/benchmark_results.txt', 'utf8');
+            const summary = '```\n' + results + '\n```';
+
+            await github.rest.issues.createComment({
+              owner,
+              repo,
+              issue_number,
+              body: summary
+            });

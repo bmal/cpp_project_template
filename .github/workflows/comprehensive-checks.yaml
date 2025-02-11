@@ -9,13 +9,6 @@ permissions:
   contents: read
 
 jobs:
-  quality-checks:
-    uses: ./.github/workflows/quality-checks.yaml
-    permissions:
-      checks: write
-      pull-requests: write
-      contents: read
-
   safety-checks:
     uses: ./.github/workflows/sanitizer-checks.yaml
     permissions:
@@ -25,6 +18,13 @@ jobs:
 
   performance-checks:
     uses: ./.github/workflows/valgrind-checks.yaml
+    permissions:
+      checks: write
+      pull-requests: write
+      contents: read
+
+  benchmarks:
+    uses: ./.github/workflows/benchmark-checks.yaml
     permissions:
       checks: write
       pull-requests: write

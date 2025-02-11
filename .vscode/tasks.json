@@ -4,7 +4,7 @@
     {
       "label": "CMake Configure All",
       "type": "shell",
-      "command": "cmake -S all -B build -DCMAKE_EXPORT_COMPILE_COMMANDS=ON -DCMAKE_CXX_COMPILER=clang++ && ln -sf build/compile_commands.json .",
+      "command": "cmake -S all -B build -DCMAKE_EXPORT_COMPILE_COMMANDS=ON -DCMAKE_CXX_COMPILER=clang++ -DENABLE_BENCHMARKS=ON && ln -sf build/compile_commands.json .",
       "group": "build",
       "problemMatcher": "$gcc"
     },
@@ -56,13 +56,27 @@
       }
     },
     {
-      "label": "Run Tests",
+      "label": "Run Functional Tests",
       "type": "shell",
-      "command": "./build/test/TradingTests",
+      "command": "./build/test/functional/TradingTests",
       "group": {
         "kind": "test",
         "isDefault": true
       },
+      "dependsOn": ["CMake Build All"]
+    },
+    {
+      "label": "Run Benchmarks",
+      "type": "shell",
+      "command": "./build/test/benchmark/TradingBenchmarks",
+      "group": "test",
+      "dependsOn": ["CMake Build All"]
+    },
+    {
+      "label": "Run All Tests",
+      "type": "shell",
+      "command": "echo 'Running functional tests...' && ./build/test/functional/TradingTests && echo 'Running benchmarks...' && ./build/test/benchmark/TradingBenchmarks",
+      "group": "test",
       "dependsOn": ["CMake Build All"]
     },
     {
