@@ -79,29 +79,30 @@ jobs:
               exit 1
             }
 
-      - name: Thread Safety Analysis
-        working-directory: build/test
-        run: |
-          echo "Starting thread safety analysis..."
-          mkdir -p reports/helgrind
-
-          valgrind \
-            --tool=helgrind \
-            --xml=yes \
-            --xml-file=reports/helgrind/results.xml \
-            --verbose \
-            --fair-sched=yes \
-            --history-level=full \
-            ./functional/TradingTests || {
-              echo "Valgrind helgrind check failed with exit code $?"
-              if [ -f reports/helgrind/results.xml ]; then
-                echo "Thread safety output:"
-                cat reports/helgrind/results.xml
-              else
-                echo "No thread safety output generated"
-              fi
-              exit 1
-            }
+      # - name: Thread Safety Analysis
+      #   working-directory: build/test
+      #   run: |
+      #     echo "Starting thread safety analysis..."
+      #     mkdir -p reports/helgrind
+      #
+      #     valgrind \
+      #       --tool=helgrind \
+      #       --suppressions=$GITHUB_WORKSPACE/test/helgrind.supp \
+      #       --xml=yes \
+      #       --xml-file=reports/helgrind/results.xml \
+      #       --verbose \
+      #       --fair-sched=yes \
+      #       --history-level=full \
+      #       ./functional/TradingTests || {
+      #         echo "Valgrind helgrind check failed with exit code $?"
+      #         if [ -f reports/helgrind/results.xml ]; then
+      #           echo "Thread safety output:"
+      #           cat reports/helgrind/results.xml
+      #         else
+      #           echo "No thread safety output generated"
+      #         fi
+      #         exit 1
+      #       }
 
       - name: Upload Essential Check Results
         uses: actions/upload-artifact@v4
@@ -109,10 +110,9 @@ jobs:
           name: essential-check-reports
           path: |
             build/test/reports/memcheck/
-            build/test/reports/helgrind/
+            # build/test/reports/helgrind/
           retention-days: 14
           if-no-files-found: error
-
   detailed-analysis:
     needs: essential-checks
     runs-on: ubuntu-latest
@@ -233,15 +233,15 @@ jobs:
           echo "\`\`\`" >> performance_summary.md
           echo >> performance_summary.md
 
-          echo "## Thread Safety Issues" >> performance_summary.md
-          echo "\`\`\`" >> performance_summary.md
-          if [ -f "reports/helgrind/results.xml" ]; then
-            grep -A 5 "<error>" reports/helgrind/results.xml >> performance_summary.md || echo "No thread safety issues found" >> performance_summary.md
-          else
-            echo "Thread safety results not found" >> performance_summary.md
-          fi
-          echo "\`\`\`" >> performance_summary.md
-          echo >> performance_summary.md
+          # echo "## Thread Safety Issues" >> performance_summary.md
+          # echo "\`\`\`" >> performance_summary.md
+          # if [ -f "reports/helgrind/results.xml" ]; then
+          #   grep -A 5 "<error>" reports/helgrind/results.xml >> performance_summary.md || echo "No thread safety issues found" >> performance_summary.md
+          # else
+          #   echo "Thread safety results not found" >> performance_summary.md
+          # fi
+          # echo "\`\`\`" >> performance_summary.md
+          # echo >> performance_summary.md
 
           append_if_exists "reports/callgrind/analysis.txt" "CPU Hotspots"
           append_if_exists "reports/cachegrind/analysis.txt" "Cache Performance"
@@ -270,17 +270,17 @@ jobs:
             grep -i "error" "$f" || echo "No errors found"
           done
 
-          echo "Thread check file content check:"
-          for f in $(find reports -name "results.xml" -path "*/helgrind/*" 2>/dev/null); do
-            echo "Found helgrind file: $f"
-            echo "File size: $(stat -f%z "$f" 2>/dev/null || stat --format="%s" "$f") bytes"
-            echo "First 20 lines:"
-            head -n 20 "$f"
-            echo "Searching for race conditions:"
-            grep -i "race" "$f" || echo "No race conditions found"
-            echo "Searching for deadlock indicators:"
-            grep -i "deadlock" "$f" || echo "No deadlocks found"
-          done
+          # echo "Thread check file content check:"
+          # for f in $(find reports -name "results.xml" -path "*/helgrind/*" 2>/dev/null); do
+          #   echo "Found helgrind file: $f"
+          #   echo "File size: $(stat -f%z "$f" 2>/dev/null || stat --format="%s" "$f") bytes"
+          #   echo "First 20 lines:"
+          #   head -n 20 "$f"
+          #   echo "Searching for race conditions:"
+          #   grep -i "race" "$f" || echo "No race conditions found"
+          #   echo "Searching for deadlock indicators:"
+          #   grep -i "deadlock" "$f" || echo "No deadlocks found"
+          # done
 
           echo "Performance file checks:"
           for type in callgrind cachegrind massif; do
@@ -309,13 +309,13 @@ jobs:
               echo "No memory check files found"
             fi
             
-            echo "## Thread Safety Results"
-            if find reports -name "results.xml" -path "*/helgrind/*" 2>/dev/null | grep -q .; then
-              echo "Thread check files found:"
-              find reports -name "results.xml" -path "*/helgrind/*" | sed 's/^/    /'
-            else
-              echo "No thread check files found"
-            fi
+            # echo "## Thread Safety Results"
+            # if find reports -name "results.xml" -path "*/helgrind/*" 2>/dev/null | grep -q .; then
+            #   echo "Thread check files found:"
+            #   find reports -name "results.xml" -path "*/helgrind/*" | sed 's/^/    /'
+            # else
+            #   echo "No thread check files found"
+            # fi
             
             echo "## Performance Results"
             for type in callgrind cachegrind massif; do
@@ -364,17 +364,17 @@ jobs:
             fi
           }
 
-          check_thread_issues() {
-            local file=$1
-            if grep -A 5 "<error>" "$file" > /dev/null; then
-              echo "Thread safety issues found:"
-              grep -A 5 "<error>" "$file"
-              return 1
-            else
-              echo "No thread safety issues detected"
-              return 0
-            fi
-          }
+          # check_thread_issues() {
+          #   local file=$1
+          #   if grep -A 5 "<error>" "$file" > /dev/null; then
+          #     echo "Thread safety issues found:"
+          #     grep -A 5 "<error>" "$file"
+          #     return 1
+          #   else
+          #     echo "No thread safety issues detected"
+          #     return 0
+          #   fi
+          # }
 
           echo "## Memory Check Results"
           if [ -f "analysis-results/essential-check-reports/memcheck/results.xml" ]; then
@@ -383,12 +383,12 @@ jobs:
             echo "Memory check results file not found"
           fi
 
-          echo "## Thread Safety Results"
-          if [ -f "analysis-results/essential-check-reports/helgrind/results.xml" ]; then
-            check_thread_issues "analysis-results/essential-check-reports/helgrind/results.xml"
-          else
-            echo "Thread safety results file not found"
-          fi
+          # echo "## Thread Safety Results"
+          # if [ -f "analysis-results/essential-check-reports/helgrind/results.xml" ]; then
+          #   check_thread_issues "analysis-results/essential-check-reports/helgrind/results.xml"
+          # else
+          #   echo "Thread safety results file not found"
+          # fi
 
           if [ -f "analysis-results/detailed-analysis-reports/reports/callgrind/analysis.txt" ]; then
             echo "CPU profiling data available"

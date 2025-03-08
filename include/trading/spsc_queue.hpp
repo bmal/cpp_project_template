@@ -9,8 +9,17 @@ namespace Trading::Core {
 
 template <typename T>
 class SPSCQueue {
+    static_assert(std::atomic<size_t>::is_always_lock_free,
+                  "Platform must support lock-free atomics");
+
+    static_assert(std::is_trivially_copyable_v<T> ||
+                      std::is_copy_constructible_v<T>,
+                  "T must be trivially copyable or copy constructible");
+
    public:
-    explicit SPSCQueue(size_t minimalCapacity) // TODO fix for use case when maximalCapacity is equal to maximal value of size_t
+    explicit SPSCQueue(
+        size_t minimalCapacity)  // TODO fix for use case when maximalCapacity
+                                 // is equal to maximal value of size_t
         : _nextWriterIndex{},
           _nextReaderIndex{},
           CAPACITY_MASK(nextPowerOfTwo(minimalCapacity + 1) - 1),

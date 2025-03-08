@@ -38,3 +38,5 @@ CMakeFiles/*
 valgrind.log
 .DS_Store
 .venv/
+
+*.log
