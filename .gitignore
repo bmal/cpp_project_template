@@ -40,3 +40,4 @@ valgrind.log
 .venv/
 
 *.log
+*test_log.txt

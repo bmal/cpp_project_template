@@ -118,8 +118,7 @@ TEST_F(ThreadArgumentTest, HandlesMoveOnlyArguments) {
     EXPECT_EQ(uniquePtr, nullptr);
 }
 
-#ifdef __linux__
-class LinuxThreadAffinityTest : public ThreadTestBase {
+class ThreadAffinityTest : public ThreadTestBase {
    protected:
     void SetUp() override {
         maxCores = std::thread::hardware_concurrency();
@@ -131,7 +130,7 @@ class LinuxThreadAffinityTest : public ThreadTestBase {
     unsigned int maxCores;
 };
 
-TEST_F(LinuxThreadAffinityTest, SupportsUnpinnedThread) {
+TEST_F(ThreadAffinityTest, SupportsUnpinnedThread) {
     std::atomic<bool> threadRan{false};
 
     auto thread = Trading::Core::createPinnedThread(
@@ -141,7 +140,7 @@ TEST_F(LinuxThreadAffinityTest, SupportsUnpinnedThread) {
     EXPECT_TRUE(threadRan);
 }
 
-TEST_F(LinuxThreadAffinityTest, SupportsPinnedThread) {
+TEST_F(ThreadAffinityTest, SupportsPinnedThread) {
     std::atomic<bool> threadRan{false};
 
     auto thread = Trading::Core::createPinnedThread(
@@ -151,19 +150,3 @@ TEST_F(LinuxThreadAffinityTest, SupportsPinnedThread) {
     EXPECT_TRUE(threadRan);
 }
 
-#else
-TEST_F(BasicThreadTest, NonLinuxHandlesInvalidCoreIdGracefully) {
-    const auto maxCores = std::thread::hardware_concurrency();
-    const int invalidCoreId = static_cast<int>(maxCores + 1);
-    std::atomic<bool> threadStarted{false};
-
-    auto thread = Trading::Core::createPinnedThread(
-        invalidCoreId, "invalidCore", [&threadStarted]() {
-            threadStarted.store(true, std::memory_order_release);
-        });
-
-    waitForThread(thread);
-    EXPECT_TRUE(threadStarted.load(std::memory_order_acquire));
-    EXPECT_TRUE(Trading::Core::pinThreadToCore(invalidCoreId));
-}
-#endif

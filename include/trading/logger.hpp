@@ -7,6 +7,7 @@
 #include <iomanip>
 #include <iostream>
 #include <string>
+#include <string_view>
 #include <thread>
 #include "trading/asserts.hpp"
 #include "trading/spsc_queue.hpp"
@@ -123,6 +124,12 @@ class Logger {
 
     void enqueueMessage(const std::string& value) noexcept {
         enqueueMessage(value.c_str());
+    }
+
+    void enqueueMessage(const std::string_view& value) noexcept {
+        for (const char c : value) {
+            enqueueMessage(c);
+        }
     }
 
     template <typename T, typename... A>

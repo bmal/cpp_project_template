@@ -4,14 +4,14 @@
     {
       "label": "CMake Configure All",
       "type": "shell",
-      "command": "cmake -S all -B build -DCMAKE_EXPORT_COMPILE_COMMANDS=ON -DCMAKE_CXX_COMPILER=clang++ -DENABLE_BENCHMARKS=ON && ln -sf build/compile_commands.json .",
+      "command": "cmake -S all -B build -DCMAKE_EXPORT_COMPILE_COMMANDS=ON -DCMAKE_CXX_COMPILER=clang++ -DCMAKE_C_COMPILER=clang -DCMAKE_CXX_FLAGS='-std=c++2b -stdlib=libc++' -DCMAKE_CXX_STANDARD=23 -DCMAKE_CXX_EXTENSIONS=OFF -DCMAKE_CXX_STANDARD_REQUIRED=ON -DCMAKE_EXE_LINKER_FLAGS='-lc++abi' -DENABLE_BENCHMARKS=ON && ln -sf build/compile_commands.json .",
       "group": "build",
       "problemMatcher": "$gcc"
     },
     {
       "label": "CMake Build All",
       "type": "shell",
-      "command": "cmake --build build -j$(sysctl -n hw.ncpu)",
+      "command": "cmake --build build -j$(nproc 2>/dev/null || sysctl -n hw.ncpu)",
       "group": {
         "kind": "build",
         "isDefault": true
@@ -33,13 +33,13 @@
     {
       "label": "CMake Configure Standalone",
       "type": "shell",
-      "command": "cmake -S standalone -B build/standalone -DCMAKE_EXPORT_COMPILE_COMMANDS=ON -DCMAKE_CXX_COMPILER=clang++",
+      "command": "cmake -S standalone -B build/standalone -DCMAKE_EXPORT_COMPILE_COMMANDS=ON -DCMAKE_CXX_COMPILER=clang++ -DCMAKE_C_COMPILER=clang -DCMAKE_CXX_FLAGS='-std=c++2b -stdlib=libc++' -DCMAKE_CXX_STANDARD=23 -DCMAKE_CXX_EXTENSIONS=OFF -DCMAKE_CXX_STANDARD_REQUIRED=ON -DCMAKE_EXE_LINKER_FLAGS='-lc++abi'",
       "group": "build"
     },
     {
       "label": "CMake Build Standalone",
       "type": "shell",
-      "command": "cmake --build build/standalone -j$(sysctl -n hw.ncpu)",
+      "command": "cmake --build build/standalone -j$(nproc 2>/dev/null || sysctl -n hw.ncpu)",
       "group": "build",
       "dependsOn": ["CMake Configure Standalone"],
       "problemMatcher": {

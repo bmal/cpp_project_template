@@ -41,7 +41,6 @@ jobs:
         config:
           - { name: "Ubuntu Debug", os: ubuntu-latest, build_type: Debug }
           - { name: "Ubuntu Release", os: ubuntu-latest, build_type: Release }
-          - { name: "macOS Release", os: macos-latest, build_type: Release }
     name: ${{ matrix.config.name }}
     runs-on: ${{ matrix.config.os }}
     steps:
@@ -64,10 +63,6 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y libtbb-dev
 
-      - name: Install Dependencies (macOS)
-        if: runner.os == 'macOS'
-        run: brew install libomp tbb ccache
-
       - name: Configure
         run: |
           cmake -S test -B build/test \
@@ -83,7 +78,7 @@ jobs:
         working-directory: build/test
         run: |
           echo "Running functional tests:"
-          ./functional/TradingTests --gtest_output=xml:test-results.xml
+          ./functional/TradingTests --gtest_output=xml:test-results.xml --gtest_also_run_disabled_tests
 
       - name: Upload Test Results
         if: always()

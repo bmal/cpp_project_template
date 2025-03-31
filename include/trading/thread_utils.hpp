@@ -8,7 +8,6 @@
 
 namespace Trading::Core {
 
-#ifdef __linux__
 [[nodiscard]] inline bool pinThreadToCore(int coreId) noexcept {
     cpu_set_t cpuset;
     CPU_ZERO(&cpuset);
@@ -17,11 +16,6 @@ namespace Trading::Core {
     return (pthread_setaffinity_np(pthread_self(), sizeof(cpu_set_t),
                                    &cpuset) == 0);
 }
-#else
-[[nodiscard]] inline bool pinThreadToCore(int /*coreId*/) noexcept {
-    return true;
-}
-#endif
 
 template <typename F, typename... Args>
 [[nodiscard]] inline auto createPinnedThread(int coreId,
