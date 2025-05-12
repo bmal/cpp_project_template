@@ -13,7 +13,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 60
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
         with:
           fetch-depth: 0
 
@@ -29,13 +29,20 @@ jobs:
             linux-tools-common \
             linux-tools-generic \
             python3-pip \
-            libc6-dbg
+            libc6-dbg \
+            dwarves
 
       - name: Cache Dependencies
         uses: actions/cache@v3
         with:
           path: "**/cpm_modules"
           key: ${{ runner.os }}-cpm-${{ hashFiles('**/CMakeLists.txt', '**/*.cmake') }}
+
+      - name: Create Test Log Directory
+        run: |
+          mkdir -p /tmp/test_logs/
+          touch /tmp/test_logs/test.log
+          chmod 777 /tmp/test_logs/test.log
 
       - name: Build Project
         run: |
@@ -52,73 +59,55 @@ jobs:
           file build/test/functional/TradingTests
           nm build/test/functional/TradingTests | grep -i debug || echo "No debug symbols found"
 
-      - name: Memory Checks
-        working-directory: build/test
+      - name: Cache-Line Alignment Analysis
         run: |
-          echo "Starting memory checks..."
-          mkdir -p reports/memcheck
+          mkdir -p build/test/reports/alignment
 
-          valgrind \
-            --tool=memcheck \
-            --leak-check=full \
-            --show-leak-kinds=all \
-            --track-origins=yes \
-            --xml=yes \
-            --xml-file=reports/memcheck/results.xml \
-            --verbose \
-            --fair-sched=yes \
-            --num-callers=50 \
-            ./functional/TradingTests || { 
-              echo "Valgrind memory check failed with exit code $?"
-              if [ -f reports/memcheck/results.xml ]; then
-                echo "Memory check output:"
-                cat reports/memcheck/results.xml
-              else
-                echo "No memory check output generated"
-              fi
-              exit 1
-            }
+          # Extract struct alignments
+          pahole build/test/functional/TradingTests > build/test/reports/alignment/struct_layout.txt
 
-      # - name: Thread Safety Analysis
-      #   working-directory: build/test
-      #   run: |
-      #     echo "Starting thread safety analysis..."
-      #     mkdir -p reports/helgrind
-      #
-      #     valgrind \
-      #       --tool=helgrind \
-      #       --suppressions=$GITHUB_WORKSPACE/test/helgrind.supp \
-      #       --xml=yes \
-      #       --xml-file=reports/helgrind/results.xml \
-      #       --verbose \
-      #       --fair-sched=yes \
-      #       --history-level=full \
-      #       ./functional/TradingTests || {
-      #         echo "Valgrind helgrind check failed with exit code $?"
-      #         if [ -f reports/helgrind/results.xml ]; then
-      #           echo "Thread safety output:"
-      #           cat reports/helgrind/results.xml
-      #         else
-      #           echo "No thread safety output generated"
-      #         fi
-      #         exit 1
-      #       }
+          # Look for potential cache line issues
+          grep -n -A 3 -B 3 "size: [4-9][0-9]" build/test/reports/alignment/struct_layout.txt > build/test/reports/alignment/potential_issues.txt || true
+          grep -n -A 3 -B 3 "size: [1-9][0-9][0-9]" build/test/reports/alignment/struct_layout.txt >> build/test/reports/alignment/potential_issues.txt || true
+
+          # Check hot structs
+          grep -A 20 "Trading\|Order\|Market\|Price" build/test/reports/alignment/struct_layout.txt > build/test/reports/alignment/hot_structs.txt || true
+
+          # Summary
+          {
+            echo "# Cache-Line Alignment Summary"
+            echo "## Potentially Problematic Structs"
+            if [ -s build/test/reports/alignment/potential_issues.txt ]; then
+              cat build/test/reports/alignment/potential_issues.txt
+            else
+              echo "No potential issues found"
+            fi
+            
+            echo -e "\n## Hot Trading Structs"
+            if [ -s build/test/reports/alignment/hot_structs.txt ]; then
+              cat build/test/reports/alignment/hot_structs.txt
+            else
+              echo "No matching hot structs found"
+            fi
+          } > build/test/reports/alignment/summary.md
+
+          cat build/test/reports/alignment/summary.md
 
       - name: Upload Essential Check Results
         uses: actions/upload-artifact@v4
         with:
           name: essential-check-reports
           path: |
-            build/test/reports/memcheck/
-            # build/test/reports/helgrind/
+            build/test/reports/alignment/
           retention-days: 14
-          if-no-files-found: error
+          if-no-files-found: warn
+
   detailed-analysis:
     needs: essential-checks
     runs-on: ubuntu-latest
     timeout-minutes: 120
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
 
       - name: Install Dependencies
         run: |
@@ -132,13 +121,21 @@ jobs:
             linux-tools-common \
             linux-tools-generic \
             python3-pip \
-            libc6-dbg
+            libc6-dbg \
+            linux-tools-$(uname -r) || \
+            linux-tools-generic
 
       - name: Cache Dependencies
         uses: actions/cache@v3
         with:
           path: "**/cpm_modules"
           key: ${{ runner.os }}-cpm-${{ hashFiles('**/CMakeLists.txt', '**/*.cmake') }}
+
+      - name: Create Test Log Directory
+        run: |
+          mkdir -p /tmp/test_logs/
+          touch /tmp/test_logs/test.log
+          chmod 777 /tmp/test_logs/test.log
 
       - name: Build with Performance Flags
         run: |
@@ -157,18 +154,28 @@ jobs:
             exit 1
           }
 
+          sudo sysctl -w kernel.perf_event_paranoid=1 || echo "Could not adjust perf settings"
+          sudo perf --version || {
+            echo "Perf not installed properly"
+            echo "Attempting alternative installation..."
+            sudo apt-get install -y linux-tools-generic
+            sudo perf --version || echo "Perf still not available"
+          }
+
       - name: CPU Profile Analysis
         working-directory: build/test
         run: |
           mkdir -p reports/callgrind
-          valgrind \
+          sudo valgrind \
             --tool=callgrind \
             --dump-instr=yes \
             --collect-jumps=yes \
             --callgrind-out-file=reports/callgrind/profile.out \
             ./functional/TradingTests || exit 1
 
-          callgrind_annotate \
+          sudo chmod 644 reports/callgrind/profile.out 
+
+          sudo callgrind_annotate \
             --auto=yes \
             --context=8 \
             reports/callgrind/profile.out > reports/callgrind/analysis.txt || exit 1
@@ -177,13 +184,18 @@ jobs:
         working-directory: build/test
         run: |
           mkdir -p reports/cachegrind
-          valgrind \
+          # Create a log directory with proper permissions
+          mkdir -p /tmp/valgrind_logs
+          chmod 777 /tmp/valgrind_logs
+          # Use sudo to ensure proper permissions
+          sudo valgrind \
             --tool=cachegrind \
             --branch-sim=yes \
             --cache-sim=yes \
             --cachegrind-out-file=reports/cachegrind/cache.out \
             ./functional/TradingTests || exit 1
 
+          sudo chmod 644 reports/cachegrind/cache.out
           cg_annotate \
             reports/cachegrind/cache.out > reports/cachegrind/analysis.txt || exit 1
 
@@ -191,7 +203,7 @@ jobs:
         working-directory: build/test
         run: |
           mkdir -p reports/massif
-          valgrind \
+          sudo valgrind \
             --tool=massif \
             --heap=yes \
             --detailed-freq=10 \
@@ -199,6 +211,24 @@ jobs:
             ./functional/TradingTests || exit 1
 
           ms_print reports/massif/heap.out > reports/massif/analysis.txt || exit 1
+
+      - name: CPU Performance Counters
+        working-directory: build/test
+        run: |
+          mkdir -p reports/perf
+
+          # Try to run perf with falling back to less detailed analysis if permissions are an issue
+          sudo perf stat -d -d -d ./functional/TradingTests 2> reports/perf/counters.txt || \
+          sudo perf stat ./functional/TradingTests 2> reports/perf/counters.txt || \
+          echo "Perf could not run due to permissions or availability issues" > reports/perf/counters.txt
+
+          # Try to get a sample profile for hotspots
+          sudo perf record -F 99 -g ./functional/TradingTests -o reports/perf/perf.data 2> reports/perf/record.txt || true
+
+          # Generate a report if the record was successful
+          if [ -f "reports/perf/perf.data" ]; then
+            sudo perf report -i reports/perf/perf.data --stdio > reports/perf/hotspots.txt 2>/dev/null || true
+          fi
 
       - name: Generate Summary Report
         working-directory: build/test
@@ -219,33 +249,19 @@ jobs:
             echo >> performance_summary.md
           }
 
-          echo "Performance Analysis Summary" > performance_summary.md
+          echo "# Performance Analysis Summary" > performance_summary.md
           echo "==========================" >> performance_summary.md
           echo >> performance_summary.md
 
           echo "## Memory Check Results" >> performance_summary.md
-          echo "\`\`\`" >> performance_summary.md
-          if [ -f "reports/memcheck/results.xml" ]; then
-            grep -A 5 "definitely lost:" reports/memcheck/results.xml >> performance_summary.md || echo "No memory leaks found" >> performance_summary.md
-          else
-            echo "Memory check results not found" >> performance_summary.md
-          fi
-          echo "\`\`\`" >> performance_summary.md
+          echo "Memory checks handled by Address Sanitizer in separate workflow" >> performance_summary.md
           echo >> performance_summary.md
-
-          # echo "## Thread Safety Issues" >> performance_summary.md
-          # echo "\`\`\`" >> performance_summary.md
-          # if [ -f "reports/helgrind/results.xml" ]; then
-          #   grep -A 5 "<error>" reports/helgrind/results.xml >> performance_summary.md || echo "No thread safety issues found" >> performance_summary.md
-          # else
-          #   echo "Thread safety results not found" >> performance_summary.md
-          # fi
-          # echo "\`\`\`" >> performance_summary.md
-          # echo >> performance_summary.md
 
           append_if_exists "reports/callgrind/analysis.txt" "CPU Hotspots"
           append_if_exists "reports/cachegrind/analysis.txt" "Cache Performance"
           append_if_exists "reports/massif/analysis.txt" "Memory Usage Patterns"
+          append_if_exists "reports/perf/counters.txt" "CPU Performance Counters"
+          append_if_exists "reports/perf/hotspots.txt" "Execution Hotspots"
 
       - name: Detailed Analysis
         working-directory: build/test
@@ -258,32 +274,8 @@ jobs:
           echo "Checking all result files:"
           find reports -type f -ls || echo "No report files found"
 
-          echo "Memory check file content check:"
-          for f in $(find reports -name "results.xml" -path "*/memcheck/*" 2>/dev/null); do
-            echo "Found memcheck file: $f"
-            echo "File size: $(stat -f%z "$f" 2>/dev/null || stat --format="%s" "$f") bytes"
-            echo "First 20 lines:"
-            head -n 20 "$f"
-            echo "Searching for leak indicators:"
-            grep -i "leak" "$f" || echo "No leaks found"
-            echo "Searching for error indicators:"
-            grep -i "error" "$f" || echo "No errors found"
-          done
-
-          # echo "Thread check file content check:"
-          # for f in $(find reports -name "results.xml" -path "*/helgrind/*" 2>/dev/null); do
-          #   echo "Found helgrind file: $f"
-          #   echo "File size: $(stat -f%z "$f" 2>/dev/null || stat --format="%s" "$f") bytes"
-          #   echo "First 20 lines:"
-          #   head -n 20 "$f"
-          #   echo "Searching for race conditions:"
-          #   grep -i "race" "$f" || echo "No race conditions found"
-          #   echo "Searching for deadlock indicators:"
-          #   grep -i "deadlock" "$f" || echo "No deadlocks found"
-          # done
-
           echo "Performance file checks:"
-          for type in callgrind cachegrind massif; do
+          for type in callgrind cachegrind massif perf; do
             echo "Checking $type results:"
             find reports -path "*/$type/*" -type f 2>/dev/null | while read f; do
               if [ -f "$f" ]; then
@@ -301,24 +293,8 @@ jobs:
             echo "## Directory Structure"
             find reports -type d 2>/dev/null | sed 's/^/    /' || echo "    No directories found"
             
-            echo "## Memory Check Results"
-            if find reports -name "results.xml" -path "*/memcheck/*" 2>/dev/null | grep -q .; then
-              echo "Memory check files found:"
-              find reports -name "results.xml" -path "*/memcheck/*" | sed 's/^/    /'
-            else
-              echo "No memory check files found"
-            fi
-            
-            # echo "## Thread Safety Results"
-            # if find reports -name "results.xml" -path "*/helgrind/*" 2>/dev/null | grep -q .; then
-            #   echo "Thread check files found:"
-            #   find reports -name "results.xml" -path "*/helgrind/*" | sed 's/^/    /'
-            # else
-            #   echo "No thread check files found"
-            # fi
-            
             echo "## Performance Results"
-            for type in callgrind cachegrind massif; do
+            for type in callgrind cachegrind massif perf; do
               echo "### $type Results"
               if find reports -path "*/$type/*" 2>/dev/null | grep -q .; then
                 find reports -path "*/$type/*" | sed 's/^/    /'
@@ -348,54 +324,64 @@ jobs:
         with:
           path: analysis-results
 
-      - name: Check for Critical Issues
+      - name: Download Cache Alignment Results
+        uses: actions/download-artifact@v4
+        with:
+          name: essential-check-reports
+          path: analysis-results/alignment-reports
+
+      - name: Generate Combined Report
         run: |
-          echo "Checking for analysis files..."
+          echo "# Performance Analysis Report" > combined_report.md
+          echo "## Cache-Line Alignment Analysis" >> combined_report.md
 
-          check_memory_leaks() {
-            local file=$1
-            if grep -A 5 "definitely lost:" "$file" > /dev/null; then
-              echo "Memory leaks found:"
-              grep -A 5 "definitely lost:" "$file"
-              return 1
-            else
-              echo "No memory leaks detected"
-              return 0
-            fi
-          }
-
-          # check_thread_issues() {
-          #   local file=$1
-          #   if grep -A 5 "<error>" "$file" > /dev/null; then
-          #     echo "Thread safety issues found:"
-          #     grep -A 5 "<error>" "$file"
-          #     return 1
-          #   else
-          #     echo "No thread safety issues detected"
-          #     return 0
-          #   fi
-          # }
-
-          echo "## Memory Check Results"
-          if [ -f "analysis-results/essential-check-reports/memcheck/results.xml" ]; then
-            check_memory_leaks "analysis-results/essential-check-reports/memcheck/results.xml"
+          if [ -f "analysis-results/alignment-reports/alignment/summary.md" ]; then
+            cat "analysis-results/alignment-reports/alignment/summary.md" >> combined_report.md
           else
-            echo "Memory check results file not found"
+            echo "Cache-line alignment analysis not available" >> combined_report.md
           fi
 
-          # echo "## Thread Safety Results"
-          # if [ -f "analysis-results/essential-check-reports/helgrind/results.xml" ]; then
-          #   check_thread_issues "analysis-results/essential-check-reports/helgrind/results.xml"
-          # else
-          #   echo "Thread safety results file not found"
-          # fi
-
+          echo -e "\n## CPU Performance" >> combined_report.md
           if [ -f "analysis-results/detailed-analysis-reports/reports/callgrind/analysis.txt" ]; then
-            echo "CPU profiling data available"
-            head -n 20 "analysis-results/detailed-analysis-reports/reports/callgrind/analysis.txt"
+            echo "\`\`\`" >> combined_report.md
+            head -n 20 "analysis-results/detailed-analysis-reports/reports/callgrind/analysis.txt" >> combined_report.md
+            echo "\`\`\`" >> combined_report.md
+          else
+            echo "CPU profiling data not available" >> combined_report.md
           fi
 
+          echo -e "\n## Cache Performance" >> combined_report.md
           if [ -f "analysis-results/detailed-analysis-reports/reports/cachegrind/analysis.txt" ]; then
-            echo "Cache performance data available"
-            head -n 20 "analysis-results/detailed-analysis-reports/reports/cachegrind/analysis.txt"
+            echo "\`\`\`" >> combined_report.md
+            head -n 20 "analysis-results/detailed-analysis-reports/reports/cachegrind/analysis.txt" >> combined_report.md
+            echo "\`\`\`" >> combined_report.md
+          else
+            echo "Cache performance data not available" >> combined_report.md
           fi
+
+          echo -e "\n## Memory Usage" >> combined_report.md
+          if [ -f "analysis-results/detailed-analysis-reports/reports/massif/analysis.txt" ]; then
+            echo "\`\`\`" >> combined_report.md
+            head -n 20 "analysis-results/detailed-analysis-reports/reports/massif/analysis.txt" >> combined_report.md
+            echo "\`\`\`" >> combined_report.md
+          else
+            echo "Memory usage data not available" >> combined_report.md
+          fi
+
+          echo -e "\n## Hardware Performance Counters" >> combined_report.md
+          if [ -f "analysis-results/detailed-analysis-reports/reports/perf/counters.txt" ]; then
+            echo "\`\`\`" >> combined_report.md
+            cat "analysis-results/detailed-analysis-reports/reports/perf/counters.txt" >> combined_report.md
+            echo "\`\`\`" >> combined_report.md
+          else
+            echo "Performance counter data not available" >> combined_report.md
+          fi
+
+          cat combined_report.md
+
+      - name: Upload Combined Report
+        uses: actions/upload-artifact@v4
+        with:
+          name: performance-analysis-report
+          path: combined_report.md
+          retention-days: 30

@@ -58,7 +58,7 @@
     {
       "label": "Run Functional Tests",
       "type": "shell",
-      "command": "./build/test/functional/TradingTests",
+      "command": "sudo setcap cap_net_admin,cap_net_raw=ep ./build/test/functional/TradingTests && ./build/test/functional/TradingTests",
       "group": {
         "kind": "test",
         "isDefault": true
