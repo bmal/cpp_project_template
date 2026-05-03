@@ -1,5 +1,8 @@
 cmake_minimum_required(VERSION 3.20...3.30)
-project(TradingTests LANGUAGES CXX)
+
+include(../cmake/ProjectIdentity.cmake)
+
+project(${TEMPLATE_TEST_PROJECT} LANGUAGES CXX)
 
 # Options
 option(ENABLE_BENCHMARKS "Enable benchmark targets" ON)
@@ -37,17 +40,18 @@ if(ENABLE_BENCHMARKS)
         OPTIONS
             "BENCHMARK_ENABLE_TESTING OFF"
             "BENCHMARK_ENABLE_GTEST_TESTS OFF"
+            "BENCHMARK_ENABLE_INSTALL OFF"
       )
     endif()
 endif()
 
 # Add main library
-if(TARGET Trading::Trading)
+if(TARGET ${TEMPLATE_NAMESPACED_TARGET})
     # The tests are being built from the root project.
 elseif(TEST_INSTALLED_VERSION)
-    find_package(Trading REQUIRED)
+    find_package(${TEMPLATE_PROJECT_NAME} REQUIRED)
 else()
-    CPMAddPackage(NAME Trading SOURCE_DIR ${CMAKE_CURRENT_LIST_DIR}/..)
+    CPMAddPackage(NAME ${TEMPLATE_PROJECT_NAME} SOURCE_DIR ${CMAKE_CURRENT_LIST_DIR}/..)
 endif()
 
 # Add test directories

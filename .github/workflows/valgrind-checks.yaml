@@ -2,6 +2,7 @@ name: Valgrind Analysis
 
 on:
   workflow_call:
+  workflow_dispatch:
 
 env:
   CTEST_OUTPUT_ON_FAILURE: 1
@@ -10,7 +11,7 @@ env:
 
 jobs:
   essential-checks:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 60
     steps:
       - uses: actions/checkout@v4
@@ -56,22 +57,22 @@ jobs:
           cmake --build build/test -j$(nproc)
 
           echo "Checking debug symbols..."
-          file build/test/functional/TradingTests
-          nm build/test/functional/TradingTests | grep -i debug || echo "No debug symbols found"
+          file build/test/bin/tests
+          nm build/test/bin/tests | grep -i debug || echo "No debug symbols found"
 
       - name: Cache-Line Alignment Analysis
         run: |
           mkdir -p build/test/reports/alignment
 
           # Extract struct alignments
-          pahole build/test/functional/TradingTests > build/test/reports/alignment/struct_layout.txt
+          pahole build/test/bin/tests > build/test/reports/alignment/struct_layout.txt
 
           # Look for potential cache line issues
           grep -n -A 3 -B 3 "size: [4-9][0-9]" build/test/reports/alignment/struct_layout.txt > build/test/reports/alignment/potential_issues.txt || true
           grep -n -A 3 -B 3 "size: [1-9][0-9][0-9]" build/test/reports/alignment/struct_layout.txt >> build/test/reports/alignment/potential_issues.txt || true
 
           # Check hot structs
-          grep -A 20 "Trading\|Order\|Market\|Price" build/test/reports/alignment/struct_layout.txt > build/test/reports/alignment/hot_structs.txt || true
+          grep -A 20 "Order\|Market\|Price\|Book\|Event" build/test/reports/alignment/struct_layout.txt > build/test/reports/alignment/hot_structs.txt || true
 
           # Summary
           {
@@ -83,7 +84,7 @@ jobs:
               echo "No potential issues found"
             fi
             
-            echo -e "\n## Hot Trading Structs"
+            echo -e "\n## Hot Domain Structs"
             if [ -s build/test/reports/alignment/hot_structs.txt ]; then
               cat build/test/reports/alignment/hot_structs.txt
             else
@@ -104,7 +105,7 @@ jobs:
 
   detailed-analysis:
     needs: essential-checks
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 120
     steps:
       - uses: actions/checkout@v4
@@ -171,7 +172,7 @@ jobs:
             --dump-instr=yes \
             --collect-jumps=yes \
             --callgrind-out-file=reports/callgrind/profile.out \
-            ./functional/TradingTests || exit 1
+            ./bin/tests || exit 1
 
           sudo chmod 644 reports/callgrind/profile.out 
 
@@ -193,7 +194,7 @@ jobs:
             --branch-sim=yes \
             --cache-sim=yes \
             --cachegrind-out-file=reports/cachegrind/cache.out \
-            ./functional/TradingTests || exit 1
+            ./bin/tests || exit 1
 
           sudo chmod 644 reports/cachegrind/cache.out
           cg_annotate \
@@ -208,7 +209,7 @@ jobs:
             --heap=yes \
             --detailed-freq=10 \
             --massif-out-file=reports/massif/heap.out \
-            ./functional/TradingTests || exit 1
+            ./bin/tests || exit 1
 
           ms_print reports/massif/heap.out > reports/massif/analysis.txt || exit 1
 
@@ -218,12 +219,12 @@ jobs:
           mkdir -p reports/perf
 
           # Try to run perf with falling back to less detailed analysis if permissions are an issue
-          sudo perf stat -d -d -d ./functional/TradingTests 2> reports/perf/counters.txt || \
-          sudo perf stat ./functional/TradingTests 2> reports/perf/counters.txt || \
+          sudo perf stat -d -d -d ./bin/tests 2> reports/perf/counters.txt || \
+          sudo perf stat ./bin/tests 2> reports/perf/counters.txt || \
           echo "Perf could not run due to permissions or availability issues" > reports/perf/counters.txt
 
           # Try to get a sample profile for hotspots
-          sudo perf record -F 99 -g ./functional/TradingTests -o reports/perf/perf.data 2> reports/perf/record.txt || true
+          sudo perf record -F 99 -g ./bin/tests -o reports/perf/perf.data 2> reports/perf/record.txt || true
 
           # Generate a report if the record was successful
           if [ -f "reports/perf/perf.data" ]; then
@@ -317,7 +318,7 @@ jobs:
 
   analyze-results:
     needs: [detailed-analysis]
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
       - name: Download Analysis Reports
         uses: actions/download-artifact@v4

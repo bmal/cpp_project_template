@@ -5,7 +5,7 @@
       "name": "Debug Tests",
       "type": "lldb",
       "request": "launch",
-      "program": "${workspaceFolder}/build/dev/test/functional/TradingTests",
+      "program": "${workspaceFolder}/build/dev/bin/tests",
       "args": [],
       "cwd": "${workspaceFolder}",
       "preLaunchTask": "CMake Build Dev"
@@ -14,7 +14,7 @@
       "name": "Debug Standalone",
       "type": "lldb",
       "request": "launch",
-      "program": "${workspaceFolder}/build/dev/standalone/trading_standalone",
+      "program": "${workspaceFolder}/build/dev/bin/standalone",
       "args": [],
       "cwd": "${workspaceFolder}",
       "preLaunchTask": "CMake Build Dev"

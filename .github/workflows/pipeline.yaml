@@ -29,8 +29,6 @@ env:
   TSAN_OPTIONS: second_deadlock_stack=1:report_signal_unsafe=1:memory_limit_mb=4096:history_size=7:force_seq_cst_atomics=1
   MSAN_OPTIONS: poison_in_dtor=1:print_summary=1:fail_immediately=1
   LSAN_OPTIONS: print_suppressions=1:report_objects=1
-  # Tool versions
-  VALGRIND_VERSION: 3.19.0
   LLVM_VERSION: 17
 
 jobs:
@@ -39,9 +37,8 @@ jobs:
     if: |
       (github.event_name == 'pull_request') ||
       (github.event_name == 'push' && !contains(github.ref, 'refs/pull/') && !contains(github.ref, 'refs/heads/pull/'))
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     outputs:
-      run-comprehensive: ${{ steps.check.outputs.run-comprehensive }}
       should-run: ${{ steps.check.outputs.should-run }}
     steps:
       - id: check
@@ -55,13 +52,6 @@ jobs:
             echo "should-run=false" >> $GITHUB_OUTPUT
           fi
 
-          # Determine comprehensive checks
-          if [[ "${{ github.event_name }}" == "pull_request" ]] || [[ "${{ github.ref }}" == "refs/heads/master" ]] || [[ "${{ github.ref }}" == "refs/heads/main" ]]; then
-            echo "run-comprehensive=true" >> $GITHUB_OUTPUT
-          else
-            echo "run-comprehensive=false" >> $GITHUB_OUTPUT
-          fi
-
   build-and-tests-checks:
     needs: determine-scope
     if: needs.determine-scope.outputs.should-run == 'true'
@@ -71,12 +61,19 @@ jobs:
       pull-requests: write
       contents: read
 
-  comprehensive-checks:
+  coverage-checks:
     needs: [determine-scope, build-and-tests-checks]
-    if: |
-      needs.determine-scope.outputs.should-run == 'true' &&
-      needs.determine-scope.outputs.run-comprehensive == 'true'
-    uses: ./.github/workflows/comprehensive-checks.yaml
+    if: needs.determine-scope.outputs.should-run == 'true'
+    uses: ./.github/workflows/coverage-checks.yaml
+    permissions:
+      checks: write
+      pull-requests: write
+      contents: read
+
+  sanitizer-checks:
+    needs: [determine-scope, build-and-tests-checks]
+    if: needs.determine-scope.outputs.should-run == 'true'
+    uses: ./.github/workflows/sanitizer-checks.yaml
     permissions:
       checks: write
       pull-requests: write

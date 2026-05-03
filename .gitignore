@@ -35,6 +35,7 @@ build*/*
 .cache
 CMakeCache.txt
 CMakeFiles/*
+compile_commands*.json
 valgrind.log
 .DS_Store
 .venv/

@@ -1,7 +1,7 @@
 #include <gtest/gtest.h>
 #include "module/component.hpp"
 
-namespace DummyNamespace {
+namespace Example {
 
 TEST(Counter, IncrementAccumulates) {
     Counter c;
@@ -38,4 +38,4 @@ TEST(Counter, CheckedDecrementReturnsErrorOnUnderflow) {
     EXPECT_EQ(result.error(), "underflow: result would be negative");
 }
 
-}  // namespace DummyNamespace
+}  // namespace Example

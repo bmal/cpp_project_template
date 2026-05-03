@@ -1,6 +1,6 @@
 #include "module/component.hpp"
 
-namespace DummyNamespace {
+namespace Example {
 
 Counter& Counter::increment(int by) {
     value += by;
@@ -27,4 +27,4 @@ void Counter::reset() {
     value = 0;
 }
 
-}  // namespace DummyNamespace
+}  // namespace Example

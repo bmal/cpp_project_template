@@ -5,7 +5,7 @@ on:
 
 jobs:
   run-sanitizers:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     container:
       image: silkeh/clang:18
       options: --security-opt seccomp=unconfined
@@ -36,9 +36,7 @@ jobs:
             git \
             cmake \
             ninja-build \
-            libtbb-dev \
-            pkg-config \
-            libstdc++-12-dev
+            pkg-config
 
       - name: Cache Dependencies
         uses: actions/cache@v3
@@ -80,9 +78,7 @@ jobs:
             -DCMAKE_BUILD_TYPE=${{ matrix.build_type }} \
             -DUSE_SANITIZER="$SANITIZER" \
             -DENABLE_BENCHMARKS=OFF \
-            -DCMAKE_CXX_FLAGS="-march=native -mtune=native -fno-omit-frame-pointer -fno-optimize-sibling-calls -stdlib=libc++ -g" \
-            -DCMAKE_EXE_LINKER_FLAGS="-fuse-ld=lld -stdlib=libc++" \
-            -DCMAKE_MODULE_LINKER_FLAGS="-fuse-ld=lld -stdlib=libc++" \
+            -DCMAKE_CXX_FLAGS="-fno-omit-frame-pointer -fno-optimize-sibling-calls -g" \
             -DCMAKE_VERBOSE_MAKEFILE=ON
 
       - name: Build
@@ -96,9 +92,9 @@ jobs:
         continue-on-error: true
         id: run_tests
         run: |
-          cd build/functional
+          cd build
           echo "=== Running functional tests with sanitizer ==="
-          ./TradingTests --gtest_output=xml:test-results.xml
+          ./bin/tests --gtest_output=xml:test-results.xml
 
       - name: Process Sanitizer Results
         if: always()
@@ -143,7 +139,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: test-results-${{ matrix.cache_key }}
-          path: build/functional/test-results.xml
+          path: build/test-results.xml
           if-no-files-found: warn
 
       - name: Upload Sanitizer Results

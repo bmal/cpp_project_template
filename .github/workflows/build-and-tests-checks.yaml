@@ -5,7 +5,7 @@ on:
 
 jobs:
   build-standalone:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v3
 
@@ -30,8 +30,7 @@ jobs:
         run: cmake --build build/standalone -j$(nproc)
 
       - name: Run
-        working-directory: build/standalone
-        run: ./trading_standalone
+        run: cmake --build build/standalone --target run-standalone
 
   build-variants:
     needs: build-standalone
@@ -39,8 +38,8 @@ jobs:
       fail-fast: false
       matrix:
         config:
-          - { name: "Ubuntu Debug", os: ubuntu-latest, build_type: Debug }
-          - { name: "Ubuntu Release", os: ubuntu-latest, build_type: Release }
+          - { name: "Ubuntu Debug", os: ubuntu-24.04, build_type: Debug }
+          - { name: "Ubuntu Release", os: ubuntu-24.04, build_type: Release }
     name: ${{ matrix.config.name }}
     runs-on: ${{ matrix.config.os }}
     steps:
@@ -69,10 +68,9 @@ jobs:
         run: cmake --build build/test -j$(nproc 2>/dev/null || sysctl -n hw.logicalcpu)
 
       - name: Run Unit Tests
-        working-directory: build/test
         run: |
           echo "Running functional tests:"
-          ./functional/TradingTests --gtest_output=xml:test-results.xml --gtest_also_run_disabled_tests
+          ctest --test-dir build/test --output-on-failure --output-junit build/test/test-results.xml
 
       - name: Upload Test Results
         if: always()

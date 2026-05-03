@@ -1,6 +1,8 @@
 cmake_minimum_required(VERSION 3.20...3.30)
 
-project(TradingStandalone LANGUAGES CXX)
+include(../cmake/ProjectIdentity.cmake)
+
+project(${TEMPLATE_STANDALONE_PROJECT} LANGUAGES CXX)
 
 # --- Import tools ----
 include(../cmake/tools.cmake)
@@ -15,27 +17,45 @@ if(PROJECT_SOURCE_DIR STREQUAL PROJECT_BINARY_DIR)
   )
 endif()
 
-if(NOT TARGET Trading::Trading)
+if(NOT TARGET ${TEMPLATE_NAMESPACED_TARGET})
   CPMAddPackage(
-    NAME Trading
+    NAME ${TEMPLATE_PROJECT_NAME}
     SOURCE_DIR ${CMAKE_CURRENT_LIST_DIR}/..
   )
 endif()
 
 # ---- Create standalone executable ----
 file(GLOB_RECURSE sources CONFIGURE_DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/source/*.cpp)
-add_executable(trading_standalone ${sources})
-target_link_libraries(trading_standalone PRIVATE Trading::Trading)
+add_executable(${TEMPLATE_STANDALONE_TARGET} ${sources})
+target_link_libraries(${TEMPLATE_STANDALONE_TARGET} PRIVATE ${TEMPLATE_NAMESPACED_TARGET})
 
-target_compile_features(trading_standalone PRIVATE cxx_std_23)
+target_compile_features(${TEMPLATE_STANDALONE_TARGET} PRIVATE cxx_std_23)
 set_target_properties(
-  trading_standalone
-  PROPERTIES CXX_STANDARD_REQUIRED ON CXX_EXTENSIONS OFF
+  ${TEMPLATE_STANDALONE_TARGET}
+  PROPERTIES
+    CXX_STANDARD_REQUIRED ON
+    CXX_EXTENSIONS OFF
+    RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/bin"
+)
+
+add_custom_command(
+  TARGET ${TEMPLATE_STANDALONE_TARGET}
+  POST_BUILD
+  COMMAND ${CMAKE_COMMAND} -E copy $<TARGET_FILE:${TEMPLATE_STANDALONE_TARGET}>
+          ${CMAKE_BINARY_DIR}/bin/standalone
+  COMMENT "Updating stable standalone launcher"
 )
 
 # ---- Enable warnings ----
 if(CMAKE_CXX_COMPILER_ID MATCHES "Clang" OR CMAKE_CXX_COMPILER_ID MATCHES "GNU")
-    target_compile_options(trading_standalone PRIVATE -Wall -Wpedantic -Wextra -Werror)
+    target_compile_options(${TEMPLATE_STANDALONE_TARGET} PRIVATE -Wall -Wpedantic -Wextra -Werror)
 elseif(MSVC)
-    target_compile_options(trading_standalone PRIVATE /W4 /WX)
+    target_compile_options(${TEMPLATE_STANDALONE_TARGET} PRIVATE /W4 /WX)
 endif()
+
+add_custom_target(
+  run-standalone
+  COMMAND $<TARGET_FILE:${TEMPLATE_STANDALONE_TARGET}>
+  DEPENDS ${TEMPLATE_STANDALONE_TARGET}
+  COMMENT "Running ${TEMPLATE_STANDALONE_TARGET}"
+)

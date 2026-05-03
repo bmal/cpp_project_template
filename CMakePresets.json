@@ -23,9 +23,9 @@
       "inherits": "base",
       "cacheVariables": {
         "CMAKE_BUILD_TYPE": "Debug",
-        "TRADING_BUILD_STANDALONE": "ON",
-        "TRADING_BUILD_TESTS": "ON",
-        "TRADING_BUILD_BENCHMARKS": "OFF"
+        "PROJECT_BUILD_STANDALONE": "ON",
+        "PROJECT_BUILD_TESTS": "ON",
+        "PROJECT_BUILD_BENCHMARKS": "OFF"
       }
     },
     {
@@ -34,9 +34,9 @@
       "inherits": "base",
       "cacheVariables": {
         "CMAKE_BUILD_TYPE": "Release",
-        "TRADING_BUILD_STANDALONE": "ON",
-        "TRADING_BUILD_TESTS": "ON",
-        "TRADING_BUILD_BENCHMARKS": "OFF"
+        "PROJECT_BUILD_STANDALONE": "ON",
+        "PROJECT_BUILD_TESTS": "ON",
+        "PROJECT_BUILD_BENCHMARKS": "OFF"
       }
     },
     {
@@ -45,9 +45,9 @@
       "inherits": "base",
       "cacheVariables": {
         "CMAKE_BUILD_TYPE": "Release",
-        "TRADING_BUILD_STANDALONE": "OFF",
-        "TRADING_BUILD_TESTS": "ON",
-        "TRADING_BUILD_BENCHMARKS": "ON"
+        "PROJECT_BUILD_STANDALONE": "OFF",
+        "PROJECT_BUILD_TESTS": "ON",
+        "PROJECT_BUILD_BENCHMARKS": "ON"
       }
     },
     {
@@ -56,9 +56,9 @@
       "inherits": "base",
       "cacheVariables": {
         "CMAKE_BUILD_TYPE": "Debug",
-        "TRADING_BUILD_STANDALONE": "OFF",
-        "TRADING_BUILD_TESTS": "ON",
-        "TRADING_BUILD_BENCHMARKS": "OFF",
+        "PROJECT_BUILD_STANDALONE": "OFF",
+        "PROJECT_BUILD_TESTS": "ON",
+        "PROJECT_BUILD_BENCHMARKS": "OFF",
         "USE_SANITIZER": "Address;Undefined"
       }
     },
@@ -68,9 +68,9 @@
       "inherits": "base",
       "cacheVariables": {
         "CMAKE_BUILD_TYPE": "Debug",
-        "TRADING_BUILD_STANDALONE": "OFF",
-        "TRADING_BUILD_TESTS": "ON",
-        "TRADING_BUILD_BENCHMARKS": "OFF",
+        "PROJECT_BUILD_STANDALONE": "OFF",
+        "PROJECT_BUILD_TESTS": "ON",
+        "PROJECT_BUILD_BENCHMARKS": "OFF",
         "ENABLE_COVERAGE": "ON"
       }
     }

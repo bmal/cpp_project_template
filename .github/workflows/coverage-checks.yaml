@@ -5,7 +5,7 @@ on:
 
 jobs:
   coverage:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
 
     steps:
       - uses: actions/checkout@v3
@@ -44,7 +44,7 @@ jobs:
         working-directory: build/test
         run: |
           # Run functional tests only
-          ./functional/TradingTests
+          ./bin/tests
 
           # Show generated coverage files for debugging
           find . -name "*.gcno" -o -name "*.gcda"

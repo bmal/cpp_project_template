@@ -2,10 +2,11 @@ name: Benchmark Checks
 
 on:
   workflow_call:
+  workflow_dispatch:
 
 jobs:
   run-benchmarks:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v3
 
@@ -49,7 +50,7 @@ jobs:
 
       - name: Build
         run: |
-          cmake --build build/test -j$(nproc) --target TradingBenchmarks --verbose
+          cmake --build build/test -j$(nproc) --verbose
 
       - name: Setup CPU for benchmarking
         run: |
@@ -64,10 +65,10 @@ jobs:
         working-directory: build/test
         run: |
           echo "=== Running Benchmarks ==="
-          ./benchmark/TradingBenchmarks \
+          ./bin/benchmarks \
             --benchmark_format=console \
             --benchmark_repetitions=10 \
-            --benchmark_min_time=2.0 \
+            --benchmark_min_time=2s \
             --benchmark_counters_tabular=true \
             --benchmark_display_aggregates_only=true \
             --benchmark_report_aggregates_only=true \

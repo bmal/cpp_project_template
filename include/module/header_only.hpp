@@ -3,7 +3,7 @@
 #include <expected>
 #include <string>
 
-namespace DummyNamespace {
+namespace Example {
 
 [[nodiscard]] inline std::expected<int, std::string> safe_divide(int a, int b) {
     if (b == 0)
@@ -11,4 +11,4 @@ namespace DummyNamespace {
     return a / b;
 }
 
-}  // namespace DummyNamespace
+}  // namespace Example

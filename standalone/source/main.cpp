@@ -2,11 +2,10 @@
 #include <module/header_only.hpp>
 
 int main() {
-    DummyNamespace::Counter counter;
+    Example::Counter counter;
     counter.increment(41);
 
-    const auto result =
-        DummyNamespace::safe_divide(counter.increment().get(), 6);
+    const auto result = Example::safe_divide(counter.increment().get(), 6);
     if (!result.has_value())
         return 1;
 

@@ -3,7 +3,7 @@
 #include <expected>
 #include <string>
 
-namespace DummyNamespace {
+namespace Example {
 
 // Declaration lives in the header, definitions in component.cpp.
 // This is the pattern we're validating the project template handles correctly.
@@ -21,4 +21,4 @@ struct Counter {
     void reset();
 };
 
-}  // namespace DummyNamespace
+}  // namespace Example

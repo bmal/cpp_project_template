@@ -48,14 +48,14 @@
     {
       "label": "Run Benchmarks",
       "type": "shell",
-      "command": "./build/benchmarks/test/benchmark/TradingBenchmarks",
+      "command": "cmake --build --preset benchmarks --target run-benchmarks",
       "group": "test",
       "dependsOn": ["CMake Build Benchmarks"]
     },
     {
       "label": "Run Standalone",
       "type": "shell",
-      "command": "./build/dev/standalone/trading_standalone",
+      "command": "cmake --build --preset dev --target run-standalone",
       "group": "test",
       "dependsOn": ["CMake Build Dev"]
     }

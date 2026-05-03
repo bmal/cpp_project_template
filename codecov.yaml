@@ -1,5 +1,31 @@
+coverage:
+  precision: 2
+  round: down
+  range: "70...100"
+
+  status:
+    project:
+      default:
+        target: auto
+        threshold: 1%
+        base: auto
+    patch:
+      default:
+        target: auto
+        threshold: 1%
+        base: auto
+
 ignore:
-  - "test"
+  - "test/**/*"
+  - "build/**/*"
+  - "standalone/**/*"
+  - "**/third-party/**/*"
+  - "**/external/**/*"
 
 comment:
+  layout: "reach, diff, flags, files"
+  behavior: default
   require_changes: true
+
+github_checks:
+  annotations: true
