@@ -2,95 +2,62 @@
   "version": "2.0.0",
   "tasks": [
     {
-      "label": "CMake Configure All",
+      "label": "CMake Configure Dev",
       "type": "shell",
-      "command": "cmake -S all -B build -DCMAKE_EXPORT_COMPILE_COMMANDS=ON -DCMAKE_CXX_COMPILER=clang++ -DCMAKE_C_COMPILER=clang -DCMAKE_CXX_FLAGS='-std=c++2b -stdlib=libc++' -DCMAKE_CXX_STANDARD=23 -DCMAKE_CXX_EXTENSIONS=OFF -DCMAKE_CXX_STANDARD_REQUIRED=ON -DCMAKE_EXE_LINKER_FLAGS='-lc++abi' -DENABLE_BENCHMARKS=ON && ln -sf build/compile_commands.json .",
+      "command": "cmake --preset dev",
       "group": "build",
       "problemMatcher": "$gcc"
     },
     {
-      "label": "CMake Build All",
+      "label": "CMake Build Dev",
       "type": "shell",
-      "command": "cmake --build build -j$(nproc 2>/dev/null || sysctl -n hw.ncpu)",
+      "command": "cmake --build --preset dev",
       "group": {
         "kind": "build",
         "isDefault": true
       },
-      "dependsOn": ["CMake Configure All"],
-      "problemMatcher": {
-        "owner": "cpp",
-        "fileLocation": ["relative", "${workspaceFolder}"],
-        "pattern": {
-          "regexp": "^(.*):(\\d+):(\\d+):\\s+(warning|error):\\s+(.*)$",
-          "file": 1,
-          "line": 2,
-          "column": 3,
-          "severity": 4,
-          "message": 5
-        }
-      }
-    },
-    {
-      "label": "CMake Configure Standalone",
-      "type": "shell",
-      "command": "cmake -S standalone -B build/standalone -DCMAKE_EXPORT_COMPILE_COMMANDS=ON -DCMAKE_CXX_COMPILER=clang++ -DCMAKE_C_COMPILER=clang -DCMAKE_CXX_FLAGS='-std=c++2b -stdlib=libc++' -DCMAKE_CXX_STANDARD=23 -DCMAKE_CXX_EXTENSIONS=OFF -DCMAKE_CXX_STANDARD_REQUIRED=ON -DCMAKE_EXE_LINKER_FLAGS='-lc++abi'",
-      "group": "build"
-    },
-    {
-      "label": "CMake Build Standalone",
-      "type": "shell",
-      "command": "cmake --build build/standalone -j$(nproc 2>/dev/null || sysctl -n hw.ncpu)",
-      "group": "build",
-      "dependsOn": ["CMake Configure Standalone"],
-      "problemMatcher": {
-        "owner": "cpp",
-        "fileLocation": ["relative", "${workspaceFolder}"],
-        "pattern": {
-          "regexp": "^(.*):(\\d+):(\\d+):\\s+(warning|error):\\s+(.*)$",
-          "file": 1,
-          "line": 2,
-          "column": 3,
-          "severity": 4,
-          "message": 5
-        }
-      }
+      "dependsOn": ["CMake Configure Dev"],
+      "problemMatcher": "$gcc"
     },
     {
       "label": "Run Functional Tests",
       "type": "shell",
-      "command": "sudo setcap cap_net_admin,cap_net_raw=ep ./build/test/functional/TradingTests && ./build/test/functional/TradingTests",
+      "command": "ctest --preset dev",
       "group": {
         "kind": "test",
         "isDefault": true
       },
-      "dependsOn": ["CMake Build All"]
+      "dependsOn": ["CMake Build Dev"],
+      "problemMatcher": "$gcc"
+    },
+    {
+      "label": "CMake Configure Benchmarks",
+      "type": "shell",
+      "command": "cmake --preset benchmarks",
+      "group": "build",
+      "problemMatcher": "$gcc"
+    },
+    {
+      "label": "CMake Build Benchmarks",
+      "type": "shell",
+      "command": "cmake --build --preset benchmarks",
+      "group": "build",
+      "dependsOn": ["CMake Configure Benchmarks"],
+      "problemMatcher": "$gcc"
     },
     {
       "label": "Run Benchmarks",
       "type": "shell",
-      "command": "./build/test/benchmark/TradingBenchmarks",
+      "command": "./build/benchmarks/test/benchmark/TradingBenchmarks",
       "group": "test",
-      "dependsOn": ["CMake Build All"]
-    },
-    {
-      "label": "Run All Tests",
-      "type": "shell",
-      "command": "echo 'Running functional tests...' && ./build/test/functional/TradingTests && echo 'Running benchmarks...' && ./build/test/benchmark/TradingBenchmarks",
-      "group": "test",
-      "dependsOn": ["CMake Build All"]
+      "dependsOn": ["CMake Build Benchmarks"]
     },
     {
       "label": "Run Standalone",
       "type": "shell",
-      "command": "./build/standalone/trading_standalone",
+      "command": "./build/dev/standalone/trading_standalone",
       "group": "test",
-      "dependsOn": ["CMake Build Standalone"]
-    },
-    {
-      "label": "Clean Build",
-      "type": "shell",
-      "command": "rm -rf build/* .cache compile_commands.json",
-      "group": "build"
+      "dependsOn": ["CMake Build Dev"]
     }
   ]
 }

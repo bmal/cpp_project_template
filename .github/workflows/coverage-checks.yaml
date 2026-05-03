@@ -24,13 +24,13 @@ jobs:
       - name: Install dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y lcov gcc g++ libtbb-dev
+          sudo apt-get install -y lcov gcc g++
 
       - name: Configure
         run: |
           cmake -S test -B build/test \
             -DCMAKE_BUILD_TYPE=Debug \
-            -DENABLE_TEST_COVERAGE=ON \
+            -DENABLE_COVERAGE=ON \
             -DENABLE_BENCHMARKS=OFF \
             -DCMAKE_CXX_COMPILER_LAUNCHER=ccache \
             -DCMAKE_CXX_FLAGS="--coverage -fprofile-arcs -ftest-coverage -fno-inline" \

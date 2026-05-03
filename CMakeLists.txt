@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.14...3.22)
+cmake_minimum_required(VERSION 3.20...3.30)
 
 # ---- Project ----
 
@@ -7,6 +7,10 @@ project(
   VERSION 1.0
   LANGUAGES CXX
 )
+
+option(TRADING_BUILD_STANDALONE "Build the standalone executable" OFF)
+option(TRADING_BUILD_TESTS "Build functional tests" OFF)
+option(TRADING_BUILD_BENCHMARKS "Build benchmark targets with the tests" OFF)
 
 # ---- Include guards ----
 
@@ -21,6 +25,7 @@ endif()
 # see https://github.com/TheLartians/CPM.cmake for more info
 
 include(cmake/CPM.cmake)
+include(cmake/tools.cmake)
 
 # PackageProject.cmake will be used to make our target installable
 CPMAddPackage("gh:TheLartians/PackageProject.cmake@1.8.0")
@@ -36,54 +41,53 @@ CPMAddPackage(
 
 # Note: globbing sources is considered bad practice as CMake's generators may not detect new files
 # automatically. Keep that in mind when changing files, or explicitly mention them here.
-file(GLOB_RECURSE headers CONFIGURE_DEPENDS "${CMAKE_CURRENT_SOURCE_DIR}/include/*.h")
-file(GLOB_RECURSE headers CONFIGURE_DEPENDS "${CMAKE_CURRENT_SOURCE_DIR}/include/*.hpp")
-file(GLOB_RECURSE sources CONFIGURE_DEPENDS "${CMAKE_CURRENT_SOURCE_DIR}/source/*.cpp")
+file(
+  GLOB_RECURSE
+  headers
+  CONFIGURE_DEPENDS
+  "${PROJECT_SOURCE_DIR}/include/*.h"
+  "${PROJECT_SOURCE_DIR}/include/*.hpp"
+)
+file(GLOB_RECURSE sources CONFIGURE_DEPENDS "${PROJECT_SOURCE_DIR}/source/*.cpp")
 
 # ---- Create library ----
 
 # Automatically determine if it's header-only based on presence of .cpp files
 if(sources)
-    # Normal library with source files
-    add_library(${PROJECT_NAME} ${headers} ${sources})
-    set_target_properties(${PROJECT_NAME} PROPERTIES 
-        CXX_STANDARD 23
-        CXX_STANDARD_REQUIRED ON
-        CXX_EXTENSIONS OFF
-    )
-    
-    # being a cross-platform target, we enforce standards conformance on MSVC
-    target_compile_options(${PROJECT_NAME} PUBLIC "$<$<COMPILE_LANG_AND_ID:CXX,MSVC>:/permissive->")
-    
-    target_include_directories(${PROJECT_NAME} 
-        PUBLIC 
-            $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/include>
-            $<INSTALL_INTERFACE:include/${PROJECT_NAME}-${PROJECT_VERSION}>
-    )
-    
-    target_link_libraries(${PROJECT_NAME} PUBLIC fmt::fmt)
+  # Normal library with source files.
+  add_library(${PROJECT_NAME} ${headers} ${sources})
+  target_compile_features(${PROJECT_NAME} PUBLIC cxx_std_23)
+
+  set_target_properties(
+    ${PROJECT_NAME}
+    PROPERTIES CXX_STANDARD_REQUIRED ON CXX_EXTENSIONS OFF
+  )
+
+  # Being a cross-platform target, we enforce standards conformance on MSVC.
+  target_compile_options(${PROJECT_NAME} PUBLIC "$<$<COMPILE_LANG_AND_ID:CXX,MSVC>:/permissive->")
+
+  target_include_directories(
+    ${PROJECT_NAME}
+    PUBLIC $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/include>
+           $<INSTALL_INTERFACE:include/${PROJECT_NAME}-${PROJECT_VERSION}>
+  )
+
+  target_link_libraries(${PROJECT_NAME} PUBLIC fmt::fmt)
 else()
-    # Header-only library
-    add_library(${PROJECT_NAME} INTERFACE)
-    
-    # Set properties for interface library
-    set_target_properties(${PROJECT_NAME} PROPERTIES 
-        CXX_STANDARD 23
-        CXX_STANDARD_REQUIRED ON
-        CXX_EXTENSIONS OFF
-    )
-    target_compile_features(${PROJECT_NAME} INTERFACE cxx_std_23)
-    
-    # being a cross-platform target, we enforce standards conformance on MSVC
-    target_compile_options(${PROJECT_NAME} INTERFACE "$<$<COMPILE_LANG_AND_ID:CXX,MSVC>:/permissive->")
-    
-    target_include_directories(${PROJECT_NAME} 
-        INTERFACE 
-            $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/include>
-            $<INSTALL_INTERFACE:include/${PROJECT_NAME}-${PROJECT_VERSION}>
-    )
-    
-    target_link_libraries(${PROJECT_NAME} INTERFACE fmt::fmt)
+  # Header-only library.
+  add_library(${PROJECT_NAME} INTERFACE)
+  target_compile_features(${PROJECT_NAME} INTERFACE cxx_std_23)
+
+  # Being a cross-platform target, we enforce standards conformance on MSVC.
+  target_compile_options(${PROJECT_NAME} INTERFACE "$<$<COMPILE_LANG_AND_ID:CXX,MSVC>:/permissive->")
+
+  target_include_directories(
+    ${PROJECT_NAME}
+    INTERFACE $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/include>
+              $<INSTALL_INTERFACE:include/${PROJECT_NAME}-${PROJECT_VERSION}>
+  )
+
+  target_link_libraries(${PROJECT_NAME} INTERFACE fmt::fmt)
 endif()
 
 # ---- Create an installable target ----
@@ -102,5 +106,18 @@ packageProject(
   INCLUDE_DESTINATION include/${PROJECT_NAME}-${PROJECT_VERSION}
   VERSION_HEADER "${VERSION_HEADER_LOCATION}"
   COMPATIBILITY SameMajorVersion
-  DEPENDENCIES "fmt 9.1.0"
+  DEPENDENCIES "fmt 10.2.1"
 )
+
+if(TRADING_BUILD_STANDALONE)
+  add_subdirectory(standalone)
+endif()
+
+if(TRADING_BUILD_TESTS)
+  enable_testing()
+  set(ENABLE_BENCHMARKS
+      ${TRADING_BUILD_BENCHMARKS}
+      CACHE BOOL "Enable benchmark targets" FORCE
+  )
+  add_subdirectory(test)
+endif()

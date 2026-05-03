@@ -3,15 +3,16 @@ file(GLOB_RECURSE TEST_SOURCES CONFIGURE_DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/sou
 add_executable(TradingTests ${TEST_SOURCES})
 
 target_link_libraries(TradingTests PRIVATE 
-    gmock_main
+    GTest::gtest
+    GTest::gmock
     Trading::Trading
 )
 
 # Configure compiler flags
-set_target_properties(TradingTests PROPERTIES 
-    CXX_STANDARD 23
-    CXX_STANDARD_REQUIRED ON
-    CXX_EXTENSIONS OFF
+target_compile_features(TradingTests PRIVATE cxx_std_23)
+set_target_properties(
+    TradingTests
+    PROPERTIES CXX_STANDARD_REQUIRED ON CXX_EXTENSIONS OFF
 )
 
 if(NOT TEST_INSTALLED_VERSION)
@@ -22,8 +23,6 @@ if(NOT TEST_INSTALLED_VERSION)
     endif()
 endif()
 
-# Enable testing
-enable_testing()
 include(GoogleTest)
 gtest_discover_tests(TradingTests)
 
@@ -34,7 +33,7 @@ if(USE_SANITIZER MATCHES "([Mm]emory.*)")
 endif()
 
 # Handle code coverage
-if(ENABLE_TEST_COVERAGE)
+if(ENABLE_COVERAGE)
     enable_coverage(TradingTests)
 endif()
 

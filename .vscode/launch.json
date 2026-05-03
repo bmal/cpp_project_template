@@ -5,19 +5,19 @@
       "name": "Debug Tests",
       "type": "lldb",
       "request": "launch",
-      "program": "${workspaceFolder}/build/test/TradingTests",
+      "program": "${workspaceFolder}/build/dev/test/functional/TradingTests",
       "args": [],
       "cwd": "${workspaceFolder}",
-      "preLaunchTask": "CMake Build All"
+      "preLaunchTask": "CMake Build Dev"
     },
     {
       "name": "Debug Standalone",
       "type": "lldb",
       "request": "launch",
-      "program": "${workspaceFolder}/build/standalone/trading_standalone",
+      "program": "${workspaceFolder}/build/dev/standalone/trading_standalone",
       "args": [],
       "cwd": "${workspaceFolder}",
-      "preLaunchTask": "CMake Build Standalone"
+      "preLaunchTask": "CMake Build Dev"
     }
   ]
 }

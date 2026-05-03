@@ -7,16 +7,10 @@ file(GLOB_RECURSE BENCHMARK_SOURCES "source/*.cpp")
 # Create benchmark executable
 add_executable(${BENCHMARK_TARGET} ${BENCHMARK_SOURCES})
 
-# Fix include paths - use PROJECT_SOURCE_DIR to get the root of the project
-target_include_directories(${BENCHMARK_TARGET}
-    PRIVATE
-        ${PROJECT_SOURCE_DIR}/../include  # Go up one level from test dir to main project
-)
-
 # Link dependencies
 target_link_libraries(${BENCHMARK_TARGET}
     PRIVATE
-        Trading
+        Trading::Trading
         benchmark::benchmark
 )
 

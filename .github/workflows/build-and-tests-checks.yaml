@@ -57,12 +57,6 @@ jobs:
           path: "**/cpm_modules"
           key: cpm-${{ matrix.config.os }}-${{ hashFiles('**/CMakeLists.txt', '**/*.cmake') }}
 
-      - name: Install Dependencies (Ubuntu)
-        if: runner.os == 'Linux'
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y libtbb-dev
-
       - name: Configure
         run: |
           cmake -S test -B build/test \
@@ -73,11 +67,6 @@ jobs:
 
       - name: Build
         run: cmake --build build/test -j$(nproc 2>/dev/null || sysctl -n hw.logicalcpu)
-
-      - name: Grant Network Capabilities
-        working-directory: build/test
-        run: |
-          sudo setcap cap_net_admin,cap_net_raw=ep ./functional/TradingTests
 
       - name: Run Unit Tests
         working-directory: build/test
