@@ -2,10 +2,15 @@ name: Coverage
 
 on:
   workflow_call:
+    secrets:
+      CODECOV_TOKEN:
+        required: false
 
 jobs:
   coverage:
     runs-on: ubuntu-24.04
+    env:
+      CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
 
     steps:
       - uses: actions/checkout@v3
@@ -110,11 +115,18 @@ jobs:
                   --ignore-errors empty
 
       - name: Upload coverage to Codecov
-        uses: codecov/codecov-action@v3
+        if: env.CODECOV_TOKEN != ''
+        uses: codecov/codecov-action@v5
         with:
+          token: ${{ env.CODECOV_TOKEN }}
           files: ./build/test/coverage.info
           fail_ci_if_error: true
           verbose: true
+
+      - name: Skip Codecov upload
+        if: env.CODECOV_TOKEN == ''
+        run: |
+          echo "CODECOV_TOKEN is not configured; coverage report artifacts were still generated."
 
       - name: Upload Coverage Report
         if: always()

@@ -275,6 +275,8 @@ The default GitHub Actions pipeline is intentionally lean:
 - Generate coverage.
 - Run sanitizer checks.
 
+Codecov upload is enabled when the repository secret `CODECOV_TOKEN` is configured. Without that secret, CI still generates and uploads the coverage report artifact, but skips the external Codecov upload to avoid tokenless rate-limit failures.
+
 Benchmarks, valgrind, cachegrind, and broader performance workflows remain available as opt-in workflows. This keeps ordinary pull requests fast while preserving tooling for performance-critical projects.
 
 Linux runners are pinned to explicit Ubuntu versions instead of floating `ubuntu-latest` to reduce surprise toolchain changes.

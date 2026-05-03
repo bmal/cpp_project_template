@@ -65,6 +65,8 @@ jobs:
     needs: [determine-scope, build-and-tests-checks]
     if: needs.determine-scope.outputs.should-run == 'true'
     uses: ./.github/workflows/coverage-checks.yaml
+    secrets:
+      CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
     permissions:
       checks: write
       pull-requests: write
