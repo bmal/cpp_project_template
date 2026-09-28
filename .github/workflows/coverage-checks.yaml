@@ -37,7 +37,9 @@ jobs:
         working-directory: build/coverage-gcc
         run: |
           # gcov must match the g++ the toolchain picked, for example g++-14 -> gcov-14.
-          GCOV_TOOL=$(sed -n 's/^CMAKE_CXX_COMPILER:[^=]*=//p' CMakeCache.txt | sed 's/g++\([^/]*\)$/gcov\1/')
+          GCOV_TOOL=$(sed -n 's/^set(CMAKE_CXX_COMPILER "\(.*\)")$/\1/p' CMakeFiles/*/CMakeCXXCompiler.cmake | sed 's/g++\([^/]*\)$/gcov\1/')
+          test -x "$GCOV_TOOL"
+          echo "gcov tool: $GCOV_TOOL"
           LCOV_ARGS=(
             --rc branch_coverage=1
             --ignore-errors mismatch
