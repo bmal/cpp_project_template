@@ -11,6 +11,7 @@ cases=(
     "consumer_isolation  a FetchContent consumer gets no tests, apps, or -Werror"
     "install_smoke       an installed package builds and runs a find_package consumer"
     "version_header      the version header carries the current git commit"
+    "scaffold            new-module and new-app output builds, tests, and runs; bad names fail"
 )
 
 usage() {
@@ -206,6 +207,30 @@ case_version_header() {
         echo "expected a prefix of ${commit}, got '${short}'"
         return 1
     fi
+}
+
+case_scaffold() {
+    local src="${work}/scaffold"
+    copy_tree "${src}"
+    if "${src}/scripts/new-module.sh" 9bad; then
+        echo "new-module.sh accepted the name 9bad"
+        return 1
+    fi
+    "${src}/scripts/new-module.sh" widget
+    if "${src}/scripts/new-module.sh" widget; then
+        echo "new-module.sh overwrote the existing module widget"
+        return 1
+    fi
+    if "${src}/scripts/new-app.sh" test; then
+        echo "new-app.sh accepted test, a target name CMake reserves"
+        return 1
+    fi
+    "${src}/scripts/new-app.sh" tool
+    configure_dev "${src}"
+    (cd "${src}" && cmake --build --preset dev)
+    (cd "${src}" && ctest --preset dev -L widget) | tee "${work}/scaffold.ctest"
+    grep -Eq "100% tests passed(, 0 tests failed)? out of 1$" "${work}/scaffold.ctest"
+    "${src}/build/dev/bin/tool"
 }
 
 for name in "${selected[@]}"; do

@@ -32,7 +32,7 @@ apps/<name>/                     Executables
 tests/unit/<module>/             GoogleTest unit tests of one module
 benchmarks/<module>/             Google Benchmark executables
 cmake/                           Module helpers, compiler policy, install and packaging, the toolchain file
-scripts/                         Bootstrap and template selftest scripts
+scripts/                         Bootstrap, scaffolding, and template selftest scripts
 triplets/                        vcpkg triplets that build dependencies with the project compiler
 vcpkg.json                       Dependency manifest
 ```
@@ -61,7 +61,13 @@ build/dev/bin/myproj_cli
 
 ## Add A Module
 
-Create `libs/<name>/CMakeLists.txt` with one line; `libs/` picks up every subdirectory that has one:
+Scaffold a compiled module `myproj::net` with a namespace stub and one passing unit test:
+
+```bash
+scripts/new-module.sh net
+```
+
+Or write `libs/<name>/CMakeLists.txt` by hand with one line; `libs/` picks up every subdirectory that has one:
 
 ```cmake
 project_add_module(NAME net PUBLIC_DEPS myproj::core)
@@ -84,7 +90,13 @@ If `tests/unit/<name>/` exists, its `.cpp` files become `<name>_unit_tests`, lab
 
 ## Add An App
 
-Create `apps/<name>/CMakeLists.txt`; every `.cpp` under `apps/<name>/` is compiled:
+Scaffold an executable `build/<preset>/bin/tool` that links `myproj::core`:
+
+```bash
+scripts/new-app.sh tool
+```
+
+Or write `apps/<name>/CMakeLists.txt` by hand; every `.cpp` under `apps/<name>/` is compiled:
 
 ```cmake
 project_add_app(NAME myproj_tool DEPS myproj::core)
