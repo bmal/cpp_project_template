@@ -12,6 +12,7 @@ cases=(
     "install_smoke       an installed package builds and runs a find_package consumer"
     "version_header      the version header carries the current git commit"
     "scaffold            new-module and new-app output builds, tests, and runs; bad names fail"
+    "make_help           make help exits 0 and describes every Makefile target"
 )
 
 usage() {
@@ -231,6 +232,19 @@ case_scaffold() {
     (cd "${src}" && ctest --preset dev -L widget) | tee "${work}/scaffold.ctest"
     grep -Eq "100% tests passed(, 0 tests failed)? out of 1$" "${work}/scaffold.ctest"
     "${src}/build/dev/bin/tool"
+}
+
+case_make_help() {
+    local targets target
+    make -C "${root}" --no-print-directory help | tee "${work}/make_help.out"
+    targets="$(sed -n 's/^\([a-z][a-z0-9-]*\):.*/\1/p' "${root}/Makefile")"
+    [ -n "${targets}" ]
+    for target in ${targets}; do
+        if ! grep -Eq "^  ${target} +[^ ]" "${work}/make_help.out"; then
+            echo "make help has no description for target ${target}"
+            return 1
+        fi
+    done
 }
 
 for name in "${selected[@]}"; do

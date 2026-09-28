@@ -44,13 +44,19 @@ Placeholders are literal: `myproj` for namespaces, targets, and directories, `My
 Install the toolchain and vcpkg once per machine:
 
 ```bash
-scripts/bootstrap.sh
+make bootstrap
 ```
 
 Configure, build, and test:
 
 ```bash
-cmake --workflow --preset dev
+make dev
+```
+
+List every other common action:
+
+```bash
+make help
 ```
 
 Run the sample CLI after a `dev` build:
@@ -157,10 +163,10 @@ project_add_module(NAME core PUBLIC_DEPS fmt::fmt)
 
 ## Tests
 
-Run every test of the `dev` preset:
+Rerun the tests of the `dev` build without rebuilding:
 
 ```bash
-ctest --preset dev
+make test
 ```
 
 Run the unit tests of one module:
@@ -252,20 +258,6 @@ macOS is supported for everyday development: configure, build, tests, app runs, 
 
 Linux is the recommended platform for performance-sensitive work. For HFT-style benchmarking, use pinned compilers, `Release` or `RelWithDebInfo`, CPU governor/perf permissions, isolated cores, and preferably self-hosted runners or dedicated hardware.
 
-## Common Tasks
-
-Run sanitizer checks locally:
-
-```bash
-cmake --workflow --preset asan
-```
-
-Generate coverage flags locally:
-
-```bash
-cmake --workflow --preset coverage
-```
-
 ## Troubleshooting
 
 If clangd shows old commands, regenerate the dev preset:
@@ -277,7 +269,16 @@ cmake --preset dev
 If configure says vcpkg was not found, install it:
 
 ```bash
-scripts/bootstrap.sh
+make bootstrap
 ```
 
 The first configure of each preset builds dependencies and needs network access. vcpkg caches the binaries in `~/.cache/vcpkg/archives`, so later presets reuse them.
+
+## Documentation
+
+| Page | Contents |
+| --- | --- |
+| [Getting started](docs/getting-started.md) | First build to first breakpoint |
+| [How-to guides](docs/how-to/README.md) | One page per task |
+| [Reference](docs/reference/README.md) | Presets, helper API, test labels, conventions |
+| [Decisions](docs/decisions.md) | Why each choice was made and what was rejected |
