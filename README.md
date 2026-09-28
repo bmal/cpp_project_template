@@ -32,7 +32,7 @@ apps/<name>/                     Executables
 tests/unit/<module>/             GoogleTest unit tests of one module
 benchmarks/<module>/             Google Benchmark executables
 cmake/                           Module helpers, compiler policy, install and packaging, the toolchain file
-scripts/                         Bootstrap script
+scripts/                         Bootstrap and template selftest scripts
 triplets/                        vcpkg triplets that build dependencies with the project compiler
 vcpkg.json                       Dependency manifest
 ```
@@ -156,6 +156,14 @@ Run the unit tests of one module:
 ```bash
 ctest --preset dev -L core
 ```
+
+After changing `cmake/`, presets, or install rules, check the template's lifecycle cases:
+
+```bash
+scripts/selftest.sh
+```
+
+Each case prints `ok <case>`; `scripts/selftest.sh --help` lists the cases.
 
 ## Install And Package
 
