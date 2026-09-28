@@ -31,7 +31,7 @@ libs/<module>/src/               Optional module sources; none makes it header-o
 apps/<name>/                     Executables
 tests/unit/<module>/             GoogleTest unit tests of one module
 benchmarks/<module>/             Google Benchmark executables
-cmake/                           Module helpers, compiler policy, the toolchain file
+cmake/                           Module helpers, compiler policy, install and packaging, the toolchain file
 scripts/                         Bootstrap script
 triplets/                        vcpkg triplets that build dependencies with the project compiler
 vcpkg.json                       Dependency manifest
@@ -156,6 +156,32 @@ Run the unit tests of one module:
 ```bash
 ctest --preset dev -L core
 ```
+
+## Install And Package
+
+Install the release build into a prefix, to use the modules from another project:
+
+```bash
+cmake --workflow --preset release
+cmake --install build/release --prefix "$HOME/.local"
+```
+
+Consume it from another CMake project; each module that is not `INTERNAL` is `MyProj::<module>`:
+
+```cmake
+find_package(MyProj REQUIRED)
+target_link_libraries(app PRIVATE MyProj::core)
+```
+
+Build a release archive, written to `build/release/package/MyProj-<version>-<system>.tar.gz`:
+
+```bash
+cpack --config build/release/CPackConfig.cmake
+```
+
+The version lives only in `project(VERSION)` in [CMakeLists.txt](CMakeLists.txt). `#include <myproj/version.hpp>` from `myproj::core` gives `version_string`, `git_commit`, and `git_dirty`, captured at configure time.
+
+When a module links a new package `PUBLIC`, add its `find_dependency` to [cmake/templates/Config.cmake.in](cmake/templates/Config.cmake.in).
 
 ## Benchmarks
 

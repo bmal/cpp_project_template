@@ -1,0 +1,15 @@
+// Generated at configure time from project(VERSION) and git; edit cmake/templates/version.hpp.in.
+#pragma once
+
+#include <string_view>
+
+namespace myproj {
+
+inline constexpr int version_major = @PROJECT_VERSION_MAJOR@;
+inline constexpr int version_minor = @PROJECT_VERSION_MINOR@;
+inline constexpr int version_patch = @PROJECT_VERSION_PATCH@;
+inline constexpr std::string_view version_string = "@PROJECT_VERSION@";
+inline constexpr std::string_view git_commit = "@PROJECT_GIT_COMMIT@";
+inline constexpr bool git_dirty = @PROJECT_GIT_DIRTY@;
+
+} // namespace myproj

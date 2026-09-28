@@ -2,7 +2,7 @@ cmake_minimum_required(VERSION 3.28)
 
 project(
   MyProj
-  VERSION 1.0
+  VERSION 1.0.0
   LANGUAGES CXX
 )
 
@@ -53,4 +53,9 @@ endif()
 if(PROJECT_BUILD_BENCHMARKS)
   find_package(benchmark CONFIG REQUIRED)
   add_subdirectory(benchmarks/core)
+endif()
+
+project_install_package()
+if(PROJECT_IS_TOP_LEVEL)
+  include(CPack)
 endif()

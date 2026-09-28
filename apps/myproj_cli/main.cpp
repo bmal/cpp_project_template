@@ -1,9 +1,13 @@
 #include <core/component.hpp>
 #include <core/header_only.hpp>
+#include <myproj/version.hpp>
 
 #include <print>
 
 int main() {
+    std::println("myproj {} ({}{})", myproj::version_string, myproj::git_commit,
+                 myproj::git_dirty ? "-dirty" : "");
+
     myproj::Counter counter;
     counter.increment(41);
 

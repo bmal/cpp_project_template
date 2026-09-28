@@ -2,6 +2,7 @@
 # Modules register their names so project_check_unit_test_dirs can catch orphaned test directories.
 
 include_guard(GLOBAL)
+include(${CMAKE_CURRENT_LIST_DIR}/ProjectPackage.cmake)
 
 # Adds every direct subdirectory of the current source directory that has a CMakeLists.txt.
 function(project_add_subdirectories)
@@ -15,7 +16,8 @@ endfunction()
 
 # project_add_module(NAME <n> [PUBLIC_DEPS ...] [PRIVATE_DEPS ...] [SOURCES ...]
 #                    [NO_EXCEPTIONS] [NO_RTTI] [INTERNAL])
-# Creates myproj_<n> and myproj::<n>. No sources under src/ makes it an INTERFACE library.
+# Creates myproj_<n> and myproj::<n>, installed as MyProj::<n> unless INTERNAL.
+# No sources under src/ makes it an INTERFACE library.
 function(project_add_module)
   cmake_parse_arguments(
     PARSE_ARGV 0 arg "NO_EXCEPTIONS;NO_RTTI;INTERNAL" "NAME" "PUBLIC_DEPS;PRIVATE_DEPS;SOURCES"
@@ -66,6 +68,9 @@ function(project_add_module)
   add_library(myproj::${arg_NAME} ALIAS ${target})
   set_target_properties(${target} PROPERTIES MYPROJ_INTERNAL "${arg_INTERNAL}")
   set_property(GLOBAL APPEND PROPERTY MYPROJ_MODULES ${arg_NAME})
+  if(NOT arg_INTERNAL)
+    _project_install_module(${arg_NAME} ${target} "${include_dir}")
+  endif()
 
   set(test_dir "${PROJECT_SOURCE_DIR}/tests/unit/${arg_NAME}")
   if(PROJECT_BUILD_TESTS AND IS_DIRECTORY "${test_dir}")
