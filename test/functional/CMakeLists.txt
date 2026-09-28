@@ -26,39 +26,12 @@ add_custom_command(
     COMMENT "Updating stable test launcher"
 )
 
-if(NOT TEST_INSTALLED_VERSION)
-    if(CMAKE_CXX_COMPILER_ID MATCHES "Clang" OR CMAKE_CXX_COMPILER_ID MATCHES "GNU")
-        target_compile_options(${TEMPLATE_TEST_TARGET} PRIVATE -Wall -Wpedantic -Wextra -Werror)
-    elseif(MSVC)
-        target_compile_options(${TEMPLATE_TEST_TARGET} PRIVATE /W4 /WX)
-    endif()
-endif()
+target_compile_options(${TEMPLATE_TEST_TARGET} PRIVATE -Wall -Wpedantic -Wextra -Werror)
 
 include(GoogleTest)
 gtest_discover_tests(${TEMPLATE_TEST_TARGET})
 
-# Handle sanitizer suppressions
-if(USE_SANITIZER MATCHES "([Mm]emory.*)")
-    target_compile_options(${TEMPLATE_TEST_TARGET} PRIVATE -fno-sanitize=memory)
-    target_link_options(${TEMPLATE_TEST_TARGET} PRIVATE -fno-sanitize=memory)
-endif()
-
 # Handle code coverage
 if(ENABLE_COVERAGE)
     enable_coverage(${TEMPLATE_TEST_TARGET})
-endif()
-
-if(USE_SANITIZER)
-    if(USE_SANITIZER MATCHES "([Aa]ddress)")
-        target_compile_definitions(${TEMPLATE_TEST_TARGET} PRIVATE __SANITIZE_ADDRESS__=1)
-    endif()
-    if(USE_SANITIZER MATCHES "([Tt]hread)")
-        target_compile_definitions(${TEMPLATE_TEST_TARGET} PRIVATE __SANITIZE_THREAD__=1)
-    endif()
-    if(USE_SANITIZER MATCHES "([Mm]emory)")
-        target_compile_definitions(${TEMPLATE_TEST_TARGET} PRIVATE __SANITIZE_MEMORY__=1)
-    endif()
-    if(USE_SANITIZER MATCHES "([Uu]ndefined)")
-        target_compile_definitions(${TEMPLATE_TEST_TARGET} PRIVATE __SANITIZE_UNDEFINED__=1)
-    endif()
 endif()

@@ -21,7 +21,6 @@ concurrency:
 
 env:
   CTEST_OUTPUT_ON_FAILURE: 1
-  CPM_SOURCE_CACHE: ${{ github.workspace }}/cpm_modules
   CCACHE_DIR: ${{ github.workspace }}/.ccache
   # Sanitizer options
   UBSAN_OPTIONS: print_stacktrace=1:halt_on_error=1:print_summary=1

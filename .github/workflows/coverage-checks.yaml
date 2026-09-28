@@ -13,44 +13,35 @@ jobs:
       CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
 
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
 
-      - name: Setup Compiler Cache
-        uses: hendrikmuhs/ccache-action@v1.2
+      - name: Cache vcpkg binaries
+        uses: actions/cache@v4
         with:
-          key: ${{ runner.os }}-coverage
+          path: ~/.cache/vcpkg/archives
+          key: vcpkg-coverage-gcc-${{ hashFiles('vcpkg.json', 'triplets/**', 'cmake/toolchain/**', 'scripts/bootstrap.sh') }}
+          restore-keys: vcpkg-coverage-gcc-
 
-      - name: Cache CPM Dependencies
-        uses: actions/cache@v3
-        with:
-          path: "**/cpm_modules"
-          key: cpm-${{ runner.os }}-coverage-${{ hashFiles('**/CMakeLists.txt', '**/*.cmake') }}
-
-      - name: Install dependencies
+      - name: Bootstrap
         run: |
-          sudo apt-get update
-          sudo apt-get install -y lcov gcc g++
+          scripts/bootstrap.sh
+          sudo apt-get install -y lcov
 
       - name: Configure
-        run: |
-          cmake -S test -B build/test \
-            -DCMAKE_BUILD_TYPE=Debug \
-            -DENABLE_COVERAGE=ON \
-            -DENABLE_BENCHMARKS=OFF \
-            -DCMAKE_CXX_COMPILER_LAUNCHER=ccache \
-            -DCMAKE_CXX_FLAGS="--coverage -fprofile-arcs -ftest-coverage -fno-inline" \
-            -DCMAKE_EXE_LINKER_FLAGS="--coverage" \
-            -DCMAKE_EXPORT_COMPILE_COMMANDS=ON
+        run: cmake --preset coverage-gcc
 
       - name: Build
-        run: cmake --build build/test -j$(nproc)
+        run: cmake --build --preset coverage-gcc
 
       - name: Run tests with coverage
-        working-directory: build/test
+        working-directory: build/coverage-gcc
         run: |
+          # gcov must match the g++ the toolchain picked, for example g++-14 -> gcov-14.
+          GCOV_TOOL=$(sed -n 's/^CMAKE_CXX_COMPILER:[^=]*=//p' CMakeCache.txt | sed 's/g++\([^/]*\)$/gcov\1/')
           LCOV_ARGS=(
             --rc branch_coverage=1
             --ignore-errors mismatch
+            --gcov-tool "$GCOV_TOOL"
           )
           LCOV_FILTER_ARGS=(
             --rc branch_coverage=1
@@ -102,7 +93,7 @@ jobs:
                '/usr/*' \
                '*/test/*' \
                '*/benchmark/*' \
-               '*/cpm_modules/*' \
+               '*/vcpkg_installed/*' \
                '*/build/*' \
                --output-file coverage.info \
                "${LCOV_FILTER_ARGS[@]}"
@@ -119,7 +110,7 @@ jobs:
         uses: codecov/codecov-action@v5
         with:
           token: ${{ env.CODECOV_TOKEN }}
-          files: ./build/test/coverage.info
+          files: ./build/coverage-gcc/coverage.info
           fail_ci_if_error: true
           verbose: true
 
@@ -133,7 +124,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: coverage-report
-          path: build/test/coverage_report/
+          path: build/coverage-gcc/coverage_report/
           retention-days: 14
 
       - name: Upload Raw Coverage Data
@@ -142,7 +133,7 @@ jobs:
         with:
           name: coverage-data
           path: |
-            build/test/coverage*.info
-            build/test/CMakeFiles/CMakeOutput.log
-            build/test/CMakeFiles/CMakeError.log
+            build/coverage-gcc/coverage*.info
+            build/coverage-gcc/CMakeFiles/CMakeOutput.log
+            build/coverage-gcc/CMakeFiles/CMakeError.log
           retention-days: 7

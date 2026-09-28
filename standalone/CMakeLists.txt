@@ -1,29 +1,3 @@
-cmake_minimum_required(VERSION 3.20...3.30)
-
-include(../cmake/ProjectIdentity.cmake)
-
-project(${TEMPLATE_STANDALONE_PROJECT} LANGUAGES CXX)
-
-# --- Import tools ----
-include(../cmake/tools.cmake)
-
-# ---- Dependencies ----
-include(../cmake/CPM.cmake)
-
-if(PROJECT_SOURCE_DIR STREQUAL PROJECT_BINARY_DIR)
-  message(
-    FATAL_ERROR
-      "In-source builds not allowed. Please make a new directory (called a build directory) and run CMake from there."
-  )
-endif()
-
-if(NOT TARGET ${TEMPLATE_NAMESPACED_TARGET})
-  CPMAddPackage(
-    NAME ${TEMPLATE_PROJECT_NAME}
-    SOURCE_DIR ${CMAKE_CURRENT_LIST_DIR}/..
-  )
-endif()
-
 # ---- Create standalone executable ----
 file(GLOB_RECURSE sources CONFIGURE_DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/source/*.cpp)
 add_executable(${TEMPLATE_STANDALONE_TARGET} ${sources})
@@ -47,11 +21,7 @@ add_custom_command(
 )
 
 # ---- Enable warnings ----
-if(CMAKE_CXX_COMPILER_ID MATCHES "Clang" OR CMAKE_CXX_COMPILER_ID MATCHES "GNU")
-    target_compile_options(${TEMPLATE_STANDALONE_TARGET} PRIVATE -Wall -Wpedantic -Wextra -Werror)
-elseif(MSVC)
-    target_compile_options(${TEMPLATE_STANDALONE_TARGET} PRIVATE /W4 /WX)
-endif()
+target_compile_options(${TEMPLATE_STANDALONE_TARGET} PRIVATE -Wall -Wpedantic -Wextra -Werror)
 
 add_custom_target(
   run-standalone

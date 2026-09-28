@@ -4,96 +4,41 @@ on:
   workflow_call:
 
 jobs:
-  build-standalone:
-    runs-on: ubuntu-24.04
-    steps:
-      - uses: actions/checkout@v3
-
-      - name: Setup Compiler Cache
-        uses: hendrikmuhs/ccache-action@v1.2
-        with:
-          key: standalone-${{ runner.os }}-${{ github.sha }}
-
-      - name: Cache Dependencies
-        uses: actions/cache@v3
-        with:
-          path: "**/cpm_modules"
-          key: ${{ github.workflow }}-cpm-modules-${{ hashFiles('**/CMakeLists.txt', '**/*.cmake') }}
-
-      - name: Configure
-        run: |
-          cmake -S standalone -B build/standalone \
-            -DCMAKE_BUILD_TYPE=Release \
-            -DCMAKE_CXX_COMPILER_LAUNCHER=ccache
-
-      - name: Build
-        run: cmake --build build/standalone -j$(nproc)
-
-      - name: Run
-        run: cmake --build build/standalone --target run-standalone
-
-  build-variants:
-    needs: build-standalone
+  presets:
     strategy:
       fail-fast: false
       matrix:
-        config:
-          - { name: "Ubuntu Debug", os: ubuntu-24.04, build_type: Debug }
-          - { name: "Ubuntu Release", os: ubuntu-24.04, build_type: Release }
-    name: ${{ matrix.config.name }}
-    runs-on: ${{ matrix.config.os }}
+        preset: [dev, release, dev-gcc, release-gcc]
+    name: Workflow ${{ matrix.preset }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
 
-      - name: Setup Compiler Cache
-        uses: hendrikmuhs/ccache-action@v1.2
+      - name: Cache vcpkg binaries
+        uses: actions/cache@v4
         with:
-          key: ${{ matrix.config.os }}-${{ matrix.config.build_type }}
+          path: ~/.cache/vcpkg/archives
+          key: vcpkg-${{ matrix.preset }}-${{ hashFiles('vcpkg.json', 'triplets/**', 'cmake/toolchain/**', 'scripts/bootstrap.sh') }}
+          restore-keys: vcpkg-${{ matrix.preset }}-
 
-      - name: Cache CPM Dependencies
-        uses: actions/cache@v3
-        with:
-          path: "**/cpm_modules"
-          key: cpm-${{ matrix.config.os }}-${{ hashFiles('**/CMakeLists.txt', '**/*.cmake') }}
+      - name: Bootstrap
+        run: scripts/bootstrap.sh
 
-      - name: Configure
-        run: |
-          cmake -S test -B build/test \
-            -DCMAKE_BUILD_TYPE=${{ matrix.config.build_type }} \
-            -DCMAKE_CXX_COMPILER_LAUNCHER=ccache \
-            -DCMAKE_EXPORT_COMPILE_COMMANDS=ON \
-            -DENABLE_BENCHMARKS=OFF
+      - name: Configure, build, and test
+        run: cmake --workflow --preset ${{ matrix.preset }}
 
-      - name: Build
-        run: cmake --build build/test -j$(nproc 2>/dev/null || sysctl -n hw.logicalcpu)
+      - name: Run standalone
+        if: matrix.preset == 'dev'
+        run: cmake --build --preset dev --target run-standalone
 
-      - name: Run Unit Tests
-        run: |
-          echo "Running functional tests:"
-          ctest --test-dir build/test --output-on-failure --output-junit build/test/test-results.xml
-
-      - name: Upload Test Results
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: test-results-${{ matrix.config.name }}
-          path: build/test/test-results.xml
-          retention-days: 14
-
-      - name: Upload Build Logs
+      - name: Upload build logs
         if: failure()
         uses: actions/upload-artifact@v4
         with:
-          name: build-logs-${{ matrix.config.name }}
+          name: build-logs-${{ matrix.preset }}
           path: |
-            build/test/CMakeFiles/CMakeOutput.log
-            build/test/CMakeFiles/CMakeError.log
-          retention-days: 7
-
-      - name: Upload Compile Commands
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: compile-commands-${{ matrix.config.name }}
-          path: build/test/compile_commands.json
+            build/${{ matrix.preset }}/CMakeFiles/CMakeConfigureLog.yaml
+            build/${{ matrix.preset }}/vcpkg-manifest-install.log
+            .vcpkg/buildtrees/*/*.log
           retention-days: 7

@@ -8,18 +8,12 @@ jobs:
   run-benchmarks:
     runs-on: ubuntu-24.04
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
 
       - name: Setup Compiler Cache
         uses: hendrikmuhs/ccache-action@v1.2
         with:
           key: ${{ runner.os }}-Release-Benchmark
-
-      - name: Cache CPM Dependencies
-        uses: actions/cache@v3
-        with:
-          path: "**/cpm_modules"
-          key: cpm-${{ runner.os }}-${{ hashFiles('**/CMakeLists.txt', '**/*.cmake') }}
 
       - name: Install Dependencies
         run: |
@@ -39,14 +33,16 @@ jobs:
           echo "=== Memory Info ==="
           free -h | grep "Mem:"
 
+      - name: Bootstrap
+        run: scripts/bootstrap.sh
+
       - name: Configure
         run: |
-          cmake -S test -B build/test \
+          cmake --preset benchmarks -B build/test \
             -DCMAKE_BUILD_TYPE=Release \
             -DCMAKE_CXX_COMPILER_LAUNCHER=ccache \
             -DCMAKE_CXX_FLAGS="-O3 -march=native -fno-omit-frame-pointer" \
-            -DCMAKE_EXPORT_COMPILE_COMMANDS=ON \
-            -DENABLE_BENCHMARKS=ON
+            -DCMAKE_EXPORT_COMPILE_COMMANDS=ON
 
       - name: Build
         run: |

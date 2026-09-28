@@ -1,6 +1,6 @@
 # C++23 Library Project Template
 
-A compact, modern C++23 template for library projects that can start small and still grow cleanly. It supports header-only libraries, source-backed libraries, standalone examples, GoogleTest functional tests, Google Benchmark benchmarks, installable CMake packages, VS Code workflows, and lean CI.
+A compact, modern C++23 template for library projects that can start small and still grow cleanly. It supports header-only libraries, source-backed libraries, standalone examples, GoogleTest functional tests, Google Benchmark benchmarks, VS Code workflows, and lean CI.
 
 ## What You Get
 
@@ -9,45 +9,53 @@ A compact, modern C++23 template for library projects that can start small and s
 - A single project identity knob that derives target, package, test, benchmark, and executable names.
 - GoogleTest functional tests and Google Benchmark benchmarks.
 - Stable local launcher paths: `build/<preset>/bin/tests`, `build/<preset>/bin/standalone`, and `build/<preset>/bin/benchmarks`.
-- Install/export support through `PackageProject.cmake`, so consumers can use `find_package(...)`.
+- Dependencies from a vcpkg manifest, consumed only through `find_package`.
+- One toolchain file that picks the compiler and builds dependencies with it.
 - CMake presets for development, release, benchmarks, sanitizers, and coverage.
 - VS Code tasks and debug launch configs that do not depend on the project name.
 - GitHub Actions for normal build/test, coverage, and sanitizer checks, with heavier benchmark/perf workflows kept opt-in.
 
 ## Requirements
 
-- CMake 3.20 or newer.
-- A compiler with C++23 support.
-- Git, because dependencies are fetched through CPM.
-- Optional local tools:
-  - `ccache` for faster rebuilds.
-  - `lcov` and `genhtml` for GCC coverage reports.
-  - VS Code with clangd if you want the included editor workflow.
+- macOS with Homebrew, or apt-based Linux.
+- Clang 19 or GCC 14 at least; configure stops with an error on older compilers.
+- CMake 3.28 or newer and Ninja.
 
-Dependencies such as fmt, GoogleTest, Google Benchmark, PackageProject, and optional tooling are fetched by CMake/CPM during configuration.
+`scripts/bootstrap.sh` installs all of these, plus vcpkg pinned under `.vcpkg/`.
 
 ## Repository Layout
 
 ```text
-include/           Public headers installed for consumers
+include/           Public headers
 source/            Optional library implementation files
 standalone/        Small executable that consumes the library
 test/functional/   GoogleTest test executable
 test/benchmark/    Google Benchmark executable
-cmake/             Shared CMake modules
-all/               IDE-oriented build that includes library, tests, benchmarks, and standalone
+cmake/             Shared CMake modules and the toolchain file
+scripts/           Bootstrap script
+triplets/          vcpkg triplets that build dependencies with the project compiler
+vcpkg.json         Dependency manifest
 ```
 
 The current sample API uses `include/module` and namespace `Example`. Treat both as neutral placeholder code. Rename them when you create a real library domain.
 
 ## Quick Start
 
-Configure, build, test, and run the standalone executable:
+Install the toolchain and vcpkg once per machine:
 
 ```bash
-cmake --preset dev
-cmake --build --preset dev
-ctest --preset dev
+scripts/bootstrap.sh
+```
+
+Configure, build, and test:
+
+```bash
+cmake --workflow --preset dev
+```
+
+Run the standalone executable:
+
+```bash
 cmake --build --preset dev --target run-standalone
 ```
 
@@ -55,16 +63,7 @@ Build and run benchmarks:
 
 ```bash
 cmake --preset benchmarks
-cmake --build --preset benchmarks
 cmake --build --preset benchmarks --target run-benchmarks
-```
-
-Build release mode:
-
-```bash
-cmake --preset release
-cmake --build --preset release
-ctest --preset release
 ```
 
 ## Rename The Template
@@ -105,32 +104,29 @@ rg "DummyProject|Example|include/module|module/"
 
 ## Build Configurations
 
-Presets are defined in [CMakePresets.json](CMakePresets.json).
+List every preset with its description:
 
 ```bash
-cmake --preset dev          # Debug library, tests, standalone
-cmake --preset release      # Release library, tests, standalone
-cmake --preset benchmarks   # Release tests plus benchmarks
-cmake --preset asan         # Address/Undefined sanitizer testing
-cmake --preset coverage     # Debug coverage build
+cmake --list-presets=all
 ```
 
-Build and test presets share the same names:
+Configure, build, and test presets share a name, and each test preset has a workflow preset. The `-gcc` presets exist on Linux only. Build directories are `build/<preset>`.
+
+Use an existing vcpkg checkout instead of `.vcpkg/`:
 
 ```bash
-cmake --build --preset dev
-ctest --preset dev
+export VCPKG_ROOT=/path/to/vcpkg
 ```
 
 Root project options:
 
 ```cmake
+PROJECT_COMPILER           # clang (default) or gcc
 PROJECT_BUILD_STANDALONE   # Build standalone/
 PROJECT_BUILD_TESTS        # Build test/
 PROJECT_BUILD_BENCHMARKS   # Build test/benchmark/ when tests are enabled
+PROJECT_SANITIZE           # Value for -fsanitize=, for example address,undefined
 ENABLE_COVERAGE            # Enable coverage flags for tests
-USE_SANITIZER              # Address, Undefined, Thread, etc.
-TEST_INSTALLED_VERSION     # Test an installed package via find_package
 ```
 
 ## Header-Only And Source-Backed Modes
@@ -159,16 +155,13 @@ Header-only function definitions should be `inline` when needed. Source-backed A
 
 ## Adding Dependencies
 
-Add library dependencies in the root [CMakeLists.txt](CMakeLists.txt), usually with CPM:
+Add the vcpkg port name to `dependencies` in [vcpkg.json](vcpkg.json), then find it in CMake:
 
 ```cmake
-CPMAddPackage(
-  NAME fmt
-  GIT_TAG 10.2.1
-  GITHUB_REPOSITORY fmtlib/fmt
-  OPTIONS "FMT_INSTALL YES"
-)
+find_package(fmt CONFIG REQUIRED)
 ```
+
+The next configure installs it into `build/<preset>/vcpkg_installed/`.
 
 Link with the narrowest correct visibility:
 
@@ -182,8 +175,6 @@ Use:
 - `PRIVATE` when the dependency is used only by `.cpp` files.
 - `INTERFACE` for usage requirements of header-only targets.
 
-If a dependency must be available to installed-package consumers, include it in the package dependency list as well.
-
 ## Tests
 
 Functional tests live in `test/functional/source` and are discovered with `gtest_discover_tests`.
@@ -192,14 +183,6 @@ Run tests from the root preset workflow:
 
 ```bash
 ctest --preset dev
-```
-
-Or build tests as a standalone subproject:
-
-```bash
-cmake -S test -B build/test -DENABLE_BENCHMARKS=OFF
-cmake --build build/test
-ctest --test-dir build/test --output-on-failure
 ```
 
 The test executable is copied to a stable path:
@@ -228,28 +211,6 @@ For a smoke check without running measurements:
 
 Use benchmark numbers from local laptops, virtual machines, and hosted CI as rough signals only. For meaningful latency work, especially HFT-style systems, prefer a controlled Linux machine with fixed toolchains, release builds, CPU governor/perf configured, isolated cores, and repeatable measurement scripts.
 
-## Install And Package
-
-The root project uses `PackageProject.cmake` to generate an installable CMake package and exported namespaced target.
-
-Install locally:
-
-```bash
-cmake --preset dev
-cmake --build --preset dev
-cmake --install build/dev --prefix build/install-smoke
-```
-
-Verify that consumers can use the installed package:
-
-```bash
-cmake -S test -B build/test-installed \
-  -DTEST_INSTALLED_VERSION=ON \
-  -DCMAKE_PREFIX_PATH="$PWD/build/install-smoke"
-cmake --build build/test-installed
-ctest --test-dir build/test-installed --output-on-failure
-```
-
 ## VS Code Workflow
 
 Included VS Code files provide:
@@ -271,7 +232,7 @@ That generates `build/dev/compile_commands.json`, which clangd uses for accurate
 
 The default GitHub Actions pipeline is intentionally lean:
 
-- Build and run tests.
+- Build and run tests with the `dev`, `release`, `dev-gcc`, and `release-gcc` workflow presets.
 - Generate coverage.
 - Run sanitizer checks.
 
@@ -313,17 +274,13 @@ test/benchmark/source/benchmark_my_component.cpp
 Run sanitizer checks locally:
 
 ```bash
-cmake --preset asan
-cmake --build --preset asan
-ctest --preset asan
+cmake --workflow --preset asan
 ```
 
 Generate coverage flags locally:
 
 ```bash
-cmake --preset coverage
-cmake --build --preset coverage
-ctest --preset coverage
+cmake --workflow --preset coverage
 ```
 
 ## Troubleshooting
@@ -336,6 +293,10 @@ If clangd shows old commands, regenerate the dev preset:
 cmake --preset dev
 ```
 
-If a fresh build cannot configure, check network access. CPM downloads dependencies during configuration unless they are already cached.
+If configure says vcpkg was not found, install it:
 
-If installed-package tests fail, confirm `CMAKE_PREFIX_PATH` points to the same prefix passed to `cmake --install`.
+```bash
+scripts/bootstrap.sh
+```
+
+The first configure of each preset builds dependencies and needs network access. vcpkg caches the binaries in `~/.cache/vcpkg/archives`, so later presets reuse them.

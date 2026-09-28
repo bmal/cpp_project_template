@@ -6,8 +6,6 @@ on:
 
 env:
   CTEST_OUTPUT_ON_FAILURE: 1
-  CPM_SOURCE_CACHE: ${{ github.workspace }}/cpm_modules
-  LLVM_VERSION: 16
 
 jobs:
   essential-checks:
@@ -24,7 +22,6 @@ jobs:
           sudo apt-get install -y \
             cmake \
             ninja-build \
-            clang-${{ env.LLVM_VERSION }} \
             libtbb-dev \
             valgrind \
             linux-tools-common \
@@ -33,26 +30,21 @@ jobs:
             libc6-dbg \
             dwarves
 
-      - name: Cache Dependencies
-        uses: actions/cache@v3
-        with:
-          path: "**/cpm_modules"
-          key: ${{ runner.os }}-cpm-${{ hashFiles('**/CMakeLists.txt', '**/*.cmake') }}
-
       - name: Create Test Log Directory
         run: |
           mkdir -p /tmp/test_logs/
           touch /tmp/test_logs/test.log
           chmod 777 /tmp/test_logs/test.log
 
+      - name: Bootstrap
+        run: scripts/bootstrap.sh
+
       - name: Build Project
         run: |
           echo "Building with debug info..."
-          cmake -S test -B build/test \
+          cmake --preset release -B build/test \
             -DCMAKE_BUILD_TYPE=RelWithDebInfo \
-            -DCMAKE_CXX_COMPILER=clang++-${{ env.LLVM_VERSION }} \
-            -DCMAKE_CXX_FLAGS="-g -fno-omit-frame-pointer -fno-inline" \
-            -DCMAKE_CXX_STANDARD=23
+            -DCMAKE_CXX_FLAGS="-g -fno-omit-frame-pointer -fno-inline"
 
           cmake --build build/test -j$(nproc)
 
@@ -116,7 +108,6 @@ jobs:
           sudo apt-get install -y \
             cmake \
             ninja-build \
-            clang-${{ env.LLVM_VERSION }} \
             libtbb-dev \
             valgrind \
             linux-tools-common \
@@ -126,25 +117,20 @@ jobs:
             linux-tools-$(uname -r) || \
             linux-tools-generic
 
-      - name: Cache Dependencies
-        uses: actions/cache@v3
-        with:
-          path: "**/cpm_modules"
-          key: ${{ runner.os }}-cpm-${{ hashFiles('**/CMakeLists.txt', '**/*.cmake') }}
-
       - name: Create Test Log Directory
         run: |
           mkdir -p /tmp/test_logs/
           touch /tmp/test_logs/test.log
           chmod 777 /tmp/test_logs/test.log
 
+      - name: Bootstrap
+        run: scripts/bootstrap.sh
+
       - name: Build with Performance Flags
         run: |
-          cmake -S test -B build/test \
+          cmake --preset release -B build/test \
             -DCMAKE_BUILD_TYPE=Release \
-            -DCMAKE_CXX_COMPILER=clang++-${{ env.LLVM_VERSION }} \
-            -DCMAKE_CXX_FLAGS="-g -fno-omit-frame-pointer -march=native" \
-            -DCMAKE_CXX_STANDARD=23
+            -DCMAKE_CXX_FLAGS="-g -fno-omit-frame-pointer -march=native"
 
           cmake --build build/test -j$(nproc)
 

@@ -1,77 +1,138 @@
 {
-  "version": 3,
+  "version": 8,
   "cmakeMinimumRequired": {
     "major": 3,
-    "minor": 20,
+    "minor": 28,
     "patch": 0
   },
   "configurePresets": [
     {
       "name": "base",
       "hidden": true,
+      "generator": "Ninja",
       "binaryDir": "${sourceDir}/build/${presetName}",
+      "toolchainFile": "${sourceDir}/cmake/toolchain.cmake",
       "cacheVariables": {
         "CMAKE_EXPORT_COMPILE_COMMANDS": "ON",
-        "CMAKE_CXX_STANDARD": "23",
-        "CMAKE_CXX_STANDARD_REQUIRED": "ON",
-        "CMAKE_CXX_EXTENSIONS": "OFF"
+        "PROJECT_COMPILER": "clang",
+        "PROJECT_BUILD_STANDALONE": "ON",
+        "PROJECT_BUILD_TESTS": "ON",
+        "PROJECT_BUILD_BENCHMARKS": "OFF"
+      }
+    },
+    {
+      "name": "host",
+      "hidden": true,
+      "inherits": "base",
+      "condition": {
+        "type": "inList",
+        "string": "${hostSystemName}",
+        "list": [
+          "Darwin",
+          "Linux"
+        ]
+      }
+    },
+    {
+      "name": "host-linux",
+      "hidden": true,
+      "inherits": "base",
+      "condition": {
+        "type": "equals",
+        "lhs": "${hostSystemName}",
+        "rhs": "Linux"
+      }
+    },
+    {
+      "name": "gcc",
+      "hidden": true,
+      "inherits": "host-linux",
+      "cacheVariables": {
+        "PROJECT_COMPILER": "gcc"
       }
     },
     {
       "name": "dev",
-      "displayName": "Development",
-      "inherits": "base",
+      "displayName": "Debug build with tests",
+      "inherits": "host",
       "cacheVariables": {
-        "CMAKE_BUILD_TYPE": "Debug",
-        "PROJECT_BUILD_STANDALONE": "ON",
-        "PROJECT_BUILD_TESTS": "ON",
-        "PROJECT_BUILD_BENCHMARKS": "OFF"
+        "CMAKE_BUILD_TYPE": "Debug"
       }
     },
     {
       "name": "release",
-      "displayName": "Release",
-      "inherits": "base",
+      "displayName": "Optimized build with tests",
+      "inherits": "host",
       "cacheVariables": {
-        "CMAKE_BUILD_TYPE": "Release",
-        "PROJECT_BUILD_STANDALONE": "ON",
-        "PROJECT_BUILD_TESTS": "ON",
-        "PROJECT_BUILD_BENCHMARKS": "OFF"
+        "CMAKE_BUILD_TYPE": "Release"
       }
     },
     {
       "name": "benchmarks",
-      "displayName": "Benchmarks",
-      "inherits": "base",
+      "displayName": "Optimized build with benchmarks",
+      "inherits": "host",
       "cacheVariables": {
         "CMAKE_BUILD_TYPE": "Release",
         "PROJECT_BUILD_STANDALONE": "OFF",
-        "PROJECT_BUILD_TESTS": "ON",
         "PROJECT_BUILD_BENCHMARKS": "ON"
       }
     },
     {
       "name": "asan",
-      "displayName": "Address/UB Sanitizers",
-      "inherits": "base",
+      "displayName": "AddressSanitizer and UndefinedBehaviorSanitizer",
+      "inherits": "host",
       "cacheVariables": {
         "CMAKE_BUILD_TYPE": "Debug",
         "PROJECT_BUILD_STANDALONE": "OFF",
-        "PROJECT_BUILD_TESTS": "ON",
-        "PROJECT_BUILD_BENCHMARKS": "OFF",
-        "USE_SANITIZER": "Address;Undefined"
+        "PROJECT_SANITIZE": "address,undefined"
+      }
+    },
+    {
+      "name": "tsan",
+      "displayName": "ThreadSanitizer",
+      "inherits": "host",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Debug",
+        "PROJECT_BUILD_STANDALONE": "OFF",
+        "PROJECT_SANITIZE": "thread"
       }
     },
     {
       "name": "coverage",
-      "displayName": "Coverage",
-      "inherits": "base",
+      "displayName": "Debug build with coverage instrumentation",
+      "inherits": "host",
       "cacheVariables": {
         "CMAKE_BUILD_TYPE": "Debug",
         "PROJECT_BUILD_STANDALONE": "OFF",
-        "PROJECT_BUILD_TESTS": "ON",
-        "PROJECT_BUILD_BENCHMARKS": "OFF",
         "ENABLE_COVERAGE": "ON"
+      }
+    },
+    {
+      "name": "dev-gcc",
+      "displayName": "Debug build with tests, GCC",
+      "inherits": [
+        "gcc",
+        "dev"
+      ]
+    },
+    {
+      "name": "release-gcc",
+      "displayName": "Optimized build with tests, GCC",
+      "inherits": [
+        "gcc",
+        "release"
+      ]
+    },
+    {
+      "name": "coverage-gcc",
+      "displayName": "Debug build with gcov coverage, GCC",
+      "inherits": [
+        "gcc",
+        "coverage"
+      ],
+      "cacheVariables": {
+        "CMAKE_CXX_FLAGS": "--coverage -fno-inline",
+        "CMAKE_EXE_LINKER_FLAGS": "--coverage"
       }
     }
   ],
@@ -93,8 +154,39 @@
       "configurePreset": "asan"
     },
     {
+      "name": "tsan",
+      "configurePreset": "tsan"
+    },
+    {
       "name": "coverage",
       "configurePreset": "coverage"
+    },
+    {
+      "name": "dev-gcc",
+      "configurePreset": "dev-gcc",
+      "condition": {
+        "type": "equals",
+        "lhs": "${hostSystemName}",
+        "rhs": "Linux"
+      }
+    },
+    {
+      "name": "release-gcc",
+      "configurePreset": "release-gcc",
+      "condition": {
+        "type": "equals",
+        "lhs": "${hostSystemName}",
+        "rhs": "Linux"
+      }
+    },
+    {
+      "name": "coverage-gcc",
+      "configurePreset": "coverage-gcc",
+      "condition": {
+        "type": "equals",
+        "lhs": "${hostSystemName}",
+        "rhs": "Linux"
+      }
     }
   ],
   "testPresets": [
@@ -103,6 +195,9 @@
       "configurePreset": "dev",
       "output": {
         "outputOnFailure": true
+      },
+      "execution": {
+        "noTestsAction": "error"
       }
     },
     {
@@ -110,6 +205,9 @@
       "configurePreset": "release",
       "output": {
         "outputOnFailure": true
+      },
+      "execution": {
+        "noTestsAction": "error"
       }
     },
     {
@@ -117,6 +215,19 @@
       "configurePreset": "asan",
       "output": {
         "outputOnFailure": true
+      },
+      "execution": {
+        "noTestsAction": "error"
+      }
+    },
+    {
+      "name": "tsan",
+      "configurePreset": "tsan",
+      "output": {
+        "outputOnFailure": true
+      },
+      "execution": {
+        "noTestsAction": "error"
       }
     },
     {
@@ -124,7 +235,193 @@
       "configurePreset": "coverage",
       "output": {
         "outputOnFailure": true
+      },
+      "execution": {
+        "noTestsAction": "error"
       }
+    },
+    {
+      "name": "dev-gcc",
+      "configurePreset": "dev-gcc",
+      "output": {
+        "outputOnFailure": true
+      },
+      "execution": {
+        "noTestsAction": "error"
+      },
+      "condition": {
+        "type": "equals",
+        "lhs": "${hostSystemName}",
+        "rhs": "Linux"
+      }
+    },
+    {
+      "name": "release-gcc",
+      "configurePreset": "release-gcc",
+      "output": {
+        "outputOnFailure": true
+      },
+      "execution": {
+        "noTestsAction": "error"
+      },
+      "condition": {
+        "type": "equals",
+        "lhs": "${hostSystemName}",
+        "rhs": "Linux"
+      }
+    },
+    {
+      "name": "coverage-gcc",
+      "configurePreset": "coverage-gcc",
+      "output": {
+        "outputOnFailure": true
+      },
+      "execution": {
+        "noTestsAction": "error"
+      },
+      "condition": {
+        "type": "equals",
+        "lhs": "${hostSystemName}",
+        "rhs": "Linux"
+      }
+    }
+  ],
+  "workflowPresets": [
+    {
+      "name": "dev",
+      "steps": [
+        {
+          "type": "configure",
+          "name": "dev"
+        },
+        {
+          "type": "build",
+          "name": "dev"
+        },
+        {
+          "type": "test",
+          "name": "dev"
+        }
+      ]
+    },
+    {
+      "name": "release",
+      "steps": [
+        {
+          "type": "configure",
+          "name": "release"
+        },
+        {
+          "type": "build",
+          "name": "release"
+        },
+        {
+          "type": "test",
+          "name": "release"
+        }
+      ]
+    },
+    {
+      "name": "asan",
+      "steps": [
+        {
+          "type": "configure",
+          "name": "asan"
+        },
+        {
+          "type": "build",
+          "name": "asan"
+        },
+        {
+          "type": "test",
+          "name": "asan"
+        }
+      ]
+    },
+    {
+      "name": "tsan",
+      "steps": [
+        {
+          "type": "configure",
+          "name": "tsan"
+        },
+        {
+          "type": "build",
+          "name": "tsan"
+        },
+        {
+          "type": "test",
+          "name": "tsan"
+        }
+      ]
+    },
+    {
+      "name": "coverage",
+      "steps": [
+        {
+          "type": "configure",
+          "name": "coverage"
+        },
+        {
+          "type": "build",
+          "name": "coverage"
+        },
+        {
+          "type": "test",
+          "name": "coverage"
+        }
+      ]
+    },
+    {
+      "name": "dev-gcc",
+      "steps": [
+        {
+          "type": "configure",
+          "name": "dev-gcc"
+        },
+        {
+          "type": "build",
+          "name": "dev-gcc"
+        },
+        {
+          "type": "test",
+          "name": "dev-gcc"
+        }
+      ]
+    },
+    {
+      "name": "release-gcc",
+      "steps": [
+        {
+          "type": "configure",
+          "name": "release-gcc"
+        },
+        {
+          "type": "build",
+          "name": "release-gcc"
+        },
+        {
+          "type": "test",
+          "name": "release-gcc"
+        }
+      ]
+    },
+    {
+      "name": "coverage-gcc",
+      "steps": [
+        {
+          "type": "configure",
+          "name": "coverage-gcc"
+        },
+        {
+          "type": "build",
+          "name": "coverage-gcc"
+        },
+        {
+          "type": "test",
+          "name": "coverage-gcc"
+        }
+      ]
     }
   ]
 }

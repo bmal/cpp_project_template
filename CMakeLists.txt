@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.20...3.30)
+cmake_minimum_required(VERSION 3.28)
 
 include(cmake/ProjectIdentity.cmake)
 
@@ -13,6 +13,7 @@ project(
 option(PROJECT_BUILD_STANDALONE "Build the standalone executable" OFF)
 option(PROJECT_BUILD_TESTS "Build functional tests" OFF)
 option(PROJECT_BUILD_BENCHMARKS "Build benchmark targets with the tests" OFF)
+set(PROJECT_SANITIZE "" CACHE STRING "Sanitizers for -fsanitize=, for example address,undefined")
 
 # ---- Include guards ----
 
@@ -23,21 +24,14 @@ if(PROJECT_SOURCE_DIR STREQUAL PROJECT_BINARY_DIR)
   )
 endif()
 
-# ---- Add dependencies via CPM ----
-# see https://github.com/TheLartians/CPM.cmake for more info
+if(PROJECT_SANITIZE)
+  add_compile_options(-fsanitize=${PROJECT_SANITIZE} -fno-sanitize-recover=all -fno-omit-frame-pointer)
+  add_link_options(-fsanitize=${PROJECT_SANITIZE})
+endif()
 
-include(cmake/CPM.cmake)
-include(cmake/tools.cmake)
+# ---- Dependencies come from vcpkg.json through the toolchain in cmake/toolchain.cmake ----
 
-# PackageProject.cmake will be used to make our target installable
-CPMAddPackage("gh:TheLartians/PackageProject.cmake@1.8.0")
-
-CPMAddPackage(
-  NAME fmt
-  GIT_TAG 10.2.1
-  GITHUB_REPOSITORY fmtlib/fmt
-  OPTIONS "FMT_INSTALL YES" # create an installable target
-)
+find_package(fmt CONFIG REQUIRED)
 
 # ---- Add source files ----
 
@@ -65,13 +59,9 @@ if(sources)
     PROPERTIES CXX_STANDARD_REQUIRED ON CXX_EXTENSIONS OFF
   )
 
-  # Being a cross-platform target, we enforce standards conformance on MSVC.
-  target_compile_options(${TEMPLATE_LIBRARY_TARGET} PUBLIC "$<$<COMPILE_LANG_AND_ID:CXX,MSVC>:/permissive->")
-
   target_include_directories(
     ${TEMPLATE_LIBRARY_TARGET}
     PUBLIC $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/include>
-           $<INSTALL_INTERFACE:include/${PROJECT_NAME}-${PROJECT_VERSION}>
   )
 
   target_link_libraries(${TEMPLATE_LIBRARY_TARGET} PUBLIC fmt::fmt)
@@ -80,36 +70,15 @@ else()
   add_library(${TEMPLATE_LIBRARY_TARGET} INTERFACE)
   target_compile_features(${TEMPLATE_LIBRARY_TARGET} INTERFACE cxx_std_23)
 
-  # Being a cross-platform target, we enforce standards conformance on MSVC.
-  target_compile_options(${TEMPLATE_LIBRARY_TARGET} INTERFACE "$<$<COMPILE_LANG_AND_ID:CXX,MSVC>:/permissive->")
-
   target_include_directories(
     ${TEMPLATE_LIBRARY_TARGET}
     INTERFACE $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/include>
-              $<INSTALL_INTERFACE:include/${PROJECT_NAME}-${PROJECT_VERSION}>
   )
 
   target_link_libraries(${TEMPLATE_LIBRARY_TARGET} INTERFACE fmt::fmt)
 endif()
 
-# ---- Create an installable target ----
-# this allows users to install and find the library via `find_package()`.
-
-# the location where the project's version header will be placed should match the project's regular
-# header paths
-string(TOLOWER ${PROJECT_NAME}/version.h VERSION_HEADER_LOCATION)
-
-packageProject(
-  NAME ${TEMPLATE_PROJECT_NAME}
-  VERSION ${PROJECT_VERSION}
-  NAMESPACE ${TEMPLATE_NAMESPACE}
-  BINARY_DIR ${PROJECT_BINARY_DIR}
-  INCLUDE_DIR ${PROJECT_SOURCE_DIR}/include
-  INCLUDE_DESTINATION include/${PROJECT_NAME}-${PROJECT_VERSION}
-  VERSION_HEADER "${VERSION_HEADER_LOCATION}"
-  COMPATIBILITY SameMajorVersion
-  DEPENDENCIES "fmt 10.2.1"
-)
+add_library(${TEMPLATE_NAMESPACED_TARGET} ALIAS ${TEMPLATE_LIBRARY_TARGET})
 
 if(PROJECT_BUILD_STANDALONE)
   add_subdirectory(standalone)
@@ -117,9 +86,5 @@ endif()
 
 if(PROJECT_BUILD_TESTS)
   enable_testing()
-  set(ENABLE_BENCHMARKS
-      ${PROJECT_BUILD_BENCHMARKS}
-      CACHE BOOL "Enable benchmark targets" FORCE
-  )
   add_subdirectory(test)
 endif()

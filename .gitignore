@@ -42,3 +42,7 @@ valgrind.log
 
 *.log
 *test_log.txt
+
+# vcpkg checkout from scripts/bootstrap.sh
+.vcpkg/
+vcpkg_installed/
