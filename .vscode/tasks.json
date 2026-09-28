@@ -20,7 +20,7 @@
       "problemMatcher": "$gcc"
     },
     {
-      "label": "Run Functional Tests",
+      "label": "Run Unit Tests",
       "type": "shell",
       "command": "ctest --preset dev",
       "group": {
@@ -48,14 +48,14 @@
     {
       "label": "Run Benchmarks",
       "type": "shell",
-      "command": "cmake --build --preset benchmarks --target run-benchmarks",
+      "command": "build/benchmarks/bin/core_benchmarks",
       "group": "test",
       "dependsOn": ["CMake Build Benchmarks"]
     },
     {
-      "label": "Run Standalone",
+      "label": "Run CLI",
       "type": "shell",
-      "command": "cmake --build --preset dev --target run-standalone",
+      "command": "build/dev/bin/myproj_cli",
       "group": "test",
       "dependsOn": ["CMake Build Dev"]
     }

@@ -1,6 +1,6 @@
-#include "module/component.hpp"
+#include "core/component.hpp"
 
-namespace Example {
+namespace myproj {
 
 Counter& Counter::increment(int by) {
     value += by;
@@ -27,4 +27,4 @@ void Counter::reset() {
     value = 0;
 }
 
-}  // namespace Example
+}  // namespace myproj

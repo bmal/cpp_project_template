@@ -28,9 +28,9 @@ jobs:
       - name: Configure, build, and test
         run: cmake --workflow --preset ${{ matrix.preset }}
 
-      - name: Run standalone
+      - name: Run CLI
         if: matrix.preset == 'dev'
-        run: cmake --build --preset dev --target run-standalone
+        run: build/dev/bin/myproj_cli
 
       - name: Upload build logs
         if: failure()

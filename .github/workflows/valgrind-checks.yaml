@@ -49,15 +49,15 @@ jobs:
           cmake --build build/test -j$(nproc)
 
           echo "Checking debug symbols..."
-          file build/test/bin/tests
-          nm build/test/bin/tests | grep -i debug || echo "No debug symbols found"
+          file build/test/bin/core_unit_tests
+          nm build/test/bin/core_unit_tests | grep -i debug || echo "No debug symbols found"
 
       - name: Cache-Line Alignment Analysis
         run: |
           mkdir -p build/test/reports/alignment
 
           # Extract struct alignments
-          pahole build/test/bin/tests > build/test/reports/alignment/struct_layout.txt
+          pahole build/test/bin/core_unit_tests > build/test/reports/alignment/struct_layout.txt
 
           # Look for potential cache line issues
           grep -n -A 3 -B 3 "size: [4-9][0-9]" build/test/reports/alignment/struct_layout.txt > build/test/reports/alignment/potential_issues.txt || true
@@ -158,7 +158,7 @@ jobs:
             --dump-instr=yes \
             --collect-jumps=yes \
             --callgrind-out-file=reports/callgrind/profile.out \
-            ./bin/tests || exit 1
+            ./bin/core_unit_tests || exit 1
 
           sudo chmod 644 reports/callgrind/profile.out 
 
@@ -180,7 +180,7 @@ jobs:
             --branch-sim=yes \
             --cache-sim=yes \
             --cachegrind-out-file=reports/cachegrind/cache.out \
-            ./bin/tests || exit 1
+            ./bin/core_unit_tests || exit 1
 
           sudo chmod 644 reports/cachegrind/cache.out
           cg_annotate \
@@ -195,7 +195,7 @@ jobs:
             --heap=yes \
             --detailed-freq=10 \
             --massif-out-file=reports/massif/heap.out \
-            ./bin/tests || exit 1
+            ./bin/core_unit_tests || exit 1
 
           ms_print reports/massif/heap.out > reports/massif/analysis.txt || exit 1
 
@@ -205,12 +205,12 @@ jobs:
           mkdir -p reports/perf
 
           # Try to run perf with falling back to less detailed analysis if permissions are an issue
-          sudo perf stat -d -d -d ./bin/tests 2> reports/perf/counters.txt || \
-          sudo perf stat ./bin/tests 2> reports/perf/counters.txt || \
+          sudo perf stat -d -d -d ./bin/core_unit_tests 2> reports/perf/counters.txt || \
+          sudo perf stat ./bin/core_unit_tests 2> reports/perf/counters.txt || \
           echo "Perf could not run due to permissions or availability issues" > reports/perf/counters.txt
 
           # Try to get a sample profile for hotspots
-          sudo perf record -F 99 -g ./bin/tests -o reports/perf/perf.data 2> reports/perf/record.txt || true
+          sudo perf record -F 99 -g ./bin/core_unit_tests -o reports/perf/perf.data 2> reports/perf/record.txt || true
 
           # Generate a report if the record was successful
           if [ -f "reports/perf/perf.data" ]; then

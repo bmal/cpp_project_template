@@ -1,13 +1,13 @@
-#include <module/component.hpp>
-#include <module/header_only.hpp>
+#include <core/component.hpp>
+#include <core/header_only.hpp>
 
 #include <print>
 
 int main() {
-    Example::Counter counter;
+    myproj::Counter counter;
     counter.increment(41);
 
-    const auto result = Example::safe_divide(counter.increment().get(), 6);
+    const auto result = myproj::safe_divide(counter.increment().get(), 6);
     if (!result.has_value())
         return 1;
 

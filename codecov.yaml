@@ -16,9 +16,10 @@ coverage:
         base: auto
 
 ignore:
-  - "test/**/*"
+  - "tests/**/*"
   - "build/**/*"
-  - "standalone/**/*"
+  - "apps/**/*"
+  - "benchmarks/**/*"
   - "**/third-party/**/*"
   - "**/external/**/*"
 

@@ -3,7 +3,7 @@
 #include <expected>
 #include <string>
 
-namespace Example {
+namespace myproj {
 
 // Declaration lives in the header, definitions in component.cpp.
 // This is the pattern we're validating the project template handles correctly.
@@ -21,4 +21,4 @@ struct Counter {
     void reset();
 };
 
-}  // namespace Example
+}  // namespace myproj

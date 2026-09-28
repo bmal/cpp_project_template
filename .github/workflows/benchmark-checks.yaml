@@ -61,7 +61,7 @@ jobs:
         working-directory: build/test
         run: |
           echo "=== Running Benchmarks ==="
-          ./bin/benchmarks \
+          ./bin/core_benchmarks \
             --benchmark_format=console \
             --benchmark_repetitions=10 \
             --benchmark_min_time=2s \

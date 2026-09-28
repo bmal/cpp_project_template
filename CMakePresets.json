@@ -15,7 +15,7 @@
       "cacheVariables": {
         "CMAKE_EXPORT_COMPILE_COMMANDS": "ON",
         "PROJECT_COMPILER": "clang",
-        "PROJECT_BUILD_STANDALONE": "ON",
+        "PROJECT_BUILD_APPS": "ON",
         "PROJECT_BUILD_TESTS": "ON",
         "PROJECT_BUILD_BENCHMARKS": "OFF"
       }
@@ -74,7 +74,7 @@
       "inherits": "host",
       "cacheVariables": {
         "CMAKE_BUILD_TYPE": "Release",
-        "PROJECT_BUILD_STANDALONE": "OFF",
+        "PROJECT_BUILD_APPS": "OFF",
         "PROJECT_BUILD_BENCHMARKS": "ON"
       }
     },
@@ -84,7 +84,7 @@
       "inherits": "host",
       "cacheVariables": {
         "CMAKE_BUILD_TYPE": "Debug",
-        "PROJECT_BUILD_STANDALONE": "OFF",
+        "PROJECT_BUILD_APPS": "OFF",
         "PROJECT_SANITIZE": "address,undefined"
       }
     },
@@ -94,7 +94,7 @@
       "inherits": "host",
       "cacheVariables": {
         "CMAKE_BUILD_TYPE": "Debug",
-        "PROJECT_BUILD_STANDALONE": "OFF",
+        "PROJECT_BUILD_APPS": "OFF",
         "PROJECT_SANITIZE": "thread"
       }
     },
@@ -104,7 +104,7 @@
       "inherits": "host",
       "cacheVariables": {
         "CMAKE_BUILD_TYPE": "Debug",
-        "PROJECT_BUILD_STANDALONE": "OFF",
+        "PROJECT_BUILD_APPS": "OFF",
         "ENABLE_COVERAGE": "ON"
       }
     },

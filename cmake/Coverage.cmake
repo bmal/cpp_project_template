@@ -33,7 +33,7 @@ function(enable_coverage target_name)
                 ${COVERAGE_INFO}.test --output-file ${COVERAGE_INFO}.total
         COMMAND
           ${LCOV_EXECUTABLE} --remove ${COVERAGE_INFO}.total '${CMAKE_BINARY_DIR}/*'
-          '${CMAKE_SOURCE_DIR}/test/*' '${CMAKE_SOURCE_DIR}/build/*' '${CMAKE_SOURCE_DIR}/_deps/*'
+          '${CMAKE_SOURCE_DIR}/tests/*' '${CMAKE_SOURCE_DIR}/build/*' '${CMAKE_SOURCE_DIR}/_deps/*'
           '/usr/include/*' '/usr/lib/*' --output-file ${COVERAGE_INFO}
         COMMAND ${GENHTML_EXECUTABLE} --demangle-cpp -o ${COVERAGE_REPORT_DIR} ${COVERAGE_INFO}
         WORKING_DIRECTORY ${CMAKE_BINARY_DIR}

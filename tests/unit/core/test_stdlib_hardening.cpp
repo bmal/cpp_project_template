@@ -17,6 +17,7 @@ namespace {
 
 TEST(StdlibHardening, OutOfBoundsVectorIndexAborts) {
 #if MYPROJ_STDLIB_HARDENED
+    GTEST_FLAG_SET(death_test_style, "threadsafe");
     const std::vector<int> values(3);
     const std::size_t past_end = values.size();
     EXPECT_DEATH(static_cast<void>(values[past_end]), "");

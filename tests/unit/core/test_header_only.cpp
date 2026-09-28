@@ -1,7 +1,7 @@
 #include <gtest/gtest.h>
-#include "module/header_only.hpp"
+#include "core/header_only.hpp"
 
-namespace Example {
+namespace myproj {
 
 TEST(SafeDivide, ReturnsCorrectValueOnSuccess) {
     const auto result = safe_divide(10, 2);
@@ -15,4 +15,4 @@ TEST(SafeDivide, ReturnsExpectedErrorOnDivisionByZero) {
     EXPECT_EQ(result.error(), "division by zero");
 }
 
-}  // namespace Example
+}  // namespace myproj

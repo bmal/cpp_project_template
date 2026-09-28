@@ -5,16 +5,16 @@
       "name": "Debug Tests",
       "type": "lldb",
       "request": "launch",
-      "program": "${workspaceFolder}/build/dev/bin/tests",
+      "program": "${workspaceFolder}/build/dev/bin/core_unit_tests",
       "args": [],
       "cwd": "${workspaceFolder}",
       "preLaunchTask": "CMake Build Dev"
     },
     {
-      "name": "Debug Standalone",
+      "name": "Debug CLI",
       "type": "lldb",
       "request": "launch",
-      "program": "${workspaceFolder}/build/dev/bin/standalone",
+      "program": "${workspaceFolder}/build/dev/bin/myproj_cli",
       "args": [],
       "cwd": "${workspaceFolder}",
       "preLaunchTask": "CMake Build Dev"
