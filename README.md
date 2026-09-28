@@ -6,6 +6,7 @@ A compact, modern C++23 template for library projects that can start small and s
 
 - One CMake library target that works as either a normal compiled library or a header-only `INTERFACE` library.
 - C++23 enforced for the library, standalone executable, tests, and benchmarks.
+- One strict warning set with `-Werror`, applied to every internal target and never to consumers.
 - A single project identity knob that derives target, package, test, benchmark, and executable names.
 - GoogleTest functional tests and Google Benchmark benchmarks.
 - Stable local launcher paths: `build/<preset>/bin/tests`, `build/<preset>/bin/standalone`, and `build/<preset>/bin/benchmarks`.
@@ -126,7 +127,17 @@ PROJECT_BUILD_STANDALONE   # Build standalone/
 PROJECT_BUILD_TESTS        # Build test/
 PROJECT_BUILD_BENCHMARKS   # Build test/benchmark/ when tests are enabled
 PROJECT_SANITIZE           # Value for -fsanitize=, for example address,undefined
+PROJECT_WARNINGS_AS_ERRORS # -Werror; ON when top level, never applied to consumers
+PROJECT_STDLIB_HARDENING   # libstdc++ assertions and libc++ debug hardening; ON in dev
 ENABLE_COVERAGE            # Enable coverage flags for tests
+```
+
+Warnings and options come from the `myproj_warnings` and `myproj_options` interface targets in [cmake/CompilerPolicy.cmake](cmake/CompilerPolicy.cmake). Link both `PRIVATE` to every new internal target.
+
+When a compiler upgrade raises a warning you cannot fix yet, build without `-Werror`:
+
+```bash
+cmake --preset dev -DPROJECT_WARNINGS_AS_ERRORS=OFF
 ```
 
 ## Header-Only And Source-Backed Modes

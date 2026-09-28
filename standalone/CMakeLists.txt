@@ -1,7 +1,10 @@
 # ---- Create standalone executable ----
 file(GLOB_RECURSE sources CONFIGURE_DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/source/*.cpp)
 add_executable(${TEMPLATE_STANDALONE_TARGET} ${sources})
-target_link_libraries(${TEMPLATE_STANDALONE_TARGET} PRIVATE ${TEMPLATE_NAMESPACED_TARGET})
+target_link_libraries(
+  ${TEMPLATE_STANDALONE_TARGET}
+  PRIVATE ${TEMPLATE_NAMESPACED_TARGET} myproj_warnings myproj_options
+)
 
 target_compile_features(${TEMPLATE_STANDALONE_TARGET} PRIVATE cxx_std_23)
 set_target_properties(
@@ -19,9 +22,6 @@ add_custom_command(
           ${CMAKE_BINARY_DIR}/bin/standalone
   COMMENT "Updating stable standalone launcher"
 )
-
-# ---- Enable warnings ----
-target_compile_options(${TEMPLATE_STANDALONE_TARGET} PRIVATE -Wall -Wpedantic -Wextra -Werror)
 
 add_custom_target(
   run-standalone

@@ -56,7 +56,8 @@
       "displayName": "Debug build with tests",
       "inherits": "host",
       "cacheVariables": {
-        "CMAKE_BUILD_TYPE": "Debug"
+        "CMAKE_BUILD_TYPE": "Debug",
+        "PROJECT_STDLIB_HARDENING": "ON"
       }
     },
     {

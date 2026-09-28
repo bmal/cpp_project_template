@@ -22,19 +22,8 @@ target_link_libraries(${TEMPLATE_BENCHMARK_TARGET}
     PRIVATE
         ${TEMPLATE_NAMESPACED_TARGET}
         benchmark::benchmark
-)
-
-# Set compiler flags
-target_compile_features(${TEMPLATE_BENCHMARK_TARGET} PRIVATE cxx_std_23)
-target_compile_options(${TEMPLATE_BENCHMARK_TARGET}
-    PRIVATE
-        $<$<CXX_COMPILER_ID:GNU,Clang,AppleClang>:
-            -Wall
-            -Wextra
-            -Werror
-            -Wconversion
-            -Wsign-conversion
-        >
+        myproj_warnings
+        myproj_options
 )
 
 add_custom_target(

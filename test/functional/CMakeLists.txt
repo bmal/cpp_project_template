@@ -3,9 +3,10 @@ file(GLOB_RECURSE TEST_SOURCES CONFIGURE_DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/sou
 add_executable(${TEMPLATE_TEST_TARGET} ${TEST_SOURCES})
 
 target_link_libraries(${TEMPLATE_TEST_TARGET} PRIVATE
-    GTest::gtest
     GTest::gmock
     ${TEMPLATE_NAMESPACED_TARGET}
+    myproj_warnings
+    myproj_options
 )
 
 # Configure compiler flags
@@ -25,8 +26,6 @@ add_custom_command(
             ${CMAKE_BINARY_DIR}/bin/tests
     COMMENT "Updating stable test launcher"
 )
-
-target_compile_options(${TEMPLATE_TEST_TARGET} PRIVATE -Wall -Wpedantic -Wextra -Werror)
 
 include(GoogleTest)
 gtest_discover_tests(${TEMPLATE_TEST_TARGET})

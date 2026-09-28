@@ -29,6 +29,8 @@ if(PROJECT_SANITIZE)
   add_link_options(-fsanitize=${PROJECT_SANITIZE})
 endif()
 
+include(cmake/CompilerPolicy.cmake)
+
 # ---- Dependencies come from vcpkg.json through the toolchain in cmake/toolchain.cmake ----
 
 find_package(fmt CONFIG REQUIRED)
@@ -64,7 +66,12 @@ if(sources)
     PUBLIC $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/include>
   )
 
-  target_link_libraries(${TEMPLATE_LIBRARY_TARGET} PUBLIC fmt::fmt)
+  # BUILD_INTERFACE keeps the policy targets out of any future export set.
+  target_link_libraries(
+    ${TEMPLATE_LIBRARY_TARGET}
+    PUBLIC fmt::fmt
+    PRIVATE $<BUILD_INTERFACE:myproj_warnings> $<BUILD_INTERFACE:myproj_options>
+  )
 else()
   # Header-only library.
   add_library(${TEMPLATE_LIBRARY_TARGET} INTERFACE)
