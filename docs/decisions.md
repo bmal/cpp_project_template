@@ -110,6 +110,12 @@ Narrow choices left to single tickets are appended below the entry they refine.
 - Why: libc++ headers must match the compiler that includes them, and a hidden preset would fail with CMake's generic "disabled preset" message.
 - Rejected: a directory per Clang major, which a point upgrade would silently reuse; a preset condition that hides `msan` on macOS.
 
+#### D10.7. Sanitizer presets need a symbolizer
+
+- Decision: `bootstrap.sh` installs `llvm-<major>` on Linux, which holds `llvm-symbolizer`. A Clang sanitizer or fuzz configure on Linux fails in one sentence without it. The selftest plants pass only when a frame names the planted test.
+- Why: without a symbolizer a report has no function names, and a suppression by name never matches.
+- Rejected: a symbolizer path in the test presets, which cannot name a path for every host; a warning, which scrolls past.
+
 ### D11. clang-tidy is the only analyzer
 
 - Decision: a `lint` target over `compile_commands.json`, also in CI. Alias checks disabled. `misc-include-cleaner` covers includes. clangd reads `.clang-tidy` with a fast filter.

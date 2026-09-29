@@ -50,7 +50,7 @@ install_linux() {
     fi
     ${sudo} apt-get install -y -qq --no-install-recommends \
         "clang-${CLANG_VERSION}" "clang-tidy-${CLANG_VERSION}" "clang-format-${CLANG_VERSION}" \
-        "libclang-rt-${CLANG_VERSION}-dev"
+        "libclang-rt-${CLANG_VERSION}-dev" "llvm-${CLANG_VERSION}"
 }
 
 # Installs package $1 at version $2 with pipx, replacing any other installed version.

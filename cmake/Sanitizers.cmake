@@ -50,6 +50,27 @@ if("memory" IN_LIST PROJECT_SANITIZER AND NOT CMAKE_CXX_COMPILER_ID MATCHES "Cla
   message(FATAL_ERROR "PROJECT_SANITIZER=memory needs Clang; GCC has no MemorySanitizer.")
 endif()
 
+# Without llvm-symbolizer a Clang report on Linux has no function names, and no suppression matches.
+if(
+  (PROJECT_SANITIZER OR PROJECT_BUILD_FUZZ)
+  AND CMAKE_CXX_COMPILER_ID MATCHES "Clang"
+  AND CMAKE_SYSTEM_NAME STREQUAL "Linux"
+)
+  cmake_path(GET CMAKE_CXX_COMPILER PARENT_PATH _project_compiler_bin)
+  string(REGEX MATCH "^[0-9]+" _project_clang_major "${CMAKE_CXX_COMPILER_VERSION}")
+  find_program(
+    _project_symbolizer
+    NAMES "llvm-symbolizer-${_project_clang_major}" llvm-symbolizer
+    HINTS "${_project_compiler_bin}" NO_CACHE
+  )
+  if(NOT _project_symbolizer)
+    message(
+      FATAL_ERROR
+      "Sanitizer reports need llvm-symbolizer to name functions, and it was not found; install it with:\n  scripts/bootstrap.sh\n"
+    )
+  endif()
+endif()
+
 set(_project_sanitize_flags ${PROJECT_SANITIZER})
 # Fuzz harnesses need coverage instrumentation in every module they call; only a harness links the driver.
 if(PROJECT_BUILD_FUZZ)

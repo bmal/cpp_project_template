@@ -502,6 +502,11 @@ expect_sanitizer_report() {
         echo "the ${preset} preset failed without printing '${report}'"
         return 1
     fi
+    # A frame must name the planted test, or the report does not say where the bug is.
+    if ! grep -Eq "#[0-9]+ .*(Planted_|test_planted\.cpp)" "${out}"; then
+        echo "the ${preset} report names no function; llvm-symbolizer is missing, run scripts/bootstrap.sh"
+        return 1
+    fi
 }
 
 case_asan_overflow() {
