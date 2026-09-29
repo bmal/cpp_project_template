@@ -92,6 +92,18 @@ Narrow choices left to single tickets are appended below the entry they refine.
 - Why: Apple `ld` fails with "invalid r_symbolnum" on some harness objects that combine the check with fuzzer coverage.
 - Rejected: the deprecated `-ld_classic` linker; dropping UBSan from the preset.
 
+#### D10.4. Fuzzer coverage comes from PROJECT_BUILD_FUZZ
+
+- Decision: `PROJECT_SANITIZER` names sanitizers only; the `fuzz` preset sets it to `address;undefined`, and `PROJECT_BUILD_FUZZ` adds `fuzzer-no-link` to `myproj_options`.
+- Why: every value of `PROJECT_SANITIZER` is a sanitizer, and fuzzing without a sanitizer still gets coverage.
+- Rejected: `fuzzer-no-link` as a `PROJECT_SANITIZER` value.
+
+#### D10.5. Sanitizer presets pick their triplet by variant
+
+- Decision: `asan` and `tsan` set `PROJECT_TRIPLET_VARIANT`, and the toolchain selects `triplets/<arch>-<os>-<variant>.cmake`. There is no UBSan suppression file.
+- Why: a preset cannot name the host architecture, and UBSan ignores suppressions under `-fno-sanitize-recover=all`.
+- Rejected: one preset per architecture; a `ubsan.supp` that would never be read.
+
 ### D11. clang-tidy is the only analyzer
 
 - Decision: a `lint` target over `compile_commands.json`, also in CI. Alias checks disabled. `misc-include-cleaner` covers includes. clangd reads `.clang-tidy` with a fast filter.

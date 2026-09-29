@@ -2,6 +2,8 @@
 // An out-of-bounds operator[] on std::vector must abort instead of reading past the end.
 #include <gtest/gtest.h>
 
+#include "support/sanitizers.hpp"
+
 #include <cstddef>
 #include <vector>
 
@@ -16,6 +18,7 @@
 namespace {
 
 TEST(StdlibHardening, OutOfBoundsVectorIndexAborts) {
+    MYPROJ_SKIP_UNDER_SANITIZER(TSAN, "a death test forks a process that already runs threads");
 #if MYPROJ_STDLIB_HARDENED
     const std::vector<int> values(3);
     const std::size_t past_end = values.size();

@@ -25,12 +25,6 @@ option(PROJECT_BUILD_FUZZ "Build the libFuzzer harnesses under tests/fuzz/; need
 set(PROJECT_FUZZ_SECONDS 30 CACHE STRING "Seconds the run_fuzz target spends on each harness")
 option(PROJECT_INSTALL "Generate install and package rules" ${PROJECT_IS_TOP_LEVEL})
 option(ENABLE_COVERAGE "Enable test coverage" OFF)
-set(PROJECT_SANITIZE "" CACHE STRING "Sanitizers for -fsanitize=, for example address,undefined")
-
-if(PROJECT_SANITIZE)
-  add_compile_options(-fsanitize=${PROJECT_SANITIZE} -fno-sanitize-recover=all -fno-omit-frame-pointer)
-  add_link_options(-fsanitize=${PROJECT_SANITIZE})
-endif()
 
 set(CMAKE_CXX_EXTENSIONS OFF)
 if(PROJECT_IS_TOP_LEVEL)
@@ -38,6 +32,7 @@ if(PROJECT_IS_TOP_LEVEL)
 endif()
 
 include(cmake/CompilerPolicy.cmake)
+include(cmake/Sanitizers.cmake)
 include(cmake/ProjectModules.cmake)
 
 # ---- Dependencies come from vcpkg.json through the toolchain in cmake/toolchain.cmake ----

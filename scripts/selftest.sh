@@ -17,6 +17,8 @@ cases=(
     "stress_label        only a suite name ending in Stress moves a test from dev to stress"
     "parser_no_throw     the header-only parser contains no throw and no try"
     "fuzz_crash          a fuzz harness finds a crash planted on one specific input"
+    "asan_overflow       a heap overflow planted in a unit test fails the asan preset with a report"
+    "tsan_race           a data race planted in a unit test fails the tsan preset with a report"
 )
 
 usage() {
@@ -386,6 +388,68 @@ EOF
     grep -q "ERROR: libFuzzer: deadly signal" "${work}/fuzz_crash.out"
     # The crash file is the input itself, which must be the planted one.
     head -c 3 "${out}"/crash-* | grep -q "^FUZ"
+}
+
+# Adds the unit test source $2 to the parser tests of the copy in $1, then runs preset $3 on it.
+# Passes only when the preset fails the test and prints the sanitizer report $4.
+expect_sanitizer_report() {
+    local src="$1" test_source="$2" preset="$3" report="$4" out="${work}/${3}_planted.out"
+    cp "${test_source}" "${src}/tests/unit/parser/test_planted.cpp"
+    (cd "${src}" && cmake --preset "${preset}" -DVCPKG_INSTALLED_DIR="${vcpkg_installed}")
+    (cd "${src}" && cmake --build --preset "${preset}" --target parser_unit_tests)
+    if (cd "${src}" && ctest --preset "${preset}" -R '^Planted\.') >"${out}" 2>&1; then
+        cat "${out}"
+        echo "the ${preset} preset passed a test with a planted bug"
+        return 1
+    fi
+    if ! grep -A 12 "${report}" "${out}"; then
+        cat "${out}"
+        echo "the ${preset} preset failed without printing '${report}'"
+        return 1
+    fi
+}
+
+case_asan_overflow() {
+    local src="${work}/asan_overflow"
+    copy_tree "${src}"
+    cat >"${work}/asan_overflow.cpp" <<'EOF'
+// Selftest: writes one element past a heap array, which only AddressSanitizer notices.
+// The index is volatile so the compiler cannot prove the overflow and warn at build time.
+#include <gtest/gtest.h>
+
+#include <cstddef>
+#include <memory>
+
+TEST(Planted, HeapOverflow) {
+    volatile std::size_t past_end = 4;
+    const auto values = std::make_unique<int[]>(4);
+    values[past_end] = 1;
+    EXPECT_EQ(values[0], 0);
+}
+EOF
+    expect_sanitizer_report "${src}" "${work}/asan_overflow.cpp" asan \
+        "ERROR: AddressSanitizer: heap-buffer-overflow"
+}
+
+case_tsan_race() {
+    local src="${work}/tsan_race"
+    copy_tree "${src}"
+    cat >"${work}/tsan_race.cpp" <<'EOF'
+// Selftest: two threads write one int without synchronization, which only ThreadSanitizer notices.
+// Nothing is checked, because the race itself is the bug under test.
+#include <gtest/gtest.h>
+
+#include <thread>
+
+TEST(Planted, DataRace) {
+    int shared = 0;
+    std::thread writer([&shared] { shared = 1; });
+    shared = 2;
+    writer.join();
+    SUCCEED();
+}
+EOF
+    expect_sanitizer_report "${src}" "${work}/tsan_race.cpp" tsan "WARNING: ThreadSanitizer: data race"
 }
 
 for name in "${selected[@]}"; do

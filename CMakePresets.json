@@ -81,22 +81,25 @@
     },
     {
       "name": "asan",
-      "displayName": "AddressSanitizer and UndefinedBehaviorSanitizer",
+      "displayName": "AddressSanitizer and UBSan at -O1, dependencies instrumented too",
       "inherits": "host",
       "cacheVariables": {
         "CMAKE_BUILD_TYPE": "Debug",
+        "CMAKE_CXX_FLAGS_DEBUG": "-O1 -g",
         "PROJECT_BUILD_APPS": "OFF",
-        "PROJECT_SANITIZE": "address,undefined"
+        "PROJECT_SANITIZER": "address;undefined",
+        "PROJECT_TRIPLET_VARIANT": "asan"
       }
     },
     {
       "name": "tsan",
-      "displayName": "ThreadSanitizer",
+      "displayName": "ThreadSanitizer, dependencies instrumented too",
       "inherits": "host",
       "cacheVariables": {
         "CMAKE_BUILD_TYPE": "Debug",
         "PROJECT_BUILD_APPS": "OFF",
-        "PROJECT_SANITIZE": "thread"
+        "PROJECT_SANITIZER": "thread",
+        "PROJECT_TRIPLET_VARIANT": "tsan"
       }
     },
     {
@@ -108,7 +111,7 @@
         "PROJECT_BUILD_APPS": "OFF",
         "PROJECT_BUILD_TESTS": "OFF",
         "PROJECT_BUILD_FUZZ": "ON",
-        "PROJECT_SANITIZE": "fuzzer-no-link,address,undefined"
+        "PROJECT_SANITIZER": "address;undefined"
       }
     },
     {
@@ -135,6 +138,22 @@
       "inherits": [
         "gcc",
         "release"
+      ]
+    },
+    {
+      "name": "asan-gcc",
+      "displayName": "AddressSanitizer and UBSan at -O1, GCC",
+      "inherits": [
+        "gcc",
+        "asan"
+      ]
+    },
+    {
+      "name": "tsan-gcc",
+      "displayName": "ThreadSanitizer, GCC",
+      "inherits": [
+        "gcc",
+        "tsan"
       ]
     },
     {
@@ -198,6 +217,24 @@
       }
     },
     {
+      "name": "asan-gcc",
+      "configurePreset": "asan-gcc",
+      "condition": {
+        "type": "equals",
+        "lhs": "${hostSystemName}",
+        "rhs": "Linux"
+      }
+    },
+    {
+      "name": "tsan-gcc",
+      "configurePreset": "tsan-gcc",
+      "condition": {
+        "type": "equals",
+        "lhs": "${hostSystemName}",
+        "rhs": "Linux"
+      }
+    },
+    {
       "name": "coverage-gcc",
       "configurePreset": "coverage-gcc",
       "condition": {
@@ -242,6 +279,22 @@
       }
     },
     {
+      "name": "asan-options",
+      "hidden": true,
+      "environment": {
+        "ASAN_OPTIONS": "abort_on_error=1:detect_stack_use_after_return=1:check_initialization_order=1:strict_string_checks=1:suppressions='${sourceDir}/tests/sanitizers/asan.supp'",
+        "UBSAN_OPTIONS": "abort_on_error=1:halt_on_error=1:print_stacktrace=1",
+        "LSAN_OPTIONS": "abort_on_error=1:suppressions='${sourceDir}/tests/sanitizers/lsan.supp'"
+      }
+    },
+    {
+      "name": "tsan-options",
+      "hidden": true,
+      "environment": {
+        "TSAN_OPTIONS": "abort_on_error=1:halt_on_error=1:second_deadlock_stack=1:suppressions='${sourceDir}/tests/sanitizers/tsan.supp'"
+      }
+    },
+    {
       "name": "dev",
       "displayName": "Unit and integration tests",
       "configurePreset": "dev",
@@ -281,18 +334,27 @@
     {
       "name": "asan",
       "configurePreset": "asan",
-      "inherits": "no-stress"
+      "inherits": [
+        "no-stress",
+        "asan-options"
+      ]
     },
     {
       "name": "tsan",
       "configurePreset": "tsan",
-      "inherits": "no-stress"
+      "inherits": [
+        "no-stress",
+        "tsan-options"
+      ]
     },
     {
       "name": "fuzz",
       "displayName": "Replay the seed corpus of every fuzz harness",
       "configurePreset": "fuzz",
-      "inherits": "test-base",
+      "inherits": [
+        "test-base",
+        "asan-options"
+      ],
       "filter": {
         "include": {
           "label": "^fuzz$"
@@ -318,6 +380,32 @@
       "name": "release-gcc",
       "configurePreset": "release-gcc",
       "inherits": "no-stress",
+      "condition": {
+        "type": "equals",
+        "lhs": "${hostSystemName}",
+        "rhs": "Linux"
+      }
+    },
+    {
+      "name": "asan-gcc",
+      "configurePreset": "asan-gcc",
+      "inherits": [
+        "no-stress",
+        "asan-options"
+      ],
+      "condition": {
+        "type": "equals",
+        "lhs": "${hostSystemName}",
+        "rhs": "Linux"
+      }
+    },
+    {
+      "name": "tsan-gcc",
+      "configurePreset": "tsan-gcc",
+      "inherits": [
+        "no-stress",
+        "tsan-options"
+      ],
       "condition": {
         "type": "equals",
         "lhs": "${hostSystemName}",
@@ -516,6 +604,40 @@
         {
           "type": "test",
           "name": "release-gcc"
+        }
+      ]
+    },
+    {
+      "name": "asan-gcc",
+      "steps": [
+        {
+          "type": "configure",
+          "name": "asan-gcc"
+        },
+        {
+          "type": "build",
+          "name": "asan-gcc"
+        },
+        {
+          "type": "test",
+          "name": "asan-gcc"
+        }
+      ]
+    },
+    {
+      "name": "tsan-gcc",
+      "steps": [
+        {
+          "type": "configure",
+          "name": "tsan-gcc"
+        },
+        {
+          "type": "build",
+          "name": "tsan-gcc"
+        },
+        {
+          "type": "test",
+          "name": "tsan-gcc"
         }
       ]
     },

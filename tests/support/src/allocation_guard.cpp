@@ -1,6 +1,7 @@
 // Mechanism: counts heap allocations for AllocationGuard without hiding bugs from sanitizers.
 // Plain builds replace every global operator new and delete; ASan, TSan, and MSan builds use their hook.
 #include "support/allocation_guard.hpp"
+#include "support/sanitizers.hpp"
 
 #include <gtest/gtest.h>
 
@@ -8,14 +9,8 @@
 #include <cstddef>
 
 // Darwin sanitizers have no allocation hook, and ASan there ignores mismatched new and delete.
-#if defined(__APPLE__)
-#elif defined(__SANITIZE_ADDRESS__) || defined(__SANITIZE_THREAD__)
+#if !defined(__APPLE__) && (MYPROJ_UNDER_ASAN || MYPROJ_UNDER_TSAN || MYPROJ_UNDER_MSAN)
 #define MYPROJ_SANITIZER_ALLOCATOR 1
-#elif defined(__has_feature)
-#if __has_feature(address_sanitizer) || __has_feature(thread_sanitizer) ||                      \
-    __has_feature(memory_sanitizer)
-#define MYPROJ_SANITIZER_ALLOCATOR 1
-#endif
 #endif
 
 namespace {
@@ -26,7 +21,13 @@ std::atomic<std::size_t> allocation_count{0};
 
 #if defined(MYPROJ_SANITIZER_ALLOCATOR)
 
+#if __has_include(<sanitizer/allocator_interface.h>)
 #include <sanitizer/allocator_interface.h>
+#else
+// GCC ships the runtime function without its header.
+extern "C" int __sanitizer_install_malloc_and_free_hooks(
+    void (*malloc_hook)(const volatile void*, std::size_t), void (*free_hook)(const volatile void*));
+#endif
 
 // The sanitizer keeps its own operator new so it still reports new[] freed with delete.
 // Its hook sees every heap allocation, including malloc.

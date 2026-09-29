@@ -221,13 +221,14 @@ function(project_add_fuzz_target)
   endif()
   add_executable(${arg_NAME} ${sources})
   target_link_libraries(${arg_NAME} PRIVATE ${arg_DEPS} myproj_warnings myproj_options)
-  # The preset instruments every target with fuzzer-no-link; only a harness links the driver.
+  # PROJECT_BUILD_FUZZ gives every internal target fuzzer-no-link; only a harness links the driver.
   target_compile_options(${arg_NAME} PRIVATE -fsanitize=fuzzer)
   target_link_options(${arg_NAME} PRIVATE -fsanitize=fuzzer)
   if(APPLE)
     # Apple ld rejects some harness objects that combine this check with fuzzer coverage:
-    # "invalid r_symbolnum". The modules under test keep the check.
-    target_compile_options(${arg_NAME} PRIVATE -fno-sanitize=function)
+    # "invalid r_symbolnum". The modules under test keep the check. A source option follows
+    # the -fsanitize flags of myproj_options on the command line, so this one wins.
+    set_property(SOURCE ${sources} APPEND PROPERTY COMPILE_OPTIONS -fno-sanitize=function)
   endif()
   set_target_properties(${arg_NAME} PROPERTIES MYPROJ_FUZZ_SEEDS "${seeds}")
   set_property(GLOBAL APPEND PROPERTY MYPROJ_FUZZ_TARGETS ${arg_NAME})

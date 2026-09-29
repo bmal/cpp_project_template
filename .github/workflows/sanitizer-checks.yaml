@@ -10,12 +10,9 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        preset: [asan, tsan, fuzz]
+        preset: [asan, tsan, asan-gcc, tsan-gcc, fuzz]
     name: Sanitizer ${{ matrix.preset }}
-    env:
-      ASAN_OPTIONS: detect_stack_use_after_return=1:check_initialization_order=1:strict_string_checks=1:detect_leaks=1:halt_on_error=1
-      UBSAN_OPTIONS: print_stacktrace=1:halt_on_error=1:print_summary=1
-      TSAN_OPTIONS: second_deadlock_stack=1:report_signal_unsafe=1:halt_on_error=1
+    # Runtime options and suppressions come from the test presets, as they do locally.
     steps:
       - uses: actions/checkout@v4
 

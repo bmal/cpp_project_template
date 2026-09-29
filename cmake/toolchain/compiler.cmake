@@ -92,3 +92,13 @@ if(CMAKE_HOST_SYSTEM_NAME STREQUAL "Darwin" AND EXISTS "${_project_compiler_pref
       "-lunwind -Wl,-rpath,${_project_libcxx} -Wl,-rpath,${_project_unwind}"
   )
 endif()
+
+# A port build receives its triplet's flags; a sanitizer triplet instruments dependencies this way.
+# The project's own build never defines these, so the project stays on myproj_options alone.
+if(VCPKG_CXX_FLAGS OR VCPKG_LINKER_FLAGS)
+  string(APPEND CMAKE_C_FLAGS_INIT " ${VCPKG_C_FLAGS}")
+  string(APPEND CMAKE_CXX_FLAGS_INIT " ${VCPKG_CXX_FLAGS}")
+  foreach(_project_kind IN ITEMS EXE SHARED MODULE)
+    string(APPEND CMAKE_${_project_kind}_LINKER_FLAGS_INIT " ${VCPKG_LINKER_FLAGS}")
+  endforeach()
+endif()

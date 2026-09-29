@@ -1,0 +1,3 @@
+# AddressSanitizer suppressions, read through ASAN_OPTIONS in the asan and fuzz test presets.
+# Add a line only for a report in code you cannot fix, with the reason above it:
+#   interceptor_via_fun:<function>

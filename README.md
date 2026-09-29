@@ -33,7 +33,8 @@ tests/unit/<module>/             GoogleTest unit tests of one module
 tests/integration/               Tests that wire modules together, with a mock at the output edge
 tests/functional/                Black-box tests that spawn the apps
 tests/fuzz/                      libFuzzer harnesses, one executable each, with seed inputs under corpus/
-tests/support/                    Builders, fake clock, allocation guard, and the shared test main
+tests/support/                    Builders, fake clock, allocation guard, skip macros, and the shared test main
+tests/sanitizers/                Sanitizer suppression files, read by the asan and tsan test presets
 benchmarks/<module>/             Google Benchmark executables, one per module
 benchmarks/support/              The shared benchmark main, cache flush, and percentile helpers
 cmake/                           Module helpers, compiler policy, install and packaging, the toolchain file
@@ -142,7 +143,8 @@ PROJECT_BUILD_FUZZ         # Build tests/fuzz/; Clang only, ON in fuzz
 PROJECT_FUZZ_SECONDS       # Seconds run_fuzz spends on each harness; default 30
 PROJECT_FRAME_POINTERS     # -fno-omit-frame-pointer, for profilers; ON in bench
 PROJECT_INSTALL            # Install and package rules; ON when top level
-PROJECT_SANITIZE           # Value for -fsanitize=, for example address,undefined
+PROJECT_SANITIZER          # address, undefined, thread, memory, leak, or a list such as address;undefined
+PROJECT_TRIPLET_VARIANT    # Builds dependencies with triplets/<host>-<variant>.cmake, for example asan
 PROJECT_WARNINGS_AS_ERRORS # -Werror; ON when top level, never applied to consumers
 PROJECT_STDLIB_HARDENING   # libstdc++ assertions and libc++ debug hardening; ON in dev
 ENABLE_COVERAGE            # Enable coverage flags for tests
@@ -221,6 +223,14 @@ make fuzz
 ```
 
 `tests/fuzz/<name>.cpp` is one harness, and `make dev` never builds it. [docs/how-to/fuzz.md](docs/how-to/fuzz.md) covers adding one and replaying a crash.
+
+Look for memory errors, undefined behavior, and data races, after changing ownership or threading:
+
+```bash
+make asan tsan
+```
+
+Dependencies are rebuilt with the same sanitizer. [docs/how-to/sanitizers.md](docs/how-to/sanitizers.md) covers skipping a test and suppressing a report.
 
 Add a test kind directory, such as `tests/integration`, with one line; its `.cpp` files become `<kind>_tests`, labeled `<kind>`:
 
