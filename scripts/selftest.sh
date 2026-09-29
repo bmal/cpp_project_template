@@ -16,6 +16,7 @@ cases=(
     "sample_headers      every source under libs/, apps/, tests/, benchmarks/ opens with two purpose lines"
     "stress_label        only a suite name ending in Stress moves a test from dev to stress"
     "lint_naming         make lint passes, then fails naming readability-identifier-naming on a camelCase function"
+    "lint_presets        make lint passes on every configure preset, so code under #if is linted too"
     "parser_no_throw     the header-only parser contains no throw and no try"
     "format_roundtrip    make format-check fails on a misformatted C++ or CMake line and make format fixes it"
     "pre_commit_hooks    pre-commit run --all-files passes on the working tree"
@@ -377,6 +378,25 @@ EOF
     cat "${work}/lint_naming.out"
     grep -q "lint_probe.cpp:.*invalid case style for function 'lintProbe'.*readability-identifier-naming" \
         "${work}/lint_naming.out"
+}
+
+case_lint_presets() {
+    local src="${work}/lint_presets" preset checked=0
+    copy_tree "${src}"
+    for preset in $(cd "${src}" && cmake --list-presets=configure | sed -n 's/^ *"\([^"]*\)".*/\1/p'); do
+        if [ "${preset}" = msan ] && [ -n "$(skip_reason msan_uninit)" ]; then
+            echo "msan: skipped, $(skip_reason msan_uninit)"
+            continue
+        fi
+        (cd "${src}" && cmake --preset "${preset}" -DVCPKG_INSTALLED_DIR="${vcpkg_installed}")
+        if ! (cd "${src}" && cmake --build --preset "${preset}" --target lint); then
+            echo "make lint PRESET=${preset} reports findings that the dev preset does not compile"
+            return 1
+        fi
+        echo "${preset}: lint is clean"
+        checked=$((checked + 1))
+    done
+    [ "${checked}" -gt 0 ]
 }
 
 case_format_roundtrip() {

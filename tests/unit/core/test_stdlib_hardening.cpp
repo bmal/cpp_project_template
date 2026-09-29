@@ -17,15 +17,18 @@
 
 namespace {
 
+// A function, not a constant, so no preset sees the code after the skip as unreachable.
+bool stdlib_is_hardened() { return MYPROJ_STDLIB_HARDENED != 0; }
+
 TEST(StdlibHardening, OutOfBoundsVectorIndexAborts) {
     MYPROJ_SKIP_UNDER_SANITIZER(TSAN, "a death test forks a process that already runs threads");
-#if MYPROJ_STDLIB_HARDENED
+    // Every preset compiles the body, so lint reads the same code in each of them.
+    if (!stdlib_is_hardened()) {
+        GTEST_SKIP() << "standard library hardening is off in this preset";
+    }
     const std::vector<int> values(3);
     const std::size_t past_end = values.size();
     EXPECT_DEATH(static_cast<void>(values[past_end]), "");
-#else
-    GTEST_SKIP() << "standard library hardening is off in this preset";
-#endif
 }
 
 } // namespace

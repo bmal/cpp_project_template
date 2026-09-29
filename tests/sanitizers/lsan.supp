@@ -1,3 +1,5 @@
 # LeakSanitizer suppressions, read through LSAN_OPTIONS in the asan and fuzz test presets.
 # Add a line only for a report in code you cannot fix, with the reason above it:
 #   leak:<function or library>
+# On macOS libFuzzer never joins the thread that watches its memory use, so the thread leaks at exit.
+leak:fuzzer::StartRssThread

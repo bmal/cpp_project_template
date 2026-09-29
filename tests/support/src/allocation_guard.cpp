@@ -9,8 +9,19 @@
 #include <cstddef>
 #include <source_location>
 
+// Clang's standalone LeakSanitizer owns operator new too; GCC's has no macro and links either way.
+#ifdef __has_feature
+#if __has_feature(leak_sanitizer)
+#define MYPROJ_UNDER_LSAN 1
+#endif
+#endif
+#ifndef MYPROJ_UNDER_LSAN
+#define MYPROJ_UNDER_LSAN 0
+#endif
+
 // Darwin sanitizers have no allocation hook, and ASan there ignores mismatched new and delete.
-#if !defined(__APPLE__) && (MYPROJ_UNDER_ASAN || MYPROJ_UNDER_TSAN || MYPROJ_UNDER_MSAN)
+#if !defined(__APPLE__) &&                                                                         \
+    (MYPROJ_UNDER_ASAN || MYPROJ_UNDER_TSAN || MYPROJ_UNDER_MSAN || MYPROJ_UNDER_LSAN)
 #define MYPROJ_SANITIZER_ALLOCATOR 1
 #endif
 
@@ -36,13 +47,14 @@ extern "C" int __sanitizer_install_malloc_and_free_hooks(void (*malloc_hook)(con
 // Its hook sees every heap allocation, including malloc.
 namespace {
 
-void count_allocation(const volatile void*, std::size_t) {
+void count_allocation(const volatile void* /*pointer*/, std::size_t /*size*/) {
     allocation_count.fetch_add(1, std::memory_order_relaxed);
 }
 
 // The runtime refuses a null hook, so frees get one that does nothing.
-void ignore_free(const volatile void*) {}
+void ignore_free(const volatile void* /*pointer*/) {}
 
+// NOLINTNEXTLINE(bugprone-throwing-static-initialization): the runtime's C function cannot throw.
 const bool counting = __sanitizer_install_malloc_and_free_hooks(count_allocation, ignore_free) != 0;
 
 } // namespace

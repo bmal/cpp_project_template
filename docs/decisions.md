@@ -116,6 +116,12 @@ Narrow choices left to single tickets are appended below the entry they refine.
 - Why: without a symbolizer a report has no function names, and a suppression by name never matches.
 - Rejected: a symbolizer path in the test presets, which cannot name a path for every host; a warning, which scrolls past.
 
+#### D10.8. Leaks are reported on every host
+
+- Decision: the `asan` and `fuzz` test presets set `detect_leaks=1`. `lsan.supp` suppresses the one leak in libFuzzer's own driver on macOS.
+- Why: macOS leaves leak detection off by default, so a leak passed locally and failed on Linux.
+- Rejected: leaving the default, which makes one preset name mean two things.
+
 ### D11. clang-tidy is the only analyzer
 
 - Decision: a `lint` target over `compile_commands.json`, also in CI. Alias checks disabled. `misc-include-cleaner` covers includes. clangd reads `.clang-tidy` with a fast filter.
@@ -139,6 +145,12 @@ Narrow choices left to single tickets are appended below the entry they refine.
 - Decision: `CMAKE_CXX_SCAN_FOR_MODULES` is off, and `make lint` configures its preset before running.
 - Why: scanning puts `.modmap` files that exist only after a build into `compile_commands.json`, so clang-tidy and clangd fail on a fresh clone.
 - Rejected: making `lint` build everything first, which reports the compiler's findings before its own.
+
+#### D11.4. Lint is clean on every preset
+
+- Decision: `make lint PRESET=<preset>` is clean for every configure preset, and the selftest case `lint_presets` checks each one.
+- Why: code under `#if` is compiled by some presets only, and `dev` alone never reads it.
+- Rejected: linting `dev` only; excluding the conditional code from lint.
 
 ### D12. Formatters through pre-commit
 
@@ -177,6 +189,12 @@ Narrow choices left to single tickets are appended below the entry they refine.
 - Decision: `dev`, `release`, `relwithdebinfo`, `profile`, `asan`, `tsan`, `msan`, `fuzz`, `coverage`, `bench`, `cxx26`, plus `-gcc` variants and workflow presets. Same names locally and in CI. `CMakeUserPresets.json` is gitignored.
 - Why: you type the same name on every platform, and green means the same thing everywhere.
 - Rejected: CI flags in YAML that differ from local presets.
+
+#### D15.1. A `-gcc` preset changes the compiler only
+
+- Decision: the hidden `gcc` preset sets `PROJECT_COMPILER` and the Linux condition, and inherits nothing. `asan-gcc` inherits `gcc`, then `asan`.
+- Why: the first parent wins, so a `gcc` preset that inherited the base options overrode its twin's.
+- Rejected: repeating each twin's options in its `-gcc` variant.
 
 ### D16. One toolchain shim
 
