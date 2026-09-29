@@ -42,6 +42,7 @@ if(PROJECT_BUILD_TESTS)
   find_package(GTest CONFIG REQUIRED)
   include(GoogleTest)
   include(cmake/Coverage.cmake)
+  add_subdirectory(tests/support)
 endif()
 
 add_subdirectory(libs)

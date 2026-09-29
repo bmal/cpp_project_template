@@ -197,6 +197,11 @@
       "output": {
         "outputOnFailure": true
       },
+      "filter": {
+        "include": {
+          "label": "^unit$"
+        }
+      },
       "execution": {
         "noTestsAction": "error"
       }

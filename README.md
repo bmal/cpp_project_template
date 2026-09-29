@@ -30,6 +30,7 @@ libs/<module>/include/<module>/  Public headers of a module
 libs/<module>/src/               Optional module sources; none makes it header-only
 apps/<name>/                     Executables
 tests/unit/<module>/             GoogleTest unit tests of one module
+tests/support/                    Builders, fake clock, allocation guard, and the shared test main
 benchmarks/<module>/             Google Benchmark executables
 cmake/                           Module helpers, compiler policy, install and packaging, the toolchain file
 scripts/                         Bootstrap, scaffolding, and template selftest scripts
@@ -166,7 +167,17 @@ project_add_module(NAME core PUBLIC_DEPS fmt::fmt)
 
 ## Tests
 
-Rerun the tests of the `dev` build without rebuilding:
+Every test executable links `myproj_test_support` from `tests/support/` instead of `gtest_main`.
+It holds data builders, `FakeClock` for the `Clock` concept, and `AllocationGuard`.
+Write plain `TEST`s named as CamelCase sentences; `tests/unit/core` and `tests/unit/parser` show each style once.
+
+Fail a test when a hot path allocates; the guard reports the count at its own line:
+
+```cpp
+const myproj::test_support::AllocationGuard guard;
+```
+
+Rerun the unit tests of the `dev` build without rebuilding:
 
 ```bash
 make test

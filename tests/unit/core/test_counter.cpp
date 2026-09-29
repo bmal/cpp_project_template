@@ -1,10 +1,17 @@
 // Unit tests of core::Counter: state-based checks through the public interface only.
-// The strategy examples with the fake clock and the allocation guard arrive with the test support library.
+// The builder arranges a total, and the allocation guard proves the hot path never allocates.
 #include <gtest/gtest.h>
 
 #include "core/counter.hpp"
+#include "support/allocation_guard.hpp"
+#include "support/counter_builder.hpp"
+
+#include <cstdint>
+#include <expected>
 
 namespace myproj::core {
+
+using test_support::CounterBuilder;
 
 TEST(Counter, StartsAtZero) {
     const Counter counter;
@@ -22,8 +29,7 @@ TEST(Counter, AddAccumulates) {
 }
 
 TEST(Counter, SubtractReturnsTheNewTotal) {
-    Counter counter;
-    counter.add(10);
+    Counter counter = CounterBuilder{}.with_total(10).build();
 
     const auto result = counter.subtract(3);
 
@@ -32,8 +38,7 @@ TEST(Counter, SubtractReturnsTheNewTotal) {
 }
 
 TEST(Counter, SubtractBelowZeroFailsAndKeepsTheTotal) {
-    Counter counter;
-    counter.add(2);
+    Counter counter = CounterBuilder{}.with_total(2).build();
 
     const auto result = counter.subtract(5);
 
@@ -43,12 +48,20 @@ TEST(Counter, SubtractBelowZeroFailsAndKeepsTheTotal) {
 }
 
 TEST(Counter, ResetReturnsToZero) {
-    Counter counter;
-    counter.add(10);
+    Counter counter = CounterBuilder{}.with_total(10).build();
 
     counter.reset();
 
     EXPECT_EQ(counter.value(), 0);
+}
+
+TEST(Counter, SubtractDoesNotAllocate) {
+    Counter counter = CounterBuilder{}.with_total(10).build();
+    const test_support::AllocationGuard guard;
+
+    const std::expected<std::uint64_t, CounterError> result = counter.subtract(3);
+
+    EXPECT_EQ(result, 7);
 }
 
 } // namespace myproj::core

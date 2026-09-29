@@ -84,7 +84,7 @@ function(_project_add_unit_tests name test_dir)
   add_executable(${target} ${sources})
   target_link_libraries(
     ${target}
-    PRIVATE myproj::${name} GTest::gmock_main myproj_warnings myproj_options
+    PRIVATE myproj::${name} myproj_test_support myproj_warnings myproj_options
   )
   if(ENABLE_COVERAGE)
     enable_coverage(${target})
