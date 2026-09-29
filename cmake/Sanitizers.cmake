@@ -50,3 +50,7 @@ if(_project_sanitize_flags)
   )
   target_link_options(myproj_options INTERFACE -fsanitize=${_project_sanitize})
 endif()
+# A MemorySanitizer report then names where the uninitialized value was allocated, not only where it was read.
+if("memory" IN_LIST PROJECT_SANITIZER)
+  target_compile_options(myproj_options INTERFACE -fsanitize-memory-track-origins=2)
+endif()

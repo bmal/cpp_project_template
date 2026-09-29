@@ -93,6 +93,41 @@ if(CMAKE_HOST_SYSTEM_NAME STREQUAL "Darwin" AND EXISTS "${_project_compiler_pref
   )
 endif()
 
+# MemorySanitizer flags every read of memory an uninstrumented library wrote, so the msan preset and
+# the msan triplet swap in the libc++ that scripts/build-msan-libcxx.sh builds, for every C++ object.
+if("memory" IN_LIST PROJECT_SANITIZER OR VCPKG_CXX_FLAGS MATCHES "-fsanitize=memory")
+  if(NOT DEFINED ENV{PROJECT_MSAN_LIBCXX})
+    if(CMAKE_HOST_SYSTEM_NAME STREQUAL "Darwin")
+      message(FATAL_ERROR "The msan preset needs Linux, because MemorySanitizer does not run on macOS.")
+    endif()
+    if(NOT _project_version_text MATCHES "clang version ([0-9]+\\.[0-9]+\\.[0-9]+)")
+      message(FATAL_ERROR "The msan preset needs Clang, because GCC has no MemorySanitizer.")
+    endif()
+    # scripts/build-msan-libcxx.sh computes the same directory; keep the two in step.
+    if(NOT "$ENV{XDG_CACHE_HOME}" STREQUAL "")
+      set(_project_cache "$ENV{XDG_CACHE_HOME}")
+    else()
+      set(_project_cache "$ENV{HOME}/.cache")
+    endif()
+    set(_project_msan_libcxx "${_project_cache}/myproj/msan-libcxx/${CMAKE_MATCH_1}")
+    if(NOT EXISTS "${_project_msan_libcxx}/lib/libc++.so")
+      message(
+        FATAL_ERROR
+          "The msan preset needs a MemorySanitizer libc++ for Clang ${CMAKE_MATCH_1}; build it once with:\n  scripts/build-msan-libcxx.sh\n"
+      )
+    endif()
+    # Port builds of the msan triplet read the directory from here.
+    set(ENV{PROJECT_MSAN_LIBCXX} "${_project_msan_libcxx}")
+  endif()
+  string(APPEND CMAKE_CXX_FLAGS_INIT " -nostdinc++ -isystem $ENV{PROJECT_MSAN_LIBCXX}/include/c++/v1")
+  # The instrumented libc++ needs the MemorySanitizer runtime, even in CMake's own compiler check.
+  foreach(_project_kind IN ITEMS EXE SHARED MODULE)
+    string(APPEND CMAKE_${_project_kind}_LINKER_FLAGS_INIT
+           " -fsanitize=memory -stdlib=libc++ -L$ENV{PROJECT_MSAN_LIBCXX}/lib -Wl,-rpath,$ENV{PROJECT_MSAN_LIBCXX}/lib"
+    )
+  endforeach()
+endif()
+
 # A port build receives its triplet's flags; a sanitizer triplet instruments dependencies this way.
 # The project's own build never defines these, so the project stays on myproj_options alone.
 if(VCPKG_CXX_FLAGS OR VCPKG_LINKER_FLAGS)

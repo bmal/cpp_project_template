@@ -20,6 +20,7 @@ cases=(
     "fuzz_preset_only    no configure preset but fuzz has a fuzz harness target"
     "asan_overflow       a heap overflow planted in a unit test fails the asan preset with a report"
     "tsan_race           a data race planted in a unit test fails the tsan preset with a report"
+    "msan_uninit         an uninitialized read planted in a unit test fails the msan preset; Linux only"
 )
 
 usage() {
@@ -27,7 +28,7 @@ usage() {
 Usage: scripts/selftest.sh [case...]
 
 Runs every case, or only the named ones, and stops at the first failure.
-Prints one 'ok <case>' line per passing case.
+Prints one 'ok <case>' line per passing case, and 'skip <case>: <reason>' for a case this host cannot run.
 
 Cases:
 EOF
@@ -396,6 +397,10 @@ case_fuzz_preset_only() {
     copy_tree "${src}"
     for preset in $(cd "${src}" && cmake --list-presets=configure | sed -n 's/^ *"\([^"]*\)".*/\1/p'); do
         if [ "${preset}" = fuzz ]; then continue; fi
+        if [ "${preset}" = msan ] && [ -n "$(skip_reason msan_uninit)" ]; then
+            echo "msan: skipped, $(skip_reason msan_uninit)"
+            continue
+        fi
         out="${work}/fuzz_preset_only-${preset}.out"
         (cd "${src}" && cmake --preset "${preset}" -DVCPKG_INSTALLED_DIR="${vcpkg_installed}")
         if (cd "${src}" && cmake --build --preset "${preset}" --target parser_fuzz) >"${out}" 2>&1 ||
@@ -475,7 +480,47 @@ EOF
     expect_sanitizer_report "${src}" "${work}/tsan_race.cpp" tsan "WARNING: ThreadSanitizer: data race"
 }
 
+case_msan_uninit() {
+    local src="${work}/msan_uninit"
+    copy_tree "${src}"
+    cat >"${work}/msan_uninit.cpp" <<'EOF'
+// Selftest: branches on a heap int that was never written, which only MemorySanitizer notices.
+// The pointer is volatile so the compiler cannot prove the read uninitialized and warn at build time.
+#include <gtest/gtest.h>
+
+#include <memory>
+
+TEST(Planted, UninitializedRead) {
+    const std::unique_ptr<int> value(new int);
+    int* volatile alias = value.get();
+    if (*alias > 0) {
+        SUCCEED();
+    }
+}
+EOF
+    expect_sanitizer_report "${src}" "${work}/msan_uninit.cpp" msan \
+        "WARNING: MemorySanitizer: use-of-uninitialized-value"
+}
+
+# Prints why a case cannot run on this host, or nothing when it can.
+skip_reason() {
+    case "$1" in
+    msan_uninit)
+        if [ "$(uname -s)" != Linux ]; then
+            echo "MemorySanitizer runs on Linux only"
+        elif ! "${root}/scripts/build-msan-libcxx.sh" --check >/dev/null 2>&1; then
+            echo "no instrumented libc++; run scripts/build-msan-libcxx.sh"
+        fi
+        ;;
+    esac
+}
+
 for name in "${selected[@]}"; do
+    reason="$(skip_reason "${name}")"
+    if [ -n "${reason}" ]; then
+        echo "skip ${name}: ${reason}"
+        continue
+    fi
     log="${work}/${name}.log"
     # Not an if condition, because errexit does not apply inside one.
     set +e

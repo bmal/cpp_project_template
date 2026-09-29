@@ -103,6 +103,18 @@
       }
     },
     {
+      "name": "msan",
+      "displayName": "MemorySanitizer at -O1 on Linux Clang, after scripts/build-msan-libcxx.sh",
+      "inherits": "host",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Debug",
+        "CMAKE_CXX_FLAGS_DEBUG": "-O1 -g",
+        "PROJECT_BUILD_APPS": "OFF",
+        "PROJECT_SANITIZER": "memory",
+        "PROJECT_TRIPLET_VARIANT": "msan"
+      }
+    },
+    {
       "name": "fuzz",
       "displayName": "libFuzzer harnesses with AddressSanitizer and UndefinedBehaviorSanitizer, no tests",
       "inherits": "host",
@@ -189,6 +201,10 @@
     {
       "name": "tsan",
       "configurePreset": "tsan"
+    },
+    {
+      "name": "msan",
+      "configurePreset": "msan"
     },
     {
       "name": "fuzz",
@@ -295,6 +311,13 @@
       }
     },
     {
+      "name": "msan-options",
+      "hidden": true,
+      "environment": {
+        "MSAN_OPTIONS": "abort_on_error=1:halt_on_error=1:print_stacktrace=1"
+      }
+    },
+    {
       "name": "dev",
       "displayName": "Unit and integration tests",
       "configurePreset": "dev",
@@ -345,6 +368,14 @@
       "inherits": [
         "no-stress",
         "tsan-options"
+      ]
+    },
+    {
+      "name": "msan",
+      "configurePreset": "msan",
+      "inherits": [
+        "no-stress",
+        "msan-options"
       ]
     },
     {
@@ -536,6 +567,23 @@
         {
           "type": "test",
           "name": "tsan"
+        }
+      ]
+    },
+    {
+      "name": "msan",
+      "steps": [
+        {
+          "type": "configure",
+          "name": "msan"
+        },
+        {
+          "type": "build",
+          "name": "msan"
+        },
+        {
+          "type": "test",
+          "name": "msan"
         }
       ]
     },

@@ -38,7 +38,7 @@ tests/sanitizers/                Sanitizer suppression files, read by the asan a
 benchmarks/<module>/             Google Benchmark executables, one per module
 benchmarks/support/              The shared benchmark main, cache flush, and percentile helpers
 cmake/                           Module helpers, compiler policy, install and packaging, the toolchain file
-scripts/                         Bootstrap, scaffolding, benchmark, and template selftest scripts
+scripts/                         Bootstrap, scaffolding, benchmark, MSan libc++, and template selftest scripts
 triplets/                        vcpkg triplets that build dependencies with the project compiler
 vcpkg.json                       Dependency manifest
 ```
@@ -232,6 +232,8 @@ make asan tsan
 
 Dependencies are rebuilt with the same sanitizer. [docs/how-to/sanitizers.md](docs/how-to/sanitizers.md) covers skipping a test and suppressing a report.
 
+On Linux, `make msan` looks for reads of uninitialized memory after a one-time libc++ build; [docs/how-to/msan.md](docs/how-to/msan.md) covers it.
+
 Add a test kind directory, such as `tests/integration`, with one line; its `.cpp` files become `<kind>_tests`, labeled `<kind>`:
 
 ```cmake
@@ -244,7 +246,7 @@ After changing `cmake/`, presets, or install rules, check the template's lifecyc
 scripts/selftest.sh
 ```
 
-Each case prints `ok <case>`; `scripts/selftest.sh --help` lists the cases.
+Each case prints `ok <case>`, or `skip <case>: <reason>` when this machine cannot run it; `scripts/selftest.sh --help` lists the cases.
 
 ## Install And Package
 

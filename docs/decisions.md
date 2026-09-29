@@ -104,6 +104,12 @@ Narrow choices left to single tickets are appended below the entry they refine.
 - Why: a preset cannot name the host architecture, and UBSan ignores suppressions under `-fno-sanitize-recover=all`.
 - Rejected: one preset per architecture; a `ubsan.supp` that would never be read.
 
+#### D10.6. The MSan libc++ follows the project's Clang
+
+- Decision: `scripts/build-msan-libcxx.sh` builds libc++ for the Clang the toolchain picks, into `~/.cache/myproj/msan-libcxx/<full Clang version>/`. The `msan` preset exists on every host and fails configure in one sentence on macOS, on GCC, or when that build is missing. The selftest case reports itself skipped on macOS and on Linux without the build.
+- Why: libc++ headers must match the compiler that includes them, and a hidden preset would fail with CMake's generic "disabled preset" message.
+- Rejected: a directory per Clang major, which a point upgrade would silently reuse; a preset condition that hides `msan` on macOS.
+
 ### D11. clang-tidy is the only analyzer
 
 - Decision: a `lint` target over `compile_commands.json`, also in CI. Alias checks disabled. `misc-include-cleaner` covers includes. clangd reads `.clang-tidy` with a fast filter.

@@ -23,6 +23,7 @@ stress: workflow/stress ## Build dev and run the long-running tests labeled stre
 release: workflow/release ## Configure, build, and test the optimized build
 asan: workflow/asan ## Configure, build, and test under AddressSanitizer and UBSan
 tsan: workflow/tsan ## Configure, build, and test under ThreadSanitizer
+msan: workflow/msan ## Configure, build, and test under MemorySanitizer; Linux, after scripts/build-msan-libcxx.sh
 coverage: workflow/coverage ## Configure, build, and test with coverage instrumentation
 
 bench: ## Build the bench preset and run every benchmark, writing JSON to build/bench/bench/
