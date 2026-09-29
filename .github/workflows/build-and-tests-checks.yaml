@@ -29,8 +29,10 @@ jobs:
         run: cmake --workflow --preset ${{ matrix.preset }}
 
       - name: Run CLI
-        if: matrix.preset == 'dev'
-        run: build/dev/bin/myproj_cli
+        if: matrix.preset == 'dev' || matrix.preset == 'dev-gcc'
+        run: |
+          echo "a=1" | build/${{ matrix.preset }}/bin/myproj_cli
+          if echo "=" | build/${{ matrix.preset }}/bin/myproj_cli; then exit 1; fi
 
       - name: Upload build logs
         if: failure()

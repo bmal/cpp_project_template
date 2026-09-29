@@ -13,6 +13,8 @@ cases=(
     "version_header      the version header carries the current git commit"
     "scaffold            new-module and new-app output builds, tests, and runs; bad names fail"
     "make_help           make help exits 0 and describes every Makefile target"
+    "sample_headers      every file under libs/ and apps/ opens with a purpose comment"
+    "parser_no_throw     the header-only parser contains no throw and no try"
 )
 
 usage() {
@@ -107,7 +109,7 @@ configure_consumer() {
 # Writes a consumer main.cpp into $1 that prints the version it was built against.
 write_consumer_main() {
     cat >"$1/main.cpp" <<'EOF'
-#include <core/component.hpp>
+#include <core/counter.hpp>
 #include <myproj/version.hpp>
 
 #include <cstdio>
@@ -115,8 +117,9 @@ write_consumer_main() {
 int main() {
     // An old-style cast and an unused variable: warnings the project's own policy would reject.
     int unused = (int)2.5;
-    myproj::Counter counter;
-    std::printf("%d %.*s\n", counter.increment(42).get(),
+    myproj::core::Counter counter;
+    counter.add(42);
+    std::printf("%lld %.*s\n", static_cast<long long>(counter.value()),
                 static_cast<int>(myproj::version_string.size()), myproj::version_string.data());
     return 0;
 }
@@ -214,7 +217,7 @@ case_version_header() {
     commit="$(git -C "${root}" rev-parse HEAD)"
     configure_dev "${src}" -DPROJECT_BUILD_TESTS=OFF
     (cd "${src}" && cmake --build --preset dev --target myproj_cli)
-    output="$("${src}/build/dev/bin/myproj_cli")"
+    output="$("${src}/build/dev/bin/myproj_cli" </dev/null)"
     echo "${output}"
     # The CLI prints "myproj <version> (<short commit>[-dirty])" on its first line.
     local short
@@ -261,6 +264,27 @@ case_make_help() {
             return 1
         fi
     done
+}
+
+case_sample_headers() {
+    local file first missing=0
+    while IFS= read -r -d '' file; do
+        first="$(head -n 1 "${root}/${file}")"
+        # A C++ line comment, or a CMake comment that is not a directive such as #pragma.
+        if [[ "${first}" != "// "?* && "${first}" != "# "?* ]]; then
+            echo "${file} does not open with a purpose comment: '${first}'"
+            missing=1
+        fi
+    done < <(git -C "${root}" ls-files -z --cached --others --exclude-standard -- libs apps)
+    [ "${missing}" -eq 0 ]
+}
+
+case_parser_no_throw() {
+    # NO_EXCEPTIONS cannot add -fno-exceptions to a module without sources, so this checks the text.
+    if grep -rnwE "throw|try" "${root}/libs/parser"; then
+        echo "libs/parser must report errors in std::expected, never throw"
+        return 1
+    fi
 }
 
 for name in "${selected[@]}"; do

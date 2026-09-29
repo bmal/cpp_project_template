@@ -39,6 +39,8 @@ vcpkg.json                       Dependency manifest
 
 Placeholders are literal: `myproj` for namespaces, targets, and directories, `MyProj` for the CMake project.
 
+The sample code is small and each file opens with the mechanism it demonstrates: `libs/core` is compiled, `libs/parser` is header-only and exception-free, and `apps/myproj_cli` uses both.
+
 ## Quick Start
 
 Install the toolchain, `make`, and vcpkg once per machine:
@@ -59,10 +61,10 @@ List every other common action:
 make help
 ```
 
-Run the sample CLI after a `dev` build:
+Run the sample CLI after a `dev` build; it echoes `key=value` fields and exits 1 on a malformed line:
 
 ```bash
-build/dev/bin/myproj_cli
+echo "a=1 b=2" | build/dev/bin/myproj_cli
 ```
 
 ## Add A Module
@@ -214,7 +216,7 @@ Build a release archive, written to `build/release/package/MyProj-<version>-<sys
 cpack --config build/release/CPackConfig.cmake
 ```
 
-The version lives only in `project(VERSION)` in [CMakeLists.txt](CMakeLists.txt). `#include <myproj/version.hpp>` from `myproj::core` gives `version_string`, `git_commit`, and `git_dirty`, captured at configure time.
+The version lives only in `project(VERSION)` in [CMakeLists.txt](CMakeLists.txt). `#include <myproj/version.hpp>` from `myproj::core` gives `version_string`, `git_commit`, and `git_dirty`, captured at configure time. `myproj::core::version_banner()` from `<core/build_info.hpp>` formats all three.
 
 When a module links a new package `PUBLIC`, add its `find_dependency` to [cmake/templates/Config.cmake.in](cmake/templates/Config.cmake.in).
 
