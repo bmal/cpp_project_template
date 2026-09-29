@@ -11,7 +11,7 @@ A compact, modern C++23 template for projects that start small and still grow cl
 - Every executable lands in `build/<preset>/bin/`.
 - Dependencies from a vcpkg manifest, consumed only through `find_package`.
 - One toolchain file that picks the compiler and builds dependencies with it.
-- CMake presets for development, release, benchmarks, sanitizers, and coverage.
+- CMake presets for development, release, benchmarks, sanitizers, fuzzing, and coverage.
 - VS Code tasks and debug launch configs that do not depend on the project name.
 - GitHub Actions for normal build/test, coverage, and sanitizer checks, with heavier benchmark/perf workflows kept opt-in.
 
@@ -32,6 +32,7 @@ apps/<name>/                     Executables
 tests/unit/<module>/             GoogleTest unit tests of one module
 tests/integration/               Tests that wire modules together, with a mock at the output edge
 tests/functional/                Black-box tests that spawn the apps
+tests/fuzz/                      libFuzzer harnesses, one executable each, with seed inputs under corpus/
 tests/support/                    Builders, fake clock, allocation guard, and the shared test main
 benchmarks/<module>/             Google Benchmark executables, one per module
 benchmarks/support/              The shared benchmark main, cache flush, and percentile helpers
@@ -137,6 +138,8 @@ PROJECT_COMPILER           # clang (default) or gcc
 PROJECT_BUILD_APPS         # Build apps/; ON when top level
 PROJECT_BUILD_TESTS        # Build tests/; ON when top level
 PROJECT_BUILD_BENCHMARKS   # Build benchmarks/ and install the vcpkg benchmarks feature
+PROJECT_BUILD_FUZZ         # Build tests/fuzz/; Clang only, ON in fuzz
+PROJECT_FUZZ_SECONDS       # Seconds run_fuzz spends on each harness; default 30
 PROJECT_FRAME_POINTERS     # -fno-omit-frame-pointer, for profilers; ON in bench
 PROJECT_INSTALL            # Install and package rules; ON when top level
 PROJECT_SANITIZE           # Value for -fsanitize=, for example address,undefined
@@ -209,6 +212,14 @@ Run the long-running tests before a release or after touching a hot path:
 ```bash
 make stress
 ```
+
+Look for inputs that crash or break a promise of the parser, after changing code that reads input:
+
+```bash
+make fuzz
+```
+
+`tests/fuzz/<name>.cpp` is one harness, and `make dev` never builds it. [docs/how-to/fuzz.md](docs/how-to/fuzz.md) covers adding one and replaying a crash.
 
 Add a test kind directory, such as `tests/integration`, with one line; its `.cpp` files become `<kind>_tests`, labeled `<kind>`:
 

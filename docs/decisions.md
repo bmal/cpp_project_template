@@ -68,6 +68,24 @@ Narrow choices left to single tickets are appended below the entry they refine.
 - Why: each bug class has a button, and local and CI runs behave the same.
 - Rejected: the third-party cmake-scripts dependency; manual `__SANITIZE_*` definitions in CMake.
 
+#### D10.1. Fuzz ships before the sanitizer module
+
+- Decision: the `fuzz` preset sets `PROJECT_SANITIZE` to `fuzzer-no-link,address,undefined`, the option `asan` and `tsan` already use. A harness adds `-fsanitize=fuzzer`. The sanitizer module moves all three presets to `PROJECT_SANITIZER` together.
+- Why: milestone 2 is done when every test kind has a passing example, and fuzz is one of the five kinds.
+- Rejected: rewording the milestone to four kinds; holding milestone 2 open until the sanitizer module lands.
+
+#### D10.2. Fuzz harnesses also run as a CTest test
+
+- Decision: each harness has a test labeled `fuzz` that replays its seed corpus once. `run_fuzz` does the searching, for `PROJECT_FUZZ_SECONDS` per harness, and writes new inputs and crash files under `build/fuzz/fuzz/<harness>/`.
+- Why: a fixed crash stays fixed once its input is a seed, and fuzzing never changes the source tree.
+- Rejected: fuzzing inside CTest, which makes the run time of a test preset unbounded.
+
+#### D10.3. No function sanitizer in harness files on macOS
+
+- Decision: on macOS a harness source is compiled with `-fno-sanitize=function`. Modules keep the check.
+- Why: Apple `ld` fails with "invalid r_symbolnum" on some harness objects that combine the check with fuzzer coverage.
+- Rejected: the deprecated `-ld_classic` linker; dropping UBSan from the preset.
+
 ### D11. clang-tidy is the only analyzer
 
 - Decision: a `lint` target over `compile_commands.json`, also in CI. Alias checks disabled. `misc-include-cleaner` covers includes. clangd reads `.clang-tidy` with a fast filter.

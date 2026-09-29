@@ -194,6 +194,74 @@ function(project_add_benchmark_run_target)
   )
 endfunction()
 
+# project_add_fuzz_target(NAME <n> [DEPS ...] [SOURCES ...])
+# Creates the libFuzzer executable <n> from <n>.cpp in the current directory, one per harness.
+# CTest replays the seed corpus in corpus/<n>/, labeled fuzz; run_fuzz looks for new inputs.
+function(project_add_fuzz_target)
+  cmake_parse_arguments(PARSE_ARGV 0 arg "" "NAME" "DEPS;SOURCES")
+  if(arg_UNPARSED_ARGUMENTS)
+    message(FATAL_ERROR "project_add_fuzz_target: unknown arguments: ${arg_UNPARSED_ARGUMENTS}")
+  endif()
+  if(NOT arg_NAME MATCHES "^[a-z][a-z0-9_]*$")
+    message(FATAL_ERROR "project_add_fuzz_target: NAME must be lower snake_case, got '${arg_NAME}'")
+  endif()
+  if(NOT CMAKE_CXX_COMPILER_ID MATCHES "Clang")
+    message(FATAL_ERROR "Fuzz targets need libFuzzer, which only Clang ships; use the fuzz preset.")
+  endif()
+  set(seeds "${CMAKE_CURRENT_SOURCE_DIR}/corpus/${arg_NAME}")
+  if(NOT IS_DIRECTORY "${seeds}")
+    message(FATAL_ERROR "project_add_fuzz_target(${arg_NAME}): add at least one seed input to ${seeds}")
+  endif()
+
+  if(arg_SOURCES)
+    set(sources ${arg_SOURCES})
+  else()
+    set(sources "${CMAKE_CURRENT_SOURCE_DIR}/${arg_NAME}.cpp")
+  endif()
+  add_executable(${arg_NAME} ${sources})
+  target_link_libraries(${arg_NAME} PRIVATE ${arg_DEPS} myproj_warnings myproj_options)
+  # The preset instruments every target with fuzzer-no-link; only a harness links the driver.
+  target_compile_options(${arg_NAME} PRIVATE -fsanitize=fuzzer)
+  target_link_options(${arg_NAME} PRIVATE -fsanitize=fuzzer)
+  if(APPLE)
+    # Apple ld rejects some harness objects that combine this check with fuzzer coverage:
+    # "invalid r_symbolnum". The modules under test keep the check.
+    target_compile_options(${arg_NAME} PRIVATE -fno-sanitize=function)
+  endif()
+  set_target_properties(${arg_NAME} PROPERTIES MYPROJ_FUZZ_SEEDS "${seeds}")
+  set_property(GLOBAL APPEND PROPERTY MYPROJ_FUZZ_TARGETS ${arg_NAME})
+
+  add_test(NAME ${arg_NAME}.ReplaysTheSeedCorpus COMMAND ${arg_NAME} -runs=0 "${seeds}")
+  set_tests_properties(${arg_NAME}.ReplaysTheSeedCorpus PROPERTIES LABELS fuzz)
+endfunction()
+
+# Adds run_fuzz, which fuzzes every harness for PROJECT_FUZZ_SECONDS, one after another.
+# New inputs and crash files go to <binary dir>/fuzz/<target>/, never to the seed corpus.
+# Call after every project_add_fuzz_target.
+function(project_add_fuzz_run_target)
+  get_property(targets GLOBAL PROPERTY MYPROJ_FUZZ_TARGETS)
+  set(commands "")
+  foreach(target IN LISTS targets)
+    get_target_property(seeds ${target} MYPROJ_FUZZ_SEEDS)
+    set(out_dir "${PROJECT_BINARY_DIR}/fuzz/${target}")
+    list(
+      APPEND commands
+      COMMAND ${CMAKE_COMMAND} -E make_directory "${out_dir}/corpus"
+      COMMAND
+        $<TARGET_FILE:${target}> -max_total_time=${PROJECT_FUZZ_SECONDS} -print_final_stats=1
+        -artifact_prefix=${out_dir}/ "${out_dir}/corpus" "${seeds}"
+    )
+  endforeach()
+  add_custom_target(
+    run_fuzz
+    ${commands}
+    DEPENDS ${targets}
+    USES_TERMINAL
+    VERBATIM
+    COMMENT "Fuzzing each harness for ${PROJECT_FUZZ_SECONDS} s"
+  )
+endfunction()
+
 # Fails configure when tests/unit/<n> exists without a module <n>. Call after libs/ is added.
 function(project_check_unit_test_dirs)
   get_property(modules GLOBAL PROPERTY MYPROJ_MODULES)

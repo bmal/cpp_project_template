@@ -15,6 +15,7 @@ cases=(
     "make_help           make help exits 0 and describes every Makefile target"
     "sample_headers      every file under libs/ and apps/ opens with a purpose comment"
     "parser_no_throw     the header-only parser contains no throw and no try"
+    "fuzz_crash          a fuzz harness finds a crash planted on one specific input"
 )
 
 usage() {
@@ -285,6 +286,39 @@ case_parser_no_throw() {
         echo "libs/parser must report errors in std::expected, never throw"
         return 1
     fi
+}
+
+case_fuzz_crash() {
+    local src="${work}/fuzz_crash" out="${work}/fuzz_crash-out"
+    copy_tree "${src}"
+    mkdir -p "${src}/tests/fuzz/corpus/planted_fuzz" "${out}"
+    printf 'seed' >"${src}/tests/fuzz/corpus/planted_fuzz/seed"
+    cat >"${src}/tests/fuzz/planted_fuzz.cpp" <<'EOF'
+// Selftest: crashes on inputs that start with "FUZ", which no seed does.
+#include <cstddef>
+#include <cstdint>
+#include <cstdlib>
+
+extern "C" int LLVMFuzzerTestOneInput(const std::uint8_t* data, std::size_t size) {
+    if (size >= 3 && data[0] == 'F' && data[1] == 'U' && data[2] == 'Z') {
+        std::abort();
+    }
+    return 0;
+}
+EOF
+    echo 'project_add_fuzz_target(NAME planted_fuzz)' >>"${src}/tests/fuzz/CMakeLists.txt"
+    (cd "${src}" && cmake --preset fuzz -DVCPKG_INSTALLED_DIR="${vcpkg_installed}")
+    (cd "${src}" && cmake --build --preset fuzz --target planted_fuzz)
+    if "${src}/build/fuzz/bin/planted_fuzz" -max_total_time=30 -artifact_prefix="${out}/" \
+        "${src}/tests/fuzz/corpus/planted_fuzz" >"${work}/fuzz_crash.out" 2>&1; then
+        tail -n 20 "${work}/fuzz_crash.out"
+        echo "the fuzzer did not find the planted crash within 30 seconds"
+        return 1
+    fi
+    tail -n 20 "${work}/fuzz_crash.out"
+    grep -q "ERROR: libFuzzer: deadly signal" "${work}/fuzz_crash.out"
+    # The crash file is the input itself, which must be the planted one.
+    head -c 3 "${out}"/crash-* | grep -q "^FUZ"
 }
 
 for name in "${selected[@]}"; do

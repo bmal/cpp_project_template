@@ -100,6 +100,18 @@
       }
     },
     {
+      "name": "fuzz",
+      "displayName": "libFuzzer harnesses with AddressSanitizer and UndefinedBehaviorSanitizer, no tests",
+      "inherits": "host",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Debug",
+        "PROJECT_BUILD_APPS": "OFF",
+        "PROJECT_BUILD_TESTS": "OFF",
+        "PROJECT_BUILD_FUZZ": "ON",
+        "PROJECT_SANITIZE": "fuzzer-no-link,address,undefined"
+      }
+    },
+    {
       "name": "coverage",
       "displayName": "Debug build with coverage instrumentation",
       "inherits": "host",
@@ -158,6 +170,10 @@
     {
       "name": "tsan",
       "configurePreset": "tsan"
+    },
+    {
+      "name": "fuzz",
+      "configurePreset": "fuzz"
     },
     {
       "name": "coverage",
@@ -271,6 +287,17 @@
       "name": "tsan",
       "configurePreset": "tsan",
       "inherits": "no-stress"
+    },
+    {
+      "name": "fuzz",
+      "displayName": "Replay the seed corpus of every fuzz harness",
+      "configurePreset": "fuzz",
+      "inherits": "test-base",
+      "filter": {
+        "include": {
+          "label": "^fuzz$"
+        }
+      }
     },
     {
       "name": "coverage",
@@ -421,6 +448,23 @@
         {
           "type": "test",
           "name": "tsan"
+        }
+      ]
+    },
+    {
+      "name": "fuzz",
+      "steps": [
+        {
+          "type": "configure",
+          "name": "fuzz"
+        },
+        {
+          "type": "build",
+          "name": "fuzz"
+        },
+        {
+          "type": "test",
+          "name": "fuzz"
         }
       ]
     },
