@@ -248,6 +248,16 @@ scripts/selftest.sh
 
 Each case prints `ok <case>`, or `skip <case>: <reason>` when this machine cannot run it; `scripts/selftest.sh --help` lists the cases.
 
+## Lint
+
+Check the tree with clang-tidy before pushing:
+
+```bash
+make lint
+```
+
+clangd shows the fast checks of `.clang-tidy` while you type. [CONTRIBUTING.md](CONTRIBUTING.md) shows how to suppress a finding.
+
 ## Install And Package
 
 Install the release build into a prefix, to use the modules from another project:

@@ -7,6 +7,7 @@
 
 #include <atomic>
 #include <cstddef>
+#include <source_location>
 
 // Darwin sanitizers have no allocation hook, and ASan there ignores mismatched new and delete.
 #if !defined(__APPLE__) && (MYPROJ_UNDER_ASAN || MYPROJ_UNDER_TSAN || MYPROJ_UNDER_MSAN)
@@ -15,11 +16,12 @@
 
 namespace {
 
+// NOLINTNEXTLINE(cppcoreguidelines-avoid-non-const-global-variables): operator new has no object.
 std::atomic<std::size_t> allocation_count{0};
 
 } // namespace
 
-#if defined(MYPROJ_SANITIZER_ALLOCATOR)
+#ifdef MYPROJ_SANITIZER_ALLOCATOR
 
 #if __has_include(<sanitizer/allocator_interface.h>)
 #include <sanitizer/allocator_interface.h>
@@ -55,6 +57,7 @@ namespace {
 void* counted_malloc(std::size_t size) noexcept {
     allocation_count.fetch_add(1, std::memory_order_relaxed);
     // malloc(0) may return null, but operator new must return a unique pointer.
+    // NOLINTNEXTLINE(cppcoreguidelines-no-malloc): the allocator that operator new forwards to.
     return std::malloc(size == 0 ? 1 : size);
 }
 
@@ -81,39 +84,57 @@ void* throw_if_null(void* pointer) {
 } // namespace
 
 // Each new pairs with a delete defined here, so no allocation crosses to another allocator.
+// NOLINTBEGIN(cppcoreguidelines-no-malloc): the replacement operators must forward to malloc.
+// NOLINTBEGIN(readability-inconsistent-declaration-parameter-name): the std library uses __names.
 void* operator new(std::size_t size) { return throw_if_null(counted_malloc(size)); }
 void* operator new[](std::size_t size) { return throw_if_null(counted_malloc(size)); }
-void* operator new(std::size_t size, const std::nothrow_t&) noexcept { return counted_malloc(size); }
-void* operator new[](std::size_t size, const std::nothrow_t&) noexcept { return counted_malloc(size); }
+void* operator new(std::size_t size, const std::nothrow_t& /*tag*/) noexcept {
+    return counted_malloc(size);
+}
+void* operator new[](std::size_t size, const std::nothrow_t& /*tag*/) noexcept {
+    return counted_malloc(size);
+}
 void* operator new(std::size_t size, std::align_val_t align) {
     return throw_if_null(counted_aligned_alloc(size, align));
 }
 void* operator new[](std::size_t size, std::align_val_t align) {
     return throw_if_null(counted_aligned_alloc(size, align));
 }
-void* operator new(std::size_t size, std::align_val_t align, const std::nothrow_t&) noexcept {
+void* operator new(std::size_t size, std::align_val_t align,
+                   const std::nothrow_t& /*tag*/) noexcept {
     return counted_aligned_alloc(size, align);
 }
-void* operator new[](std::size_t size, std::align_val_t align, const std::nothrow_t&) noexcept {
+void* operator new[](std::size_t size, std::align_val_t align,
+                     const std::nothrow_t& /*tag*/) noexcept {
     return counted_aligned_alloc(size, align);
 }
 
 void operator delete(void* pointer) noexcept { std::free(pointer); }
 void operator delete[](void* pointer) noexcept { std::free(pointer); }
-void operator delete(void* pointer, std::size_t) noexcept { std::free(pointer); }
-void operator delete[](void* pointer, std::size_t) noexcept { std::free(pointer); }
-void operator delete(void* pointer, const std::nothrow_t&) noexcept { std::free(pointer); }
-void operator delete[](void* pointer, const std::nothrow_t&) noexcept { std::free(pointer); }
-void operator delete(void* pointer, std::align_val_t) noexcept { std::free(pointer); }
-void operator delete[](void* pointer, std::align_val_t) noexcept { std::free(pointer); }
-void operator delete(void* pointer, std::size_t, std::align_val_t) noexcept { std::free(pointer); }
-void operator delete[](void* pointer, std::size_t, std::align_val_t) noexcept { std::free(pointer); }
-void operator delete(void* pointer, std::align_val_t, const std::nothrow_t&) noexcept {
+void operator delete(void* pointer, std::size_t /*size*/) noexcept { std::free(pointer); }
+void operator delete[](void* pointer, std::size_t /*size*/) noexcept { std::free(pointer); }
+void operator delete(void* pointer, const std::nothrow_t& /*tag*/) noexcept { std::free(pointer); }
+void operator delete[](void* pointer, const std::nothrow_t& /*tag*/) noexcept {
     std::free(pointer);
 }
-void operator delete[](void* pointer, std::align_val_t, const std::nothrow_t&) noexcept {
+void operator delete(void* pointer, std::align_val_t /*align*/) noexcept { std::free(pointer); }
+void operator delete[](void* pointer, std::align_val_t /*align*/) noexcept { std::free(pointer); }
+void operator delete(void* pointer, std::size_t /*size*/, std::align_val_t /*align*/) noexcept {
     std::free(pointer);
 }
+void operator delete[](void* pointer, std::size_t /*size*/, std::align_val_t /*align*/) noexcept {
+    std::free(pointer);
+}
+void operator delete(void* pointer, std::align_val_t /*align*/,
+                       const std::nothrow_t& /*tag*/) noexcept {
+    std::free(pointer);
+}
+void operator delete[](void* pointer, std::align_val_t /*align*/,
+                       const std::nothrow_t& /*tag*/) noexcept {
+    std::free(pointer);
+}
+// NOLINTEND(readability-inconsistent-declaration-parameter-name): end of the replacement operators.
+// NOLINTEND(cppcoreguidelines-no-malloc): end of the replacement operators.
 
 #endif
 

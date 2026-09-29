@@ -2,9 +2,11 @@
 // SystemClock reads std::chrono::steady_clock, which never jumps backwards.
 #include "core/clock.hpp"
 
+#include <chrono>
+
 namespace myproj::core {
 
-std::chrono::nanoseconds SystemClock::now() const noexcept {
+std::chrono::nanoseconds SystemClock::now() noexcept {
     return std::chrono::duration_cast<std::chrono::nanoseconds>(
         std::chrono::steady_clock::now().time_since_epoch());
 }

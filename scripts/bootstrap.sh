@@ -45,7 +45,7 @@ install_linux() {
         ${sudo} apt-get update -qq
     fi
     ${sudo} apt-get install -y -qq --no-install-recommends \
-        "clang-${CLANG_VERSION}" "libclang-rt-${CLANG_VERSION}-dev"
+        "clang-${CLANG_VERSION}" "clang-tidy-${CLANG_VERSION}" "libclang-rt-${CLANG_VERSION}-dev"
 }
 
 install_vcpkg() {

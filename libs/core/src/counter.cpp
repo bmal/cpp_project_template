@@ -2,6 +2,10 @@
 // Only subtract can fail, and it reports failure without touching the state.
 #include "core/counter.hpp"
 
+#include <cstdint>
+#include <expected>
+#include <string_view>
+
 namespace myproj::core {
 
 std::string_view describe(CounterError error) noexcept {

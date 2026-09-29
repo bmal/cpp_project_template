@@ -16,7 +16,7 @@ concept Clock = requires(const T& clock) {
 // The steady clock of the standard library, the only clock that production code uses.
 class SystemClock {
 public:
-    [[nodiscard]] std::chrono::nanoseconds now() const noexcept;
+    [[nodiscard]] static std::chrono::nanoseconds now() noexcept;
 };
 
 static_assert(Clock<SystemClock>);

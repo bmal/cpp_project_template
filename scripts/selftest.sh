@@ -15,6 +15,7 @@ cases=(
     "make_help           make help exits 0 and describes every Makefile target"
     "sample_headers      every source under libs/, apps/, tests/, benchmarks/ opens with two purpose lines"
     "stress_label        only a suite name ending in Stress moves a test from dev to stress"
+    "lint_naming         make lint passes, then fails naming readability-identifier-naming on a camelCase function"
     "parser_no_throw     the header-only parser contains no throw and no try"
     "fuzz_crash          a fuzz harness finds a crash planted on one specific input"
     "fuzz_preset_only    no configure preset but fuzz has a fuzz harness target"
@@ -349,6 +350,30 @@ EOF
             return 1
         fi
     done
+}
+
+case_lint_naming() {
+    local src="${work}/lint_naming"
+    copy_tree "${src}"
+    configure_dev "${src}"
+    make -C "${src}" --no-print-directory lint
+    cat >"${src}/libs/core/src/lint_probe.cpp" <<'EOF'
+// Selftest: a function named in camelCase, which D13 forbids.
+// Nothing calls it; only the lint target reads it.
+namespace myproj::core {
+
+int lintProbe() { return 0; }
+
+} // namespace myproj::core
+EOF
+    if make -C "${src}" --no-print-directory lint >"${work}/lint_naming.out" 2>&1; then
+        cat "${work}/lint_naming.out"
+        echo "make lint passed a camelCase function"
+        return 1
+    fi
+    cat "${work}/lint_naming.out"
+    grep -q "lint_probe.cpp:.*invalid case style for function 'lintProbe'.*readability-identifier-naming" \
+        "${work}/lint_naming.out"
 }
 
 case_parser_no_throw() {

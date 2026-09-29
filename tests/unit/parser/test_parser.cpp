@@ -34,6 +34,8 @@ TEST(ParseLine, ErrorIsReturnedAsADescribableValue) {
     EXPECT_EQ(describe(fields.error().kind), "empty value after '='");
 }
 
+namespace {
+
 struct MalformedLine {
     std::string_view name;
     std::string_view line;
@@ -59,5 +61,7 @@ INSTANTIATE_TEST_SUITE_P(
         MalformedLine{"ColumnCountsBlanks", "\t\tx", {.kind = ErrorKind::MissingSeparator, .column = 2}},
         MalformedLine{"FirstErrorWins", "=1 b", {.kind = ErrorKind::EmptyKey, .column = 0}}),
     [](const testing::TestParamInfo<MalformedLine>& param) { return std::string(param.param.name); });
+
+} // namespace
 
 } // namespace myproj::parser

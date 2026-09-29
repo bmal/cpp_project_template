@@ -4,6 +4,7 @@
 
 #include "core/build_info.hpp"
 
+// NOLINTNEXTLINE(bugprone-exception-escape): an escaping exception should terminate and dump core.
 int main(int argc, char** argv) {
     benchmark::AddCustomContext("myproj_version", myproj::core::version_banner());
     benchmark::Initialize(&argc, argv);

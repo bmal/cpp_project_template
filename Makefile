@@ -6,7 +6,7 @@ BASE ?= main
 FUZZ_SECONDS ?= 30
 
 .DEFAULT_GOAL := help
-.PHONY: help bootstrap bench bench-compare fuzz build test clean-all
+.PHONY: help bootstrap bench bench-compare fuzz lint build test clean-all
 
 help: ## List every target
 	@echo "Usage: make <target> [PRESET=<preset>] [BASE=<git ref>] [FUZZ_SECONDS=<n>]"
@@ -36,6 +36,10 @@ bench-compare: ## Run the benchmarks at BASE (default main) and here, and print 
 fuzz: ## Build the fuzz preset and fuzz every harness for FUZZ_SECONDS (default 30) each
 	cmake --preset fuzz -DPROJECT_FUZZ_SECONDS=$(FUZZ_SECONDS)
 	cmake --build --preset fuzz --target run_fuzz
+
+lint: ## Configure PRESET (default dev) and run clang-tidy over it; any finding fails
+	cmake --preset $(PRESET)
+	cmake --build --preset $(PRESET) --target lint
 
 build: ## Build PRESET (default dev) after it has been configured
 	cmake --build --preset $(PRESET)

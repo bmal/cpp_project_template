@@ -3,6 +3,7 @@
 #include <gmock/gmock.h>
 #include <gtest/gtest.h>
 
+// NOLINTNEXTLINE(bugprone-exception-escape): an escaping exception should terminate and dump core.
 int main(int argc, char** argv) {
     // Death tests re-execute the binary, which stays correct when a test has started threads.
     GTEST_FLAG_SET(death_test_style, "threadsafe");

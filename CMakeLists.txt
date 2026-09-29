@@ -27,6 +27,9 @@ option(PROJECT_INSTALL "Generate install and package rules" ${PROJECT_IS_TOP_LEV
 option(ENABLE_COVERAGE "Enable test coverage" OFF)
 
 set(CMAKE_CXX_EXTENSIONS OFF)
+# No source uses C++20 modules. Scanning would put build-time .modmap files into
+# compile_commands.json, which clang-tidy and clangd cannot read before the first build.
+set(CMAKE_CXX_SCAN_FOR_MODULES OFF)
 if(PROJECT_IS_TOP_LEVEL)
   set(CMAKE_RUNTIME_OUTPUT_DIRECTORY "${PROJECT_BINARY_DIR}/bin")
 endif()
@@ -70,6 +73,11 @@ if(PROJECT_BUILD_FUZZ)
   enable_testing()
   add_subdirectory(tests/fuzz)
   project_add_fuzz_run_target()
+endif()
+
+if(PROJECT_IS_TOP_LEVEL)
+  include(cmake/Lint.cmake)
+  project_add_lint_target()
 endif()
 
 if(PROJECT_INSTALL)

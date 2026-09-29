@@ -5,6 +5,8 @@
 #include <fmt/format.h>
 #include <myproj/version.hpp>
 
+#include <string>
+
 namespace myproj::core {
 
 std::string version_banner() {

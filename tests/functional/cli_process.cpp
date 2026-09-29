@@ -4,19 +4,29 @@
 
 #include <fcntl.h>
 #include <spawn.h>
+// NOLINTNEXTLINE(misc-include-cleaner): glibc defines pid_t here, and macOS in a private header.
+#include <sys/types.h>
 #include <sys/wait.h>
 #include <unistd.h>
 
+#include <array>
 #include <cerrno>
 #include <cstdlib>
+#include <expected>
 #include <filesystem>
 #include <fstream>
+#include <ios>
 #include <sstream>
 #include <string>
+#include <string_view>
 #include <system_error>
 #include <utility>
 
+// unistd.h declares environ only under _GNU_SOURCE, which libstdc++ turns on.
+#ifndef _GNU_SOURCE
+// NOLINTNEXTLINE(cppcoreguidelines-avoid-non-const-global-variables): POSIX declares it so.
 extern char** environ;
+#endif
 
 namespace myproj::functional {
 
@@ -46,6 +56,8 @@ public:
     }
     ScratchDir(const ScratchDir&) = delete;
     ScratchDir& operator=(const ScratchDir&) = delete;
+    ScratchDir(ScratchDir&&) = delete;
+    ScratchDir& operator=(ScratchDir&&) = delete;
     ~ScratchDir() {
         std::error_code ignored;
         std::filesystem::remove_all(path_, ignored);
@@ -69,14 +81,15 @@ std::expected<CliRun, std::string> run_cli(std::string_view input) {
     const auto err = scratch.path() / "stderr";
     std::ofstream(in, std::ios::binary) << input;
 
-    posix_spawn_file_actions_t actions;
+    posix_spawn_file_actions_t actions{};
     posix_spawn_file_actions_init(&actions);
     posix_spawn_file_actions_addopen(&actions, 0, in.c_str(), O_RDONLY, 0);
     posix_spawn_file_actions_addopen(&actions, 1, out.c_str(), O_WRONLY | O_CREAT | O_TRUNC, 0600);
     posix_spawn_file_actions_addopen(&actions, 2, err.c_str(), O_WRONLY | O_CREAT | O_TRUNC, 0600);
-    char* const argv[] = {const_cast<char*>(cli_path), nullptr};
+    std::string program = cli_path;
+    const std::array<char*, 2> argv = {program.data(), nullptr};
     pid_t pid = 0;
-    const int spawn_error = posix_spawn(&pid, cli_path, &actions, nullptr, argv, environ);
+    const int spawn_error = posix_spawn(&pid, cli_path, &actions, nullptr, argv.data(), environ);
     posix_spawn_file_actions_destroy(&actions);
     if (spawn_error != 0) {
         return std::unexpected(cannot("cannot start", spawn_error));

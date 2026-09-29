@@ -23,6 +23,7 @@ public:
 
 } // namespace
 
+// NOLINTNEXTLINE(bugprone-exception-escape): an escaping exception should terminate and dump core.
 int main() {
     // std::print needs the Homebrew libc++ on macOS; the system copy lacks it.
     std::println("{}", myproj::core::version_banner());

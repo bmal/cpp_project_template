@@ -1,89 +1,10 @@
-CompileFlags:
-  Add:
-    - "-Wall"
-    - "-Wextra"
-    - "-Werror"
-    - "-Wconversion"
-    - "-Wsign-conversion"
-    - "-Wmissing-include-dirs"
-    - "-std=c++23"
-    - "-D_POSIX_C_SOURCE=200809L"
-    - "-I${workspaceFolder}/include"
-  Remove:
-    - "-W*"
-
+# clangd takes its flags from compile_commands.json and its checks from .clang-tidy, never its own list.
+# Checks too slow to run on every keystroke are left to `make lint`.
 Diagnostics:
   UnusedIncludes: Strict
   MissingIncludes: Strict
   ClangTidy:
-    Add:
-      - "modernize-*"
-      - "readability-*"
-      - "bugprone-*"
-      - "performance-*"
-      - "clang-analyzer-*"
-      - "cppcoreguidelines-*"
-    Remove:
-      - "modernize-use-trailing-return-type"
-      - "cppcoreguidelines-avoid-magic-numbers"
-      - "readability-magic-numbers"
-    CheckOptions:
-      # Namespaces
-      readability-identifier-naming.NamespaceCase: CamelCase
-
-      # Types
-      readability-identifier-naming.ClassCase: CamelCase
-      readability-identifier-naming.StructCase: CamelCase
-      readability-identifier-naming.TypedefCase: CamelCase
-      readability-identifier-naming.TypeAliasCase: CamelCase
-      readability-identifier-naming.EnumCase: CamelCase
-      readability-identifier-naming.TypeTemplateParameterCase: CamelCase
-
-      # Functions & Methods
-      readability-identifier-naming.FunctionCase: camelBack
-      readability-identifier-naming.MethodCase: camelBack
-
-      # Variables
-      readability-identifier-naming.VariableCase: camelBack
-      readability-identifier-naming.ParameterCase: camelBack
-      readability-identifier-naming.MemberCase: camelBack
-      readability-identifier-naming.PrivateMemberPrefix: _
-      readability-identifier-naming.ProtectedMemberPrefix: _
-
-      # Constants
-      readability-identifier-naming.ConstantCase: camelBack
-      readability-identifier-naming.ConstantMemberCase: UPPER_CASE
-      readability-identifier-naming.LocalConstantCase: camelBack
-      readability-identifier-naming.GlobalStaticConstantCase: UPPER_CASE
-      readability-identifier-naming.MemberStaticConstantCase: UPPER_CASE
-      readability-identifier-naming.StaticVariableCase: camelBack
-      readability-identifier-naming.FunctionLocalConstantCase: camelBack
-      readability-identifier-naming.VariableConstantCase: camelBack
-      readability-identifier-naming.EnumConstantCase: UPPER_CASE
-      readability-identifier-naming.GlobalConstantCase: UPPER_CASE
-
-      # Global Variables
-      readability-identifier-naming.GlobalVariablePrefix: g_
-      readability-identifier-naming.GlobalVariableCase: camelBack
-
-      # Modern C++ features
-      modernize-use-nullptr.NullMacros: "NULL,nullptr"
-      modernize-loop-convert.MinConfidence: reasonable
-      modernize-use-default-member-init.UseAssignment: true
-      modernize-use-using.IgnoreMacros: true
-
-      # Class layout
-      cppcoreguidelines-special-member-functions.AllowSoleDefaultDtor: true
-      cppcoreguidelines-non-private-member-variables-in-classes.IgnoreClassesWithAllMemberVariablesBeingPublic: true
-      cppcoreguidelines.LanguageStandard: c++23
-
-      # Code readability
-      readability-function-cognitive-complexity.Threshold: 25
-      readability-function-size.LineThreshold: 50
-      readability-function-size.ParameterThreshold: 5
-      readability-function-size.StatementThreshold: 25
-      readability-implicit-bool-conversion.AllowIntegerConditions: true
-      readability-implicit-bool-conversion.AllowPointerConditions: true
+    FastCheckFilter: Strict
 
 InlayHints:
   Enabled: Yes

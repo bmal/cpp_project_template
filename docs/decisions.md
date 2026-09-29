@@ -116,6 +116,24 @@ Narrow choices left to single tickets are appended below the entry they refine.
 - Why: one bug produces one report, and the editor and CI agree.
 - Rejected: cppcheck; include-what-you-use; a duplicated check block in the clangd config. CodeChecker, CodeQL, and GCC `-fanalyzer` are documented as optional upgrades.
 
+#### D11.1. Checks disabled beyond the aliases
+
+- Decision: off are `modernize-use-trailing-return-type`, `readability-magic-numbers`, `readability-identifier-length`, `portability-avoid-pragma-once`, `cppcoreguidelines-owning-memory`, `cppcoreguidelines-pro-bounds-array-to-pointer-decay`, and `cppcoreguidelines-pro-bounds-avoid-unchecked-container-access`. Cognitive complexity fails above 25 and ignores macros. `cppcoreguidelines-macro-usage` allows `MYPROJ_` macros. Pointer arithmetic, `reinterpret_cast`, and swappable parameters stay on.
+- Why: each disabled check fights D13, a C API boundary, idiomatic short names, or every `operator[]`, and stdlib hardening plus ASan already catch out-of-bounds indexing at run time. The checks that stay on mark wire parsing and price-for-quantity swaps, which deserve a reason in review.
+- Rejected: the ticket's list alone, which needs a `NOLINT` on every index and every header; magic numbers on in `libs/` only, which needs a second config file.
+
+#### D11.2. A suppression names its check and gives a reason
+
+- Decision: `// NOLINTNEXTLINE(check-name): reason in one sentence.` `NOLINTBEGIN` and `NOLINTEND` take the same form; a bare `NOLINT` is not allowed.
+- Why: a reviewer can judge the suppression without opening the check's documentation.
+- Rejected: a trailing `// NOLINT(check-name)` as the only form.
+
+#### D11.3. No C++20 module scanning
+
+- Decision: `CMAKE_CXX_SCAN_FOR_MODULES` is off, and `make lint` configures its preset before running.
+- Why: scanning puts `.modmap` files that exist only after a build into `compile_commands.json`, so clang-tidy and clangd fail on a fresh clone.
+- Rejected: making `lint` build everything first, which reports the compiler's findings before its own.
+
 ### D12. Formatters through pre-commit
 
 - Decision: clang-format with every option pinned, gersemi, shellcheck, markdownlint, all through pre-commit. CI runs the same config.

@@ -2,6 +2,8 @@
 // Nearest rank returns a measured value, never an interpolation between two runs.
 #include "bench_support/percentiles.hpp"
 
+#include <benchmark/benchmark.h>
+
 #include <algorithm>
 #include <cstddef>
 #include <vector>
@@ -9,14 +11,14 @@
 namespace myproj::bench_support {
 namespace {
 
-template <std::size_t Percent>
+template <std::size_t percent>
 double percentile(const std::vector<double>& samples) {
     if (samples.empty()) {
         return 0.0;
     }
     std::vector<double> sorted = samples;
     std::ranges::sort(sorted);
-    const std::size_t rank = ((Percent * sorted.size()) + 99) / 100;
+    const std::size_t rank = ((percent * sorted.size()) + 99) / 100;
     return sorted[std::max<std::size_t>(rank, 1) - 1];
 }
 

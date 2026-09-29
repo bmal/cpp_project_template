@@ -6,6 +6,8 @@
 
 #include <parser/parser.hpp>
 
+#include <cstdint>
+#include <expected>
 #include <istream>
 #include <string>
 

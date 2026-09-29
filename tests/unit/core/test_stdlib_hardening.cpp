@@ -7,9 +7,9 @@
 #include <cstddef>
 #include <vector>
 
-#if defined(_LIBCPP_VERSION)
+#ifdef _LIBCPP_VERSION
 #define MYPROJ_STDLIB_HARDENED (_LIBCPP_HARDENING_MODE != _LIBCPP_HARDENING_MODE_NONE)
-#elif defined(_GLIBCXX_ASSERTIONS)
+#elifdef _GLIBCXX_ASSERTIONS
 #define MYPROJ_STDLIB_HARDENED 1
 #else
 #define MYPROJ_STDLIB_HARDENED 0
