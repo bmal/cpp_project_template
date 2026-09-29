@@ -17,6 +17,7 @@ cases=(
     "stress_label        only a suite name ending in Stress moves a test from dev to stress"
     "parser_no_throw     the header-only parser contains no throw and no try"
     "fuzz_crash          a fuzz harness finds a crash planted on one specific input"
+    "fuzz_preset_only    no configure preset but fuzz has a fuzz harness target"
     "asan_overflow       a heap overflow planted in a unit test fails the asan preset with a report"
     "tsan_race           a data race planted in a unit test fails the tsan preset with a report"
 )
@@ -388,6 +389,28 @@ EOF
     grep -q "ERROR: libFuzzer: deadly signal" "${work}/fuzz_crash.out"
     # The crash file is the input itself, which must be the planted one.
     head -c 3 "${out}"/crash-* | grep -q "^FUZ"
+}
+
+case_fuzz_preset_only() {
+    local src="${work}/fuzz_preset_only" preset out checked=0
+    copy_tree "${src}"
+    for preset in $(cd "${src}" && cmake --list-presets=configure | sed -n 's/^ *"\([^"]*\)".*/\1/p'); do
+        if [ "${preset}" = fuzz ]; then continue; fi
+        out="${work}/fuzz_preset_only-${preset}.out"
+        (cd "${src}" && cmake --preset "${preset}" -DVCPKG_INSTALLED_DIR="${vcpkg_installed}")
+        if (cd "${src}" && cmake --build --preset "${preset}" --target parser_fuzz) >"${out}" 2>&1 ||
+            ! grep -q "unknown target 'parser_fuzz'" "${out}"; then
+            cat "${out}"
+            echo "the ${preset} preset has a parser_fuzz target; only the fuzz preset may build harnesses"
+            return 1
+        fi
+        echo "${preset}: no parser_fuzz target"
+        checked=$((checked + 1))
+    done
+    if [ "${checked}" -eq 0 ]; then
+        echo "found no configure preset other than fuzz to check"
+        return 1
+    fi
 }
 
 # Adds the unit test source $2 to the parser tests of the copy in $1, then runs preset $3 on it.
