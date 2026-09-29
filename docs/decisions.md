@@ -158,6 +158,12 @@ Narrow choices left to single tickets are appended below the entry they refine.
 - Why: consumers link `MyProj::<module>`, and every app knows which commit is running.
 - Rejected: DEB, RPM, and other CPack generators.
 
+#### D24.1. Install rules only when top level
+
+- Decision: every install and package rule needs `PROJECT_INSTALL`, which is ON only when the project is top level.
+- Why: a `FetchContent` consumer's install tree holds only its own files, and a consumer that re-exports a module can still opt in.
+- Rejected: a top-level gate with no option; asking every consumer to pass `EXCLUDE_FROM_ALL`.
+
 ### D25. CI
 
 - Decision: `ci.yaml` on `pull_request`, `merge_group`, and push to `main`. Tier one on Linux Clang, then fan-out. One required `status` check. macOS on non-draft PRs, `dev` only. Labels `ci:full`, `ci:bench`, `ci:msan`. `nightly.yaml` skips when `main` is unchanged. `release.yaml` on `v*` tags. Actions pinned by SHA with Dependabot. Least privilege, timeouts, seven-day artifacts, in-job path filters. A composite setup action. Linux jobs in the shared image with a bootstrap fallback.
