@@ -188,6 +188,7 @@ const myproj::test_support::AllocationGuard guard;
 `tests/integration` uses the real modules and mocks only `core::OutputSink`, the edge the user sees.
 `tests/functional` spawns `myproj_cli` and checks its exit code and output.
 A GoogleTest suite whose name ends in `Stress` is labeled `stress` and runs only under the `stress` preset.
+Only the suite name counts; a test name that ends in `Stress` stays in the default run.
 
 Rerun the unit and integration tests of the `dev` build without rebuilding:
 

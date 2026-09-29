@@ -13,7 +13,8 @@ cases=(
     "version_header      the version header carries the current git commit"
     "scaffold            new-module and new-app output builds, tests, and runs; bad names fail"
     "make_help           make help exits 0 and describes every Makefile target"
-    "sample_headers      every file under libs/ and apps/ opens with a purpose comment"
+    "sample_headers      every source under libs/, apps/, tests/, benchmarks/ opens with two purpose lines"
+    "stress_label        only a suite name ending in Stress moves a test from dev to stress"
     "parser_no_throw     the header-only parser contains no throw and no try"
     "fuzz_crash          a fuzz harness finds a crash planted on one specific input"
 )
@@ -268,16 +269,82 @@ case_make_help() {
 }
 
 case_sample_headers() {
-    local file first missing=0
+    local file first second missing=0
     while IFS= read -r -d '' file; do
-        first="$(head -n 1 "${root}/${file}")"
-        # A C++ line comment, or a CMake comment that is not a directive such as #pragma.
-        if [[ "${first}" != "// "?* && "${first}" != "# "?* ]]; then
-            echo "${file} does not open with a purpose comment: '${first}'"
+        case "${file}" in
+        *.cpp | *.hpp | *.cmake | */CMakeLists.txt) ;;
+        *) continue ;;
+        esac
+        [ -f "${root}/${file}" ] || continue
+        first="$(sed -n 1p "${root}/${file}")"
+        second="$(sed -n 2p "${root}/${file}")"
+        # Two C++ line comments, or two CMake comments that are not directives such as #pragma.
+        if [[ "${first}" != "// "?* && "${first}" != "# "?* ]] ||
+            [[ "${second}" != "// "?* && "${second}" != "# "?* ]]; then
+            echo "${file} does not open with a two-line purpose comment: '${first}'"
+            missing=1
+        elif grep -Eqi "copyright|license|spdx" <<<"${first}"; then
+            echo "${file} opens with a license line, not its purpose: '${first}'"
             missing=1
         fi
-    done < <(git -C "${root}" ls-files -z --cached --others --exclude-standard -- libs apps)
+    done < <(git -C "${root}" ls-files -z --cached --others --exclude-standard -- \
+        libs apps tests benchmarks)
     [ "${missing}" -eq 0 ]
+}
+
+case_stress_label() {
+    local src="${work}/stress_label" name
+    copy_tree "${src}"
+    cat >"${src}/tests/unit/parser/test_label_probe.cpp" <<'EOF'
+// Selftest: every shape of test name that does or does not belong to the stress label.
+// Only a suite name that ends in Stress counts.
+#include <gtest/gtest.h>
+
+template <typename T>
+class TypedProbeStress : public testing::Test {};
+using ProbeTypes = testing::Types<int, long>;
+TYPED_TEST_SUITE(TypedProbeStress, ProbeTypes);
+TYPED_TEST(TypedProbeStress, Runs) { SUCCEED(); }
+
+class ParamProbeStress : public testing::TestWithParam<int> {};
+TEST_P(ParamProbeStress, Runs) { SUCCEED(); }
+INSTANTIATE_TEST_SUITE_P(Probe, ParamProbeStress, testing::Values(1));
+
+TEST(PlainProbeStress, Runs) { SUCCEED(); }
+
+class QuickProbe : public testing::TestWithParam<int> {};
+TEST_P(QuickProbe, SurvivesStress) { SUCCEED(); }
+INSTANTIATE_TEST_SUITE_P(Probe, QuickProbe, testing::Values(1));
+
+TEST(StressfulProbe, Runs) { SUCCEED(); }
+TEST(QuickPlainProbe, SurvivesStress) { SUCCEED(); }
+EOF
+    configure_dev "${src}" -DPROJECT_BUILD_APPS=OFF
+    (cd "${src}" && cmake --build --preset dev --target parser_unit_tests)
+    (cd "${src}" && ctest --preset dev -N) | tee "${work}/stress_label.dev"
+    (cd "${src}" && ctest --preset stress -N) | tee "${work}/stress_label.stress"
+    for name in "TypedProbeStress.Runs<int>" "TypedProbeStress.Runs<long>" "Probe/ParamProbeStress.Runs/" \
+        "PlainProbeStress.Runs"; do
+        if ! grep -qF "${name}" "${work}/stress_label.stress"; then
+            echo "${name} has a suite ending in Stress but the stress preset does not run it"
+            return 1
+        fi
+        if grep -qF "${name}" "${work}/stress_label.dev"; then
+            echo "${name} has a suite ending in Stress but the dev preset runs it"
+            return 1
+        fi
+    done
+    for name in "Probe/QuickProbe.SurvivesStress/" "StressfulProbe.Runs" \
+        "QuickPlainProbe.SurvivesStress"; do
+        if ! grep -qF "${name}" "${work}/stress_label.dev"; then
+            echo "${name} is not in a Stress suite but the dev preset leaves it out"
+            return 1
+        fi
+        if grep -qF "${name}" "${work}/stress_label.stress"; then
+            echo "${name} is not in a Stress suite but the stress preset runs it"
+            return 1
+        fi
+    done
 }
 
 case_parser_no_throw() {

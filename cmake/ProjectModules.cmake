@@ -103,7 +103,8 @@ endfunction()
 
 # Builds a GoogleTest executable on the test support library and registers its tests.
 # Suites whose name ends in Stress, typed suites included, are also labeled stress,
-# which only the stress preset runs.
+# which only the stress preset runs. A typed suite lists as Suite/<n>.Test, so the second
+# pattern needs the dot: a parameterized Suite.TestStress/<param> is not a stress test.
 function(_project_add_gtest target)
   cmake_parse_arguments(PARSE_ARGV 1 arg "" "" "SOURCES;DEPS")
   add_executable(${target} ${arg_SOURCES})
@@ -114,11 +115,11 @@ function(_project_add_gtest target)
   if(ENABLE_COVERAGE)
     enable_coverage(${target})
   endif()
-  gtest_discover_tests(${target} DISCOVERY_MODE PRE_TEST TEST_FILTER "-*Stress.*:*Stress/*")
+  gtest_discover_tests(${target} DISCOVERY_MODE PRE_TEST TEST_FILTER "-*Stress.*:*Stress/*.*")
   gtest_discover_tests(
     ${target}
     DISCOVERY_MODE PRE_TEST
-    TEST_FILTER "*Stress.*:*Stress/*"
+    TEST_FILTER "*Stress.*:*Stress/*.*"
     PROPERTIES LABELS stress
   )
 endfunction()

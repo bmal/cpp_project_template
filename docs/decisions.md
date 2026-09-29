@@ -30,6 +30,12 @@ Narrow choices left to single tickets are appended below the entry they refine.
 - Why: each kind proves a different thing, and the default run stays unit plus integration.
 - Rejected: a stress directory duplicating structure; the old two test kinds.
 
+#### D4.1. The stress label comes from the suite name
+
+- Decision: a GoogleTest suite whose name ends in `Stress` is labeled `stress`, typed and parameterized suites included. Test names and parameter names never count.
+- Why: the label is visible where the test is written, and no CMake changes when a stress test is added.
+- Rejected: a label per test in CMake, which drifts from the code; a `tests/stress/` directory, already rejected by D4.
+
 ### D5. Test granularity
 
 - Decision: one executable per module for unit and benchmark; one for integration; one for functional; one per fuzz harness.
@@ -150,6 +156,12 @@ Narrow choices left to single tickets are appended below the entry they refine.
 - Why: adding a module never touches shared build files, and adding a file is just adding a file.
 - Rejected: none recorded.
 
+#### D20.1. A helper for test kinds
+
+- Decision: `project_add_tests(KIND <kind> [DEPS ...])` builds `<kind>_tests` from a directory under `tests/` and labels it `<kind>`. Integration and functional tests use it.
+- Why: D5 asks for one executable per kind, and every test executable gets the same support library, warnings, and stress rule.
+- Rejected: hand-written `add_executable` and `gtest_discover_tests` calls in each kind directory.
+
 ### D21. Testing strategy
 
 - Decision: Khorikov's principles with GoogleTest. Classical school, doubles only at unmanaged edges, output-based preferred, plain `TEST` over fixtures, CamelCase sentence names. `tests/support/` holds builders, fake clock, allocation guard, skip macros, nothing with logic.
@@ -161,6 +173,18 @@ Narrow choices left to single tickets are appended below the entry they refine.
 - Decision: the `bench` preset shares the release flag base. A support library with cache flush and percentiles. libpfm counters on Linux where the port allows. A machine-prep script. Smoke in CI, real numbers nightly on a self-hosted label. `make bench-compare BASE=main`. JSON to `build/current/bench/`.
 - Why: you measure the program you ship, repeatably, with results that are never lost.
 - Rejected: real numbers on hosted runners as a gate; Cachegrind and Callgrind in CI.
+
+#### D22.1. Frame pointers and benchmark dependencies are opt-in
+
+- Decision: `PROJECT_FRAME_POINTERS` adds `-fno-omit-frame-pointer` through `myproj_options`; `bench` turns it on. Google Benchmark is the vcpkg manifest feature `benchmarks`, installed only when `PROJECT_BUILD_BENCHMARKS` is on.
+- Why: `bench` is `release` plus one flag, and no other preset pays for a dependency it never links.
+- Rejected: a separate flag list for `bench`; Google Benchmark as a default dependency.
+
+#### D22.2. The comparison tool runs from a local virtual environment
+
+- Decision: `make bench-compare` creates `build/bench-venv/` on first use and installs `numpy` and `scipy` from PyPI, unpinned, for Google Benchmark's `compare.py`.
+- Why: the tool needs both, and a virtual environment under `build/` touches nothing outside the repository.
+- Rejected: installing them in `bootstrap.sh` for everyone; pinned versions that nothing would update.
 
 ### D23. Sample code, option C
 

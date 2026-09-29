@@ -19,6 +19,7 @@ make bench-compare BASE=main
 
 You should see one table per benchmark executable; negative `Time` values are faster.
 The baseline builds in `build/bench-base/`, so the next comparison against the same ref is incremental.
+The first comparison downloads `numpy` and `scipy` from PyPI into `build/bench-venv/`.
 
 ## Hardware counters
 
