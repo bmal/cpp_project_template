@@ -68,7 +68,7 @@ function(project_add_module)
   add_library(myproj::${arg_NAME} ALIAS ${target})
   set_target_properties(${target} PROPERTIES MYPROJ_INTERNAL "${arg_INTERNAL}")
   set_property(GLOBAL APPEND PROPERTY MYPROJ_MODULES ${arg_NAME})
-  if(NOT arg_INTERNAL)
+  if(PROJECT_INSTALL AND NOT arg_INTERNAL)
     _project_install_module(${arg_NAME} ${target} "${include_dir}")
   endif()
 

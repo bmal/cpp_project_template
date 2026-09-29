@@ -1,5 +1,6 @@
 # Install, version header, and packaging. Non-INTERNAL modules join the MyProjTargets export set
 # through project_add_module; project_install_package writes the package files and sets up CPack.
+# All install rules need PROJECT_INSTALL, which is ON only when this is the top-level project.
 
 include_guard(GLOBAL)
 include(GNUInstallDirs)
@@ -72,7 +73,7 @@ function(project_add_version_header module)
     target_include_directories(${target} PUBLIC $<BUILD_INTERFACE:${generated_dir}>)
   endif()
   get_target_property(internal ${target} MYPROJ_INTERNAL)
-  if(NOT internal)
+  if(PROJECT_INSTALL AND NOT internal)
     install(DIRECTORY "${generated_dir}/" DESTINATION ${CMAKE_INSTALL_INCLUDEDIR})
   endif()
 endfunction()

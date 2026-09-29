@@ -131,6 +131,7 @@ PROJECT_COMPILER           # clang (default) or gcc
 PROJECT_BUILD_APPS         # Build apps/; ON when top level
 PROJECT_BUILD_TESTS        # Build tests/; ON when top level
 PROJECT_BUILD_BENCHMARKS   # Build benchmarks/
+PROJECT_INSTALL            # Install and package rules; ON when top level
 PROJECT_SANITIZE           # Value for -fsanitize=, for example address,undefined
 PROJECT_WARNINGS_AS_ERRORS # -Werror; ON when top level, never applied to consumers
 PROJECT_STDLIB_HARDENING   # libstdc++ assertions and libc++ debug hardening; ON in dev
@@ -197,6 +198,14 @@ Consume it from another CMake project; each module that is not `INTERNAL` is `My
 ```cmake
 find_package(MyProj REQUIRED)
 target_link_libraries(app PRIVATE MyProj::core)
+```
+
+Configure the consumer with this project's compiler file and its dependencies, here `fmt`; replace `<myproj>` with this checkout and `<triplet>` with the directory under `vcpkg_installed/`:
+
+```bash
+cmake -S . -B build -G Ninja \
+  -DCMAKE_TOOLCHAIN_FILE=<myproj>/cmake/toolchain/compiler.cmake \
+  -DCMAKE_PREFIX_PATH="$HOME/.local;<myproj>/build/release/vcpkg_installed/<triplet>"
 ```
 
 Build a release archive, written to `build/release/package/MyProj-<version>-<system>.tar.gz`:

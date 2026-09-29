@@ -9,7 +9,7 @@ PRESET ?= dev
 help: ## List every target
 	@echo "Usage: make <target> [PRESET=<preset>]"
 	@echo
-	@sed -n 's/^\([a-z][a-z0-9-]*\):.*## \(.*\)/\1|\2/p' $(MAKEFILE_LIST) | \
+	@sed -n 's/^\([A-Za-z0-9][A-Za-z0-9_.-]*\):.*## \(.*\)/\1|\2/p' $(MAKEFILE_LIST) | \
 		awk -F '|' '{ printf "  %-12s %s\n", $$1, $$2 }'
 
 bootstrap: ## Install the toolchain, tools, and vcpkg once per machine

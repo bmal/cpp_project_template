@@ -8,7 +8,7 @@ root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 # One line per case: name, then what it asserts. Run order is this order.
 cases=(
     "drift_guard         a stray tests/unit/ghost/ fails configure naming it"
-    "consumer_isolation  a FetchContent consumer gets no tests, apps, or -Werror"
+    "consumer_isolation  a FetchContent consumer gets no tests, apps, flags, or install rules"
     "install_smoke       an installed package builds and runs a find_package consumer"
     "version_header      the version header carries the current git commit"
     "scaffold            new-module and new-app output builds, tests, and runs; bad names fail"
@@ -151,6 +151,7 @@ enable_testing()
 add_executable(consumer main.cpp)
 target_compile_options(consumer PRIVATE -Wall -Wextra)
 target_link_libraries(consumer PRIVATE myproj::core)
+install(TARGETS consumer)
 EOF
     write_consumer_main "${consumer}"
     configure_consumer "${consumer}" "${build}" "${src}"
@@ -159,6 +160,20 @@ EOF
 
     if grep -q -- "-Werror" "${build}/compile_commands.json"; then
         echo "-Werror reached the consumer build"
+        return 1
+    fi
+    # The consumer asked for -Wall -Wextra only; any other -W flag came from the project.
+    local own_command
+    own_command="$(grep '"command"' "${build}/compile_commands.json" | grep -F "/consumer_isolation-consumer/main.cpp")"
+    [ -n "${own_command}" ]
+    if sed 's/ -Wall//; s/ -Wextra//' <<<"${own_command}" | grep -q -- " -W"; then
+        echo "the project's warning flags reached the consumer's own sources"
+        return 1
+    fi
+    cmake --install "${build}" --prefix "${consumer}/prefix"
+    if [ -n "$(find "${consumer}/prefix" -type f ! -name consumer)" ]; then
+        find "${consumer}/prefix" -type f ! -name consumer
+        echo "the consumer's install tree received the project's files"
         return 1
     fi
     if ! ctest --test-dir "${build}" -N | grep -q "Total Tests: 0"; then
@@ -237,7 +252,8 @@ case_scaffold() {
 case_make_help() {
     local targets target
     make -C "${root}" --no-print-directory help | tee "${work}/make_help.out"
-    targets="$(sed -n 's/^\([a-z][a-z0-9-]*\):.*/\1/p' "${root}/Makefile")"
+    # Every rule target; variable assignments with := and the workflow/% pattern are not targets.
+    targets="$(sed -n '/^[A-Za-z0-9][A-Za-z0-9_.-]*:=/d; s/^\([A-Za-z0-9][A-Za-z0-9_.-]*\):.*/\1/p' "${root}/Makefile")"
     [ -n "${targets}" ]
     for target in ${targets}; do
         if ! grep -Eq "^  ${target} +[^ ]" "${work}/make_help.out"; then
