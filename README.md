@@ -19,7 +19,7 @@ A compact, modern C++23 template for projects that start small and still grow cl
 
 - macOS with Homebrew, or apt-based Linux.
 - Clang 19 or GCC 14 at least; configure stops with an error on older compilers.
-- CMake 3.28 or newer and Ninja.
+- CMake 3.28 or newer, Ninja, and Make.
 
 `scripts/bootstrap.sh` installs all of these, plus vcpkg pinned under `.vcpkg/`.
 
@@ -41,10 +41,10 @@ Placeholders are literal: `myproj` for namespaces, targets, and directories, `My
 
 ## Quick Start
 
-Install the toolchain and vcpkg once per machine:
+Install the toolchain, `make`, and vcpkg once per machine:
 
 ```bash
-make bootstrap
+scripts/bootstrap.sh
 ```
 
 Configure, build, and test:
@@ -269,7 +269,7 @@ cmake --preset dev
 If configure says vcpkg was not found, install it:
 
 ```bash
-make bootstrap
+scripts/bootstrap.sh
 ```
 
 The first configure of each preset builds dependencies and needs network access. vcpkg caches the binaries in `~/.cache/vcpkg/archives`, so later presets reuse them.

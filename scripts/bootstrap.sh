@@ -31,7 +31,7 @@ install_linux() {
 
     ${sudo} apt-get update -qq
     ${sudo} apt-get install -y -qq --no-install-recommends \
-        ca-certificates cmake curl git ninja-build pkg-config tar unzip zip \
+        ca-certificates cmake curl git make ninja-build pkg-config tar unzip zip \
         "g++-${GCC_VERSION}"
 
     if ! apt-cache show "clang-${CLANG_VERSION}" >/dev/null 2>&1; then
@@ -72,4 +72,4 @@ case "$(uname -s)" in
         ;;
 esac
 install_vcpkg
-echo "bootstrap: done, next run: cmake --workflow --preset dev"
+echo "bootstrap: done, next run: make dev"
