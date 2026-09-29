@@ -2,15 +2,16 @@
 # A new workflow preset needs one line here: `<preset>: workflow/<preset> ## <description>`.
 
 PRESET ?= dev
+BASE ?= main
 
 .DEFAULT_GOAL := help
-.PHONY: help bootstrap build test clean-all
+.PHONY: help bootstrap bench bench-compare build test clean-all
 
 help: ## List every target
-	@echo "Usage: make <target> [PRESET=<preset>]"
+	@echo "Usage: make <target> [PRESET=<preset>] [BASE=<git ref>]"
 	@echo
 	@sed -n 's/^\([A-Za-z0-9][A-Za-z0-9_.-]*\):.*## \(.*\)/\1|\2/p' $(MAKEFILE_LIST) | \
-		awk -F '|' '{ printf "  %-12s %s\n", $$1, $$2 }'
+		awk -F '|' '{ printf "  %-14s %s\n", $$1, $$2 }'
 
 bootstrap: ## Install the toolchain, tools, and vcpkg once per machine
 	scripts/bootstrap.sh
@@ -22,6 +23,13 @@ release: workflow/release ## Configure, build, and test the optimized build
 asan: workflow/asan ## Configure, build, and test under AddressSanitizer and UBSan
 tsan: workflow/tsan ## Configure, build, and test under ThreadSanitizer
 coverage: workflow/coverage ## Configure, build, and test with coverage instrumentation
+
+bench: ## Build the bench preset and run every benchmark, writing JSON to build/bench/bench/
+	cmake --preset bench
+	cmake --build --preset bench --target run_benchmarks
+
+bench-compare: ## Run the benchmarks at BASE (default main) and here, and print the difference
+	scripts/bench-compare.sh $(BASE)
 
 build: ## Build PRESET (default dev) after it has been configured
 	cmake --build --preset $(PRESET)

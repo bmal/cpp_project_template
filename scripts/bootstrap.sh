@@ -32,6 +32,7 @@ install_linux() {
     ${sudo} apt-get update -qq
     ${sudo} apt-get install -y -qq --no-install-recommends \
         ca-certificates cmake curl git make ninja-build pkg-config tar unzip zip \
+        python3 python3-venv \
         "g++-${GCC_VERSION}"
 
     if ! apt-cache show "clang-${CLANG_VERSION}" >/dev/null 2>&1; then

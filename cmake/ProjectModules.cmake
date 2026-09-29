@@ -143,6 +143,57 @@ function(project_add_app)
   target_link_libraries(${arg_NAME} PRIVATE ${arg_DEPS} myproj_warnings myproj_options)
 endfunction()
 
+# project_add_benchmark(MODULE <n> [DEPS ...] [SOURCES ...])
+# Creates <n>_benchmarks from the .cpp files under benchmarks/<n>/, linked to myproj::<n> and
+# the bench support main. The run_benchmarks target runs every one of them.
+function(project_add_benchmark)
+  cmake_parse_arguments(PARSE_ARGV 0 arg "" "MODULE" "DEPS;SOURCES")
+  if(arg_UNPARSED_ARGUMENTS)
+    message(FATAL_ERROR "project_add_benchmark: unknown arguments: ${arg_UNPARSED_ARGUMENTS}")
+  endif()
+  if(NOT TARGET myproj::${arg_MODULE})
+    message(FATAL_ERROR "project_add_benchmark: no module '${arg_MODULE}' under libs/")
+  endif()
+
+  if(arg_SOURCES)
+    set(sources ${arg_SOURCES})
+  else()
+    file(GLOB_RECURSE sources CONFIGURE_DEPENDS "${CMAKE_CURRENT_SOURCE_DIR}/*.cpp")
+  endif()
+  set(target ${arg_MODULE}_benchmarks)
+  add_executable(${target} ${sources})
+  target_link_libraries(
+    ${target}
+    PRIVATE myproj::${arg_MODULE} ${arg_DEPS} myproj_bench_support myproj_warnings myproj_options
+  )
+  set_property(GLOBAL APPEND PROPERTY MYPROJ_BENCHMARKS ${target})
+endfunction()
+
+# Adds run_benchmarks, which runs every benchmark one after another with repetitions,
+# so the percentiles have samples, and writes <binary dir>/bench/<target>.json.
+# Call after every project_add_benchmark.
+function(project_add_benchmark_run_target)
+  get_property(targets GLOBAL PROPERTY MYPROJ_BENCHMARKS)
+  set(out_dir "${PROJECT_BINARY_DIR}/bench")
+  set(commands COMMAND ${CMAKE_COMMAND} -E make_directory "${out_dir}")
+  foreach(target IN LISTS targets)
+    list(
+      APPEND commands
+      COMMAND
+        $<TARGET_FILE:${target}> --benchmark_repetitions=10 --benchmark_display_aggregates_only=true
+        --benchmark_out=${out_dir}/${target}.json --benchmark_out_format=json
+    )
+  endforeach()
+  add_custom_target(
+    run_benchmarks
+    ${commands}
+    DEPENDS ${targets}
+    USES_TERMINAL
+    VERBATIM
+    COMMENT "Writing benchmark results to ${out_dir}"
+  )
+endfunction()
+
 # Fails configure when tests/unit/<n> exists without a module <n>. Call after libs/ is added.
 function(project_check_unit_test_dirs)
   get_property(modules GLOBAL PROPERTY MYPROJ_MODULES)

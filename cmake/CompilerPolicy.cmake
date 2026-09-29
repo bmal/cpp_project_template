@@ -7,6 +7,7 @@ option(
   ${PROJECT_IS_TOP_LEVEL}
 )
 option(PROJECT_STDLIB_HARDENING "Enable libstdc++ assertions and libc++ debug hardening" OFF)
+option(PROJECT_FRAME_POINTERS "Keep frame pointers so profilers can unwind optimized code" OFF)
 
 add_library(myproj_warnings INTERFACE)
 target_compile_options(
@@ -42,4 +43,6 @@ if(PROJECT_STDLIB_HARDENING)
     INTERFACE _GLIBCXX_ASSERTIONS _LIBCPP_HARDENING_MODE=_LIBCPP_HARDENING_MODE_DEBUG
   )
 endif()
-
+if(PROJECT_FRAME_POINTERS)
+  target_compile_options(myproj_options INTERFACE -fno-omit-frame-pointer)
+endif()

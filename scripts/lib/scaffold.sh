@@ -41,7 +41,8 @@ validate_name() {
 taken_targets() {
     local dir
     printf '%s\n' all clean help install test package package_source edit_cache rebuild_cache \
-        list_install_components myproj_warnings myproj_options
+        list_install_components myproj_warnings myproj_options myproj_test_support \
+        myproj_bench_support run_benchmarks
     for dir in "${root}"/libs/*/; do
         dir="$(basename "${dir}")"
         printf '%s\n' "myproj_${dir}" "${dir}_unit_tests" "${dir}_benchmarks"

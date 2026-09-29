@@ -33,9 +33,10 @@ tests/unit/<module>/             GoogleTest unit tests of one module
 tests/integration/               Tests that wire modules together, with a mock at the output edge
 tests/functional/                Black-box tests that spawn the apps
 tests/support/                    Builders, fake clock, allocation guard, and the shared test main
-benchmarks/<module>/             Google Benchmark executables
+benchmarks/<module>/             Google Benchmark executables, one per module
+benchmarks/support/              The shared benchmark main, cache flush, and percentile helpers
 cmake/                           Module helpers, compiler policy, install and packaging, the toolchain file
-scripts/                         Bootstrap, scaffolding, and template selftest scripts
+scripts/                         Bootstrap, scaffolding, benchmark, and template selftest scripts
 triplets/                        vcpkg triplets that build dependencies with the project compiler
 vcpkg.json                       Dependency manifest
 ```
@@ -135,7 +136,8 @@ Root project options:
 PROJECT_COMPILER           # clang (default) or gcc
 PROJECT_BUILD_APPS         # Build apps/; ON when top level
 PROJECT_BUILD_TESTS        # Build tests/; ON when top level
-PROJECT_BUILD_BENCHMARKS   # Build benchmarks/
+PROJECT_BUILD_BENCHMARKS   # Build benchmarks/ and install the vcpkg benchmarks feature
+PROJECT_FRAME_POINTERS     # -fno-omit-frame-pointer, for profilers; ON in bench
 PROJECT_INSTALL            # Install and package rules; ON when top level
 PROJECT_SANITIZE           # Value for -fsanitize=, for example address,undefined
 PROJECT_WARNINGS_AS_ERRORS # -Werror; ON when top level, never applied to consumers
@@ -258,22 +260,29 @@ When a module links a new package `PUBLIC`, add its `find_dependency` to [cmake/
 
 ## Benchmarks
 
-Benchmarks live in `benchmarks/<module>`. Build and run them:
+`benchmarks/<module>/` holds `project_add_benchmark(MODULE <module>)` and becomes `<module>_benchmarks`.
+`benchmarks/support/` provides the shared main, `flush_cache`, and `add_percentiles`; `benchmarks/parser` uses both.
+
+Run every benchmark with ten repetitions and keep the JSON, after changing a hot path:
 
 ```bash
-cmake --preset benchmarks
-cmake --build --preset benchmarks
-build/benchmarks/bin/core_benchmarks
+make bench
 ```
 
-Use benchmark numbers from local laptops, virtual machines, and hosted CI as rough signals only. For meaningful latency work, especially HFT-style systems, prefer a controlled Linux machine with fixed toolchains, release builds, CPU governor/perf configured, isolated cores, and repeatable measurement scripts.
+Check that a change did not slow anything down, against `main` or any other ref:
+
+```bash
+make bench-compare BASE=main
+```
+
+[docs/how-to/benchmark.md](docs/how-to/benchmark.md) covers machine preparation and hardware counters.
 
 ## VS Code Workflow
 
 Included VS Code files provide:
 
 - Configure/build/test tasks.
-- Benchmark and CLI run tasks.
+- Benchmark run and CLI run tasks.
 - Debug launch configs for `build/dev/bin/core_unit_tests` and `build/dev/bin/myproj_cli`.
 - clangd configured to read compile commands from `build/dev`.
 

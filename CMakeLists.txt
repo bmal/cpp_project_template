@@ -1,5 +1,10 @@
 cmake_minimum_required(VERSION 3.28)
 
+# Benchmark dependencies are a vcpkg manifest feature, installed only for builds that need them.
+if(PROJECT_BUILD_BENCHMARKS)
+  list(APPEND VCPKG_MANIFEST_FEATURES benchmarks)
+endif()
+
 project(
   MyProj
   VERSION 1.0.0
@@ -61,7 +66,7 @@ endif()
 
 if(PROJECT_BUILD_BENCHMARKS)
   find_package(benchmark CONFIG REQUIRED)
-  add_subdirectory(benchmarks/core)
+  add_subdirectory(benchmarks)
 endif()
 
 if(PROJECT_INSTALL)

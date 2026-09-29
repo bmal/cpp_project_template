@@ -38,11 +38,8 @@ jobs:
 
       - name: Configure
         run: |
-          cmake --preset benchmarks -B build/test \
-            -DCMAKE_BUILD_TYPE=Release \
-            -DCMAKE_CXX_COMPILER_LAUNCHER=ccache \
-            -DCMAKE_CXX_FLAGS="-O3 -march=native -fno-omit-frame-pointer" \
-            -DCMAKE_EXPORT_COMPILE_COMMANDS=ON
+          cmake --preset bench -B build/test \
+            -DCMAKE_CXX_COMPILER_LAUNCHER=ccache
 
       - name: Build
         run: |
@@ -61,7 +58,7 @@ jobs:
         working-directory: build/test
         run: |
           echo "=== Running Benchmarks ==="
-          ./bin/core_benchmarks \
+          ./bin/parser_benchmarks \
             --benchmark_format=console \
             --benchmark_repetitions=10 \
             --benchmark_min_time=2s \

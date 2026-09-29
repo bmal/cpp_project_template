@@ -33,14 +33,14 @@
     {
       "label": "CMake Configure Benchmarks",
       "type": "shell",
-      "command": "cmake --preset benchmarks",
+      "command": "cmake --preset bench",
       "group": "build",
       "problemMatcher": "$gcc"
     },
     {
       "label": "CMake Build Benchmarks",
       "type": "shell",
-      "command": "cmake --build --preset benchmarks",
+      "command": "cmake --build --preset bench",
       "group": "build",
       "dependsOn": ["CMake Configure Benchmarks"],
       "problemMatcher": "$gcc"
@@ -48,7 +48,7 @@
     {
       "label": "Run Benchmarks",
       "type": "shell",
-      "command": "build/benchmarks/bin/core_benchmarks",
+      "command": "cmake --build --preset bench --target run_benchmarks",
       "group": "test",
       "dependsOn": ["CMake Build Benchmarks"]
     },
