@@ -21,7 +21,7 @@ A compact, modern C++23 template for projects that start small and still grow cl
 - Clang 19 or GCC 14 at least; configure stops with an error on older compilers.
 - CMake 3.28 or newer, Ninja, and Make.
 
-`scripts/bootstrap.sh` installs all of these, plus vcpkg pinned under `.vcpkg/`.
+`scripts/bootstrap.sh` installs all of these, plus vcpkg pinned under `.vcpkg/` and the pre-commit hook.
 
 ## Repository Layout
 
@@ -257,6 +257,16 @@ make lint
 ```
 
 clangd shows the fast checks of `.clang-tidy` while you type. [CONTRIBUTING.md](CONTRIBUTING.md) shows how to suppress a finding.
+
+## Format
+
+The pre-commit hook formats staged C++ and CMake files and checks scripts and Markdown on every commit.
+
+Run every hook over every file, as CI does, before pushing a large change:
+
+```bash
+pre-commit run --all-files
+```
 
 ## Install And Package
 

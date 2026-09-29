@@ -20,7 +20,11 @@ endfunction()
 # No sources under src/ makes it an INTERFACE library.
 function(project_add_module)
   cmake_parse_arguments(
-    PARSE_ARGV 0 arg "NO_EXCEPTIONS;NO_RTTI;INTERNAL" "NAME" "PUBLIC_DEPS;PRIVATE_DEPS;SOURCES"
+    PARSE_ARGV 0
+    arg
+    "NO_EXCEPTIONS;NO_RTTI;INTERNAL"
+    "NAME"
+    "PUBLIC_DEPS;PRIVATE_DEPS;SOURCES"
   )
   if(arg_UNPARSED_ARGUMENTS)
     message(FATAL_ERROR "project_add_module: unknown arguments: ${arg_UNPARSED_ARGUMENTS}")
@@ -176,13 +180,23 @@ endfunction()
 function(project_add_benchmark_run_target)
   get_property(targets GLOBAL PROPERTY MYPROJ_BENCHMARKS)
   set(out_dir "${PROJECT_BINARY_DIR}/bench")
-  set(commands COMMAND ${CMAKE_COMMAND} -E make_directory "${out_dir}")
+  set(
+    commands
+    COMMAND
+    ${CMAKE_COMMAND}
+    -E
+    make_directory
+    "${out_dir}"
+  )
   foreach(target IN LISTS targets)
     list(
       APPEND commands
       COMMAND
-        $<TARGET_FILE:${target}> --benchmark_repetitions=10 --benchmark_display_aggregates_only=true
-        --benchmark_out=${out_dir}/${target}.json --benchmark_out_format=json
+      $<TARGET_FILE:${target}>
+      --benchmark_repetitions=10
+      --benchmark_display_aggregates_only=true
+      --benchmark_out=${out_dir}/${target}.json
+      --benchmark_out_format=json
     )
   endforeach()
   add_custom_target(
@@ -211,7 +225,10 @@ function(project_add_fuzz_target)
   endif()
   set(seeds "${CMAKE_CURRENT_SOURCE_DIR}/corpus/${arg_NAME}")
   if(NOT IS_DIRECTORY "${seeds}")
-    message(FATAL_ERROR "project_add_fuzz_target(${arg_NAME}): add at least one seed input to ${seeds}")
+    message(
+      FATAL_ERROR
+      "project_add_fuzz_target(${arg_NAME}): add at least one seed input to ${seeds}"
+    )
   endif()
 
   if(arg_SOURCES)
@@ -248,10 +265,18 @@ function(project_add_fuzz_run_target)
     set(out_dir "${PROJECT_BINARY_DIR}/fuzz/${target}")
     list(
       APPEND commands
-      COMMAND ${CMAKE_COMMAND} -E make_directory "${out_dir}/corpus"
       COMMAND
-        $<TARGET_FILE:${target}> -max_total_time=${PROJECT_FUZZ_SECONDS} -print_final_stats=1
-        -artifact_prefix=${out_dir}/ "${out_dir}/corpus" "${seeds}"
+      ${CMAKE_COMMAND}
+      -E
+      make_directory
+      "${out_dir}/corpus"
+      COMMAND
+      $<TARGET_FILE:${target}>
+      -max_total_time=${PROJECT_FUZZ_SECONDS}
+      -print_final_stats=1
+      -artifact_prefix=${out_dir}/
+      "${out_dir}/corpus"
+      "${seeds}"
     )
   endforeach()
   add_custom_target(
@@ -273,8 +298,8 @@ function(project_check_unit_test_dirs)
     if(IS_DIRECTORY "${entry}" AND NOT name IN_LIST modules)
       message(
         FATAL_ERROR
-          "tests/unit/${name} has no matching module. Create libs/${name} with "
-          "project_add_module(NAME ${name}), or rename or remove tests/unit/${name}."
+        "tests/unit/${name} has no matching module. Create libs/${name} with "
+        "project_add_module(NAME ${name}), or rename or remove tests/unit/${name}."
       )
     endif()
   endforeach()

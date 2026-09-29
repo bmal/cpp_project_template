@@ -5,16 +5,12 @@ if(PROJECT_BUILD_BENCHMARKS)
   list(APPEND VCPKG_MANIFEST_FEATURES benchmarks)
 endif()
 
-project(
-  MyProj
-  VERSION 1.0.0
-  LANGUAGES CXX
-)
+project(MyProj VERSION 1.0.0 LANGUAGES CXX)
 
 if(PROJECT_SOURCE_DIR STREQUAL PROJECT_BINARY_DIR)
   message(
     FATAL_ERROR
-      "In-source builds not allowed. Please make a new directory (called a build directory) and run CMake from there."
+    "In-source builds not allowed. Please make a new directory (called a build directory) and run CMake from there."
   )
 endif()
 
@@ -78,6 +74,8 @@ endif()
 if(PROJECT_IS_TOP_LEVEL)
   include(cmake/Lint.cmake)
   project_add_lint_target()
+  include(cmake/Format.cmake)
+  project_add_format_targets()
 endif()
 
 if(PROJECT_INSTALL)

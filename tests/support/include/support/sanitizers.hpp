@@ -35,8 +35,8 @@
 
 // Skips the rest of the test under ASAN, TSAN, or MSAN; any other name fails to compile.
 //   MYPROJ_SKIP_UNDER_SANITIZER(TSAN, "death tests fork a process that already has threads");
-#define MYPROJ_SKIP_UNDER_SANITIZER(sanitizer, reason)                                              \
-    if (MYPROJ_UNDER_##sanitizer) {                                                                 \
-        GTEST_SKIP() << #sanitizer ": " << (reason);                                                \
-    }                                                                                               \
+#define MYPROJ_SKIP_UNDER_SANITIZER(sanitizer, reason)                                             \
+    if (MYPROJ_UNDER_##sanitizer) {                                                                \
+        GTEST_SKIP() << #sanitizer ": " << (reason);                                               \
+    }                                                                                              \
     static_assert(true, "the caller's semicolon ends this")

@@ -1,0 +1,6 @@
+# gersemi settings for every CMake file; pre-commit and make format read this file.
+# Two-space indent matches the CMake files; 100 columns matches .clang-format.
+definitions: [cmake]
+indent: 2
+line_length: 100
+list_expansion: favour-inlining

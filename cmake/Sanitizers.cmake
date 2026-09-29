@@ -1,19 +1,30 @@
 # Sanitizer policy: PROJECT_SANITIZER instruments every internal target through myproj_options.
 # Dependencies get the same instrumentation from the matching triplet, which the preset selects.
 
-set(PROJECT_SANITIZER
-    ""
-    CACHE STRING
-    "Sanitizers for every internal target: a semicolon list of address, undefined, thread, memory, leak"
+set(
+  PROJECT_SANITIZER
+  ""
+  CACHE STRING
+  "Sanitizers for every internal target: a semicolon list of address, undefined, thread, memory, leak"
 )
-set_property(CACHE PROJECT_SANITIZER PROPERTY STRINGS address undefined thread memory leak)
+set_property(
+  CACHE PROJECT_SANITIZER
+  PROPERTY STRINGS address undefined thread memory leak
+)
 
-set(_project_known_sanitizers address undefined thread memory leak)
+set(
+  _project_known_sanitizers
+  address
+  undefined
+  thread
+  memory
+  leak
+)
 foreach(_project_sanitizer IN LISTS PROJECT_SANITIZER)
   if(NOT _project_sanitizer IN_LIST _project_known_sanitizers)
     message(
       FATAL_ERROR
-        "PROJECT_SANITIZER accepts address, undefined, thread, memory, and leak, separated by semicolons, not '${_project_sanitizer}'."
+      "PROJECT_SANITIZER accepts address, undefined, thread, memory, and leak, separated by semicolons, not '${_project_sanitizer}'."
     )
   endif()
 endforeach()
@@ -30,7 +41,10 @@ if("leak" IN_LIST PROJECT_SANITIZER AND NOT "address" IN_LIST PROJECT_SANITIZER)
 endif()
 list(LENGTH _project_exclusive _project_exclusive_count)
 if(_project_exclusive_count GREATER 1)
-  message(FATAL_ERROR "PROJECT_SANITIZER cannot combine ${_project_exclusive} in one build; pick one.")
+  message(
+    FATAL_ERROR
+    "PROJECT_SANITIZER cannot combine ${_project_exclusive} in one build; pick one."
+  )
 endif()
 if("memory" IN_LIST PROJECT_SANITIZER AND NOT CMAKE_CXX_COMPILER_ID MATCHES "Clang")
   message(FATAL_ERROR "PROJECT_SANITIZER=memory needs Clang; GCC has no MemorySanitizer.")

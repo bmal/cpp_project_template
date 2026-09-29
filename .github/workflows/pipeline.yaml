@@ -51,6 +51,22 @@ jobs:
             echo "should-run=false" >> $GITHUB_OUTPUT
           fi
 
+  format:
+    needs: determine-scope
+    if: needs.determine-scope.outputs.should-run == 'true'
+    name: Format and pre-commit hooks
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Bootstrap
+        run: scripts/bootstrap.sh
+
+      - name: Run every hook over every file
+        run: |
+          "$(pipx environment --value PIPX_BIN_DIR)/pre-commit" run --all-files --show-diff-on-failure
+
   build-and-tests-checks:
     needs: determine-scope
     if: needs.determine-scope.outputs.should-run == 'true'

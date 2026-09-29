@@ -1,5 +1,5 @@
 // Mechanism: a libFuzzer harness; the fuzzer calls it with inputs it mutates toward new coverage.
-// Any input may be malformed, but every field parse_line returns must hold what the parser promises.
+// Inputs may be malformed, but every field parse_line returns must keep the parser's promises.
 #include "parser/parser.hpp"
 
 #include <cstddef>

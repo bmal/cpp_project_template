@@ -95,8 +95,8 @@ function(project_install_package)
         if(dep_internal)
           message(
             FATAL_ERROR
-              "Module ${module} is installed but links INTERNAL module ${CMAKE_MATCH_2}. "
-              "Remove INTERNAL from ${CMAKE_MATCH_2}, or add INTERNAL to ${module}."
+            "Module ${module} is installed but links INTERNAL module ${CMAKE_MATCH_2}. "
+            "Remove INTERNAL from ${CMAKE_MATCH_2}, or add INTERNAL to ${module}."
           )
         endif()
       endif()

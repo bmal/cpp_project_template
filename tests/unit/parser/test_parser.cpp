@@ -17,7 +17,8 @@ TEST(ParseLine, SplitsBlankSeparatedFields) {
     const auto fields = parse_line(line);
 
     ASSERT_TRUE(fields.has_value());
-    EXPECT_EQ(*fields, (std::vector<Field>{{.key = "a", .value = "1"}, {.key = "b", .value = "x=y"}}));
+    EXPECT_EQ(*fields,
+              (std::vector<Field>{{.key = "a", .value = "1"}, {.key = "b", .value = "x=y"}}));
 }
 
 TEST(ParseLine, BlankLineHasNoFields) {
@@ -58,9 +59,12 @@ INSTANTIATE_TEST_SUITE_P(
         MalformedLine{"LoneSeparator", "=", {.kind = ErrorKind::EmptyKey, .column = 0}},
         MalformedLine{"EmptyKeyAfterAField", "a=1 =2", {.kind = ErrorKind::EmptyKey, .column = 4}},
         MalformedLine{"EmptyValue", "a= b=2", {.kind = ErrorKind::EmptyValue, .column = 0}},
-        MalformedLine{"ColumnCountsBlanks", "\t\tx", {.kind = ErrorKind::MissingSeparator, .column = 2}},
+        MalformedLine{
+            "ColumnCountsBlanks", "\t\tx", {.kind = ErrorKind::MissingSeparator, .column = 2}},
         MalformedLine{"FirstErrorWins", "=1 b", {.kind = ErrorKind::EmptyKey, .column = 0}}),
-    [](const testing::TestParamInfo<MalformedLine>& param) { return std::string(param.param.name); });
+    [](const testing::TestParamInfo<MalformedLine>& param) {
+        return std::string(param.param.name);
+    });
 
 } // namespace
 

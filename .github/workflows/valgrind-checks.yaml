@@ -75,7 +75,7 @@ jobs:
             else
               echo "No potential issues found"
             fi
-            
+
             echo -e "\n## Hot Domain Structs"
             if [ -s build/test/reports/alignment/hot_structs.txt ]; then
               cat build/test/reports/alignment/hot_structs.txt
@@ -160,7 +160,7 @@ jobs:
             --callgrind-out-file=reports/callgrind/profile.out \
             ./bin/core_unit_tests || exit 1
 
-          sudo chmod 644 reports/callgrind/profile.out 
+          sudo chmod 644 reports/callgrind/profile.out
 
           sudo callgrind_annotate \
             --auto=yes \
@@ -279,7 +279,7 @@ jobs:
             echo "# Analysis Results Summary"
             echo "## Directory Structure"
             find reports -type d 2>/dev/null | sed 's/^/    /' || echo "    No directories found"
-            
+
             echo "## Performance Results"
             for type in callgrind cachegrind massif perf; do
               echo "### $type Results"

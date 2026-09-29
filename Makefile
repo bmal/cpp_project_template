@@ -6,7 +6,7 @@ BASE ?= main
 FUZZ_SECONDS ?= 30
 
 .DEFAULT_GOAL := help
-.PHONY: help bootstrap bench bench-compare fuzz lint build test clean-all
+.PHONY: help bootstrap bench bench-compare fuzz lint format format-check build test clean-all
 
 help: ## List every target
 	@echo "Usage: make <target> [PRESET=<preset>] [BASE=<git ref>] [FUZZ_SECONDS=<n>]"
@@ -40,6 +40,12 @@ fuzz: ## Build the fuzz preset and fuzz every harness for FUZZ_SECONDS (default 
 lint: ## Configure PRESET (default dev) and run clang-tidy over it; any finding fails
 	cmake --preset $(PRESET)
 	cmake --build --preset $(PRESET) --target lint
+
+format: ## Rewrite every C++ and CMake file with clang-format and gersemi
+	scripts/format.sh
+
+format-check: ## Fail on any C++ or CMake file that make format would change; changes nothing
+	scripts/format.sh --check
 
 build: ## Build PRESET (default dev) after it has been configured
 	cmake --build --preset $(PRESET)

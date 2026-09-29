@@ -7,5 +7,8 @@ set(VCPKG_CMAKE_SYSTEM_NAME Linux)
 set(VCPKG_CHAINLOAD_TOOLCHAIN_FILE "${CMAKE_CURRENT_LIST_DIR}/../cmake/toolchain/compiler.cmake")
 set(VCPKG_ENV_PASSTHROUGH PROJECT_CXX_COMPILER PROJECT_C_COMPILER)
 set(VCPKG_C_FLAGS "-fsanitize=address,undefined -fno-sanitize-recover=all -fno-omit-frame-pointer")
-set(VCPKG_CXX_FLAGS "-fsanitize=address,undefined -fno-sanitize-recover=all -fno-omit-frame-pointer")
+set(
+  VCPKG_CXX_FLAGS
+  "-fsanitize=address,undefined -fno-sanitize-recover=all -fno-omit-frame-pointer"
+)
 set(VCPKG_LINKER_FLAGS "-fsanitize=address,undefined")

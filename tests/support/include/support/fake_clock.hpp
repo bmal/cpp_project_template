@@ -1,4 +1,4 @@
-// Mechanism: a hand-written fake behind the Clock concept, for code on hot paths that takes a Clock.
+// Mechanism: a hand-written fake behind the Clock concept, for hot-path code that takes a Clock.
 // Time moves only when a test calls advance; for tests that already link myproj::core.
 #pragma once
 

@@ -1,4 +1,4 @@
-// Mechanism: a test data builder for parser input, so a test lists fields instead of spelling a line.
+// Mechanism: a test data builder for parser input, so a test lists fields, not a spelled line.
 // Starts from a blank line and ends in build(); it needs no module to link.
 #pragma once
 

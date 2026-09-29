@@ -12,7 +12,7 @@ elseif(EXISTS "${_project_root}/.vcpkg/scripts/buildsystems/vcpkg.cmake")
 else()
   message(
     FATAL_ERROR
-      "vcpkg was not found in VCPKG_ROOT or .vcpkg/; install it with:\n  scripts/bootstrap.sh\n"
+    "vcpkg was not found in VCPKG_ROOT or .vcpkg/; install it with:\n  scripts/bootstrap.sh\n"
   )
 endif()
 
@@ -30,6 +30,11 @@ if(PROJECT_TRIPLET_VARIANT AND NOT VCPKG_TARGET_TRIPLET)
   else()
     set(_project_os linux)
   endif()
-  set(VCPKG_TARGET_TRIPLET "${_project_arch}-${_project_os}-${PROJECT_TRIPLET_VARIANT}" CACHE STRING "")
+  set(
+    VCPKG_TARGET_TRIPLET
+    "${_project_arch}-${_project_os}-${PROJECT_TRIPLET_VARIANT}"
+    CACHE STRING
+    ""
+  )
 endif()
 include("${_project_vcpkg_root}/scripts/buildsystems/vcpkg.cmake")

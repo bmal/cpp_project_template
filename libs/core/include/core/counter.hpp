@@ -18,7 +18,8 @@ public:
     void add(std::uint64_t amount = 1) noexcept;
 
     // Returns the new total, or CounterError::Underflow and leaves the total unchanged.
-    [[nodiscard]] std::expected<std::uint64_t, CounterError> subtract(std::uint64_t amount) noexcept;
+    [[nodiscard]] std::expected<std::uint64_t, CounterError>
+    subtract(std::uint64_t amount) noexcept;
 
     [[nodiscard]] std::uint64_t value() const noexcept;
 

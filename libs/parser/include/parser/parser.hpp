@@ -53,7 +53,8 @@ parse_line(std::string_view line) {
         const std::string_view token = line.substr(start, end - start);
         const std::size_t separator = token.find('=');
         if (separator == std::string_view::npos) {
-            return std::unexpected(ParseError{.kind = ErrorKind::MissingSeparator, .column = start});
+            return std::unexpected(
+                ParseError{.kind = ErrorKind::MissingSeparator, .column = start});
         }
         if (separator == 0) {
             return std::unexpected(ParseError{.kind = ErrorKind::EmptyKey, .column = start});
@@ -61,7 +62,8 @@ parse_line(std::string_view line) {
         if (separator + 1 == token.size()) {
             return std::unexpected(ParseError{.kind = ErrorKind::EmptyValue, .column = start});
         }
-        fields.push_back(Field{.key = token.substr(0, separator), .value = token.substr(separator + 1)});
+        fields.push_back(
+            Field{.key = token.substr(0, separator), .value = token.substr(separator + 1)});
         start = line.find_first_not_of(blanks, end);
     }
     return fields;

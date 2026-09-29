@@ -16,9 +16,7 @@ std::string_view describe(CounterError error) noexcept {
     return "unknown counter error";
 }
 
-void Counter::add(std::uint64_t amount) noexcept {
-    value_ += amount;
-}
+void Counter::add(std::uint64_t amount) noexcept { value_ += amount; }
 
 std::expected<std::uint64_t, CounterError> Counter::subtract(std::uint64_t amount) noexcept {
     if (amount > value_) {
@@ -28,12 +26,8 @@ std::expected<std::uint64_t, CounterError> Counter::subtract(std::uint64_t amoun
     return value_;
 }
 
-std::uint64_t Counter::value() const noexcept {
-    return value_;
-}
+std::uint64_t Counter::value() const noexcept { return value_; }
 
-void Counter::reset() noexcept {
-    value_ = 0;
-}
+void Counter::reset() noexcept { value_ = 0; }
 
 } // namespace myproj::core

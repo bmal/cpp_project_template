@@ -9,7 +9,10 @@ function(enable_coverage target_name)
 
   if(CMAKE_CXX_COMPILER_ID MATCHES "(Apple)?Clang")
     message(STATUS "Enabling LLVM coverage for ${target_name}")
-    target_compile_options(${target_name} PRIVATE -fprofile-instr-generate -fcoverage-mapping -O0 -g)
+    target_compile_options(
+      ${target_name}
+      PRIVATE -fprofile-instr-generate -fcoverage-mapping -O0 -g
+    )
     target_link_options(${target_name} PRIVATE -fprofile-instr-generate -fcoverage-mapping)
   elseif(CMAKE_CXX_COMPILER_ID MATCHES "GNU")
     message(STATUS "Enabling GCC/lcov coverage for ${target_name}")
@@ -26,11 +29,12 @@ function(enable_coverage target_name)
       add_custom_target(
         ${target_name}_coverage_report
         COMMAND ${CMAKE_COMMAND} -E make_directory ${COVERAGE_REPORT_DIR}
-        COMMAND ${LCOV_EXECUTABLE} --capture --initial --directory . --output-file
-                ${COVERAGE_INFO}.base
+        COMMAND
+          ${LCOV_EXECUTABLE} --capture --initial --directory . --output-file ${COVERAGE_INFO}.base
         COMMAND ${LCOV_EXECUTABLE} --capture --directory . --output-file ${COVERAGE_INFO}.test
-        COMMAND ${LCOV_EXECUTABLE} --add-tracefile ${COVERAGE_INFO}.base --add-tracefile
-                ${COVERAGE_INFO}.test --output-file ${COVERAGE_INFO}.total
+        COMMAND
+          ${LCOV_EXECUTABLE} --add-tracefile ${COVERAGE_INFO}.base --add-tracefile
+          ${COVERAGE_INFO}.test --output-file ${COVERAGE_INFO}.total
         COMMAND
           ${LCOV_EXECUTABLE} --remove ${COVERAGE_INFO}.total '${CMAKE_BINARY_DIR}/*'
           '${CMAKE_SOURCE_DIR}/tests/*' '${CMAKE_SOURCE_DIR}/build/*' '${CMAKE_SOURCE_DIR}/_deps/*'
@@ -40,7 +44,10 @@ function(enable_coverage target_name)
         COMMENT "Generating coverage report for ${target_name}"
       )
     else()
-      message(STATUS "lcov/genhtml not found; coverage flags are enabled but no report target was added")
+      message(
+        STATUS
+        "lcov/genhtml not found; coverage flags are enabled but no report target was added"
+      )
     endif()
   else()
     message(WARNING "Coverage is not configured for compiler ${CMAKE_CXX_COMPILER_ID}")

@@ -28,4 +28,4 @@ TEST(StdlibHardening, OutOfBoundsVectorIndexAborts) {
 #endif
 }
 
-}  // namespace
+} // namespace

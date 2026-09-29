@@ -17,14 +17,14 @@ function(project_add_lint_target)
   find_program(
     run_clang_tidy
     NAMES ${names}
-    HINTS "${compiler_bin}" /opt/homebrew/opt/llvm/bin /usr/local/opt/llvm/bin
-    NO_CACHE
+    HINTS "${compiler_bin}" /opt/homebrew/opt/llvm/bin /usr/local/opt/llvm/bin NO_CACHE
   )
 
   if(NOT run_clang_tidy)
     add_custom_target(
       lint
-      COMMAND "${CMAKE_COMMAND}" -E echo "lint: run-clang-tidy was not found; run scripts/bootstrap.sh"
+      COMMAND
+        "${CMAKE_COMMAND}" -E echo "lint: run-clang-tidy was not found; run scripts/bootstrap.sh"
       COMMAND "${CMAKE_COMMAND}" -E false
       VERBATIM
     )
@@ -38,7 +38,8 @@ function(project_add_lint_target)
   add_custom_target(
     lint
     COMMAND
-      "${run_clang_tidy}" -p "${PROJECT_BINARY_DIR}" -clang-tidy-binary "${tidy_bin}/${tidy_name}" -quiet
+      "${run_clang_tidy}" -p "${PROJECT_BINARY_DIR}" -clang-tidy-binary "${tidy_bin}/${tidy_name}"
+      -quiet
       # GCC-only warning flags in a GCC build are unknown to clang-tidy.
       -extra-arg=-Wno-unknown-warning-option
     WORKING_DIRECTORY "${PROJECT_SOURCE_DIR}"

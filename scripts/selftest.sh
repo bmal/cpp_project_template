@@ -17,6 +17,9 @@ cases=(
     "stress_label        only a suite name ending in Stress moves a test from dev to stress"
     "lint_naming         make lint passes, then fails naming readability-identifier-naming on a camelCase function"
     "parser_no_throw     the header-only parser contains no throw and no try"
+    "format_roundtrip    make format-check fails on a misformatted C++ or CMake line and make format fixes it"
+    "pre_commit_hooks    pre-commit run --all-files passes on the working tree"
+    "clang_format_pinned .clang-format sets every key clang-format --dump-config prints, to the same value"
     "fuzz_crash          a fuzz harness finds a crash planted on one specific input"
     "fuzz_preset_only    no configure preset but fuzz has a fuzz harness target"
     "asan_overflow       a heap overflow planted in a unit test fails the asan preset with a report"
@@ -376,6 +379,45 @@ EOF
         "${work}/lint_naming.out"
 }
 
+case_format_roundtrip() {
+    local src="${work}/format_roundtrip"
+    copy_tree "${src}"
+    make -C "${src}" --no-print-directory format-check
+    # One C++ line with the pointer bound to the name, and one CMake line indented by five spaces.
+    sed -i.orig 's/^int main() {$/int main() { int *probe = nullptr; (void)probe;/' "${src}/apps/myproj_cli/main.cpp"
+    sed -i.orig 's/^  project_add_lint_target()$/     project_add_lint_target()/' "${src}/CMakeLists.txt"
+    rm "${src}/apps/myproj_cli/main.cpp.orig" "${src}/CMakeLists.txt.orig"
+    if make -C "${src}" --no-print-directory format-check >"${work}/format_roundtrip.out" 2>&1; then
+        cat "${work}/format_roundtrip.out"
+        echo "make format-check passed a misformatted C++ and CMake line"
+        return 1
+    fi
+    cat "${work}/format_roundtrip.out"
+    grep -q "main.cpp" "${work}/format_roundtrip.out"
+    grep -q "CMakeLists.txt" "${work}/format_roundtrip.out"
+    make -C "${src}" --no-print-directory format
+    make -C "${src}" --no-print-directory format-check
+    grep -q "int\* probe = nullptr;" "${src}/apps/myproj_cli/main.cpp"
+    grep -q "^  project_add_lint_target()$" "${src}/CMakeLists.txt"
+}
+
+case_pre_commit_hooks() {
+    local src="${work}/pre_commit_hooks"
+    copy_tree "${src}"
+    # --all-files reads the index, so new files in the working tree must be staged.
+    git -C "${src}" add -A
+    (cd "${src}" && "$(pipx environment --value PIPX_BIN_DIR)/pre-commit" run --all-files --show-diff-on-failure)
+}
+
+case_clang_format_pinned() {
+    local clang_format
+    clang_format="$("${root}/scripts/format.sh" --print-clang-format)"
+    [ -n "${clang_format}" ]
+    # Comments and blank lines are not keys; everything else must match line for line.
+    diff <(grep -Ev '^(#|$)' "${root}/.clang-format") \
+        <(cd "${root}" && "${clang_format}" --dump-config | grep -Ev '^(#|$)')
+}
+
 case_parser_no_throw() {
     # NO_EXCEPTIONS cannot add -fno-exceptions to a module without sources, so this checks the text.
     if grep -rnwE "throw|try" "${root}/libs/parser"; then
@@ -530,6 +572,12 @@ EOF
 # Prints why a case cannot run on this host, or nothing when it can.
 skip_reason() {
     case "$1" in
+    pre_commit_hooks)
+        if ! command -v pipx >/dev/null ||
+            [ ! -x "$(pipx environment --value PIPX_BIN_DIR)/pre-commit" ]; then
+            echo "pre-commit is not installed; run scripts/bootstrap.sh"
+        fi
+        ;;
     msan_uninit)
         if [ "$(uname -s)" != Linux ]; then
             echo "MemorySanitizer runs on Linux only"

@@ -140,11 +140,23 @@ Narrow choices left to single tickets are appended below the entry they refine.
 - Why: formatting is never a review comment.
 - Rejected: none recorded.
 
+#### D12.1. clang-format and gersemi run from the bootstrap-pinned install
+
+- Decision: `scripts/format.sh` runs clang-format and gersemi for `make format`, `make format-check`, and two local pre-commit hooks. Bootstrap pins gersemi and pre-commit through pipx; clang-format is the pinned LLVM major. Other hooks come from pinned hook repositories. Fuzz seeds are excluded, and Markdown line length is not checked.
+- Why: the check and the hook share one binary, so they never disagree. `.clang-format` is the dump of one clang-format major.
+- Rejected: the upstream clang-format and gersemi hooks, a second install `make format-check` would not use. A check through pre-commit, which rewrites files while checking.
+
 ### D13. Naming and style
 
 - Decision: snake_case functions, variables, namespaces, constants. CamelCase types and enum values. Trailing-underscore members. Prefixed UPPER_CASE macros. LLVM base, 4 spaces, 100 columns.
 - Why: the convention is encoded in clang-tidy, so `lint` is clean on a fresh clone.
 - Rejected: none recorded.
+
+#### D13.1. The style choices LLVM leaves open
+
+- Decision: on the LLVM base, access modifiers sit flush with `class`, and `template <...>` always gets its own line.
+- Why: this is how the code was written before a formatter checked it.
+- Rejected: merging `template <...>` onto the declaration, which LLVM does for short ones.
 
 ## Developer experience
 

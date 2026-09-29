@@ -1,5 +1,5 @@
 // Mechanism: counts heap allocations for AllocationGuard without hiding bugs from sanitizers.
-// Plain builds replace every global operator new and delete; ASan, TSan, and MSan builds use their hook.
+// Plain builds replace every global operator new and delete; sanitizer builds use their hook.
 #include "support/allocation_guard.hpp"
 #include "support/sanitizers.hpp"
 
@@ -27,8 +27,9 @@ std::atomic<std::size_t> allocation_count{0};
 #include <sanitizer/allocator_interface.h>
 #else
 // GCC ships the runtime function without its header.
-extern "C" int __sanitizer_install_malloc_and_free_hooks(
-    void (*malloc_hook)(const volatile void*, std::size_t), void (*free_hook)(const volatile void*));
+extern "C" int __sanitizer_install_malloc_and_free_hooks(void (*malloc_hook)(const volatile void*,
+                                                                             std::size_t),
+                                                         void (*free_hook)(const volatile void*));
 #endif
 
 // The sanitizer keeps its own operator new so it still reports new[] freed with delete.
@@ -68,7 +69,8 @@ void* counted_aligned_alloc(std::size_t size, std::align_val_t align) noexcept {
         return nullptr;
     }
     // aligned_alloc needs a nonzero size that is a multiple of the alignment.
-    const std::size_t rounded = size == 0 ? alignment : (size + alignment - 1) / alignment * alignment;
+    const std::size_t rounded =
+        size == 0 ? alignment : (size + alignment - 1) / alignment * alignment;
     return std::aligned_alloc(alignment, rounded);
 }
 
@@ -126,7 +128,7 @@ void operator delete[](void* pointer, std::size_t /*size*/, std::align_val_t /*a
     std::free(pointer);
 }
 void operator delete(void* pointer, std::align_val_t /*align*/,
-                       const std::nothrow_t& /*tag*/) noexcept {
+                     const std::nothrow_t& /*tag*/) noexcept {
     std::free(pointer);
 }
 void operator delete[](void* pointer, std::align_val_t /*align*/,
@@ -158,8 +160,6 @@ AllocationGuard::~AllocationGuard() {
     }
 }
 
-std::size_t AllocationGuard::allocations() const noexcept {
-    return allocations_so_far() - start_;
-}
+std::size_t AllocationGuard::allocations() const noexcept { return allocations_so_far() - start_; }
 
 } // namespace myproj::test_support

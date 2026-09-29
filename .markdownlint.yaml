@@ -1,0 +1,3 @@
+# markdownlint rules for README, CONTRIBUTING, and docs/; every rule is on except these.
+# Prose keeps one sentence or paragraph per line, so line length is not checked.
+MD013: false
