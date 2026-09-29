@@ -30,6 +30,8 @@ libs/<module>/include/<module>/  Public headers of a module
 libs/<module>/src/               Optional module sources; none makes it header-only
 apps/<name>/                     Executables
 tests/unit/<module>/             GoogleTest unit tests of one module
+tests/integration/               Tests that wire modules together, with a mock at the output edge
+tests/functional/                Black-box tests that spawn the apps
 tests/support/                    Builders, fake clock, allocation guard, and the shared test main
 benchmarks/<module>/             Google Benchmark executables
 cmake/                           Module helpers, compiler policy, install and packaging, the toolchain file
@@ -40,7 +42,7 @@ vcpkg.json                       Dependency manifest
 
 Placeholders are literal: `myproj` for namespaces, targets, and directories, `MyProj` for the CMake project.
 
-The sample code is small and each file opens with the mechanism it demonstrates: `libs/core` is compiled, `libs/parser` is header-only and exception-free, and `apps/myproj_cli` uses both.
+The sample code is small and each file opens with the mechanism it demonstrates: `libs/parser` is header-only and exception-free, `libs/core` is compiled and wires the parser to an output interface, and `apps/myproj_cli` prints through that interface.
 
 ## Quick Start
 
@@ -177,7 +179,12 @@ Fail a test when a hot path allocates; the guard reports the count at its own li
 const myproj::test_support::AllocationGuard guard;
 ```
 
-Rerun the unit tests of the `dev` build without rebuilding:
+`ctest --preset dev` runs the `unit` and `integration` labels.
+`tests/integration` uses the real modules and mocks only `core::OutputSink`, the edge the user sees.
+`tests/functional` spawns `myproj_cli` and checks its exit code and output.
+A GoogleTest suite whose name ends in `Stress` is labeled `stress` and runs only under the `stress` preset.
+
+Rerun the unit and integration tests of the `dev` build without rebuilding:
 
 ```bash
 make test
@@ -187,6 +194,24 @@ Run the unit tests of one module:
 
 ```bash
 ctest --preset dev -L core
+```
+
+Check the built apps as a user would run them, after changing an app or its output:
+
+```bash
+make functional
+```
+
+Run the long-running tests before a release or after touching a hot path:
+
+```bash
+make stress
+```
+
+Add a test kind directory, such as `tests/integration`, with one line; its `.cpp` files become `<kind>_tests`, labeled `<kind>`:
+
+```cmake
+project_add_tests(KIND integration DEPS myproj::core)
 ```
 
 After changing `cmake/`, presets, or install rules, check the template's lifecycle cases:

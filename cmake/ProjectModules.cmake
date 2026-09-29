@@ -79,20 +79,48 @@ function(project_add_module)
 endfunction()
 
 function(_project_add_unit_tests name test_dir)
-  set(target ${name}_unit_tests)
   file(GLOB_RECURSE sources CONFIGURE_DEPENDS "${test_dir}/*.cpp")
-  add_executable(${target} ${sources})
+  _project_add_gtest(${name}_unit_tests SOURCES ${sources} DEPS myproj::${name})
+  # A directory label, because CMake 3.28 keeps only the first entry of a LABELS list
+  # passed through gtest_discover_tests. libs/<n> holds no other tests.
+  set_property(DIRECTORY APPEND PROPERTY LABELS unit ${name})
+endfunction()
+
+# project_add_tests(KIND <kind> [DEPS ...])
+# Creates <kind>_tests from the .cpp files under the current directory, labeled <kind>.
+function(project_add_tests)
+  cmake_parse_arguments(PARSE_ARGV 0 arg "" "KIND" "DEPS")
+  if(arg_UNPARSED_ARGUMENTS)
+    message(FATAL_ERROR "project_add_tests: unknown arguments: ${arg_UNPARSED_ARGUMENTS}")
+  endif()
+  if(NOT arg_KIND MATCHES "^[a-z]+$")
+    message(FATAL_ERROR "project_add_tests: KIND must be lower case, got '${arg_KIND}'")
+  endif()
+  file(GLOB_RECURSE sources CONFIGURE_DEPENDS "${CMAKE_CURRENT_SOURCE_DIR}/*.cpp")
+  _project_add_gtest(${arg_KIND}_tests SOURCES ${sources} DEPS ${arg_DEPS})
+  set_property(DIRECTORY APPEND PROPERTY LABELS ${arg_KIND})
+endfunction()
+
+# Builds a GoogleTest executable on the test support library and registers its tests.
+# Suites whose name ends in Stress, typed suites included, are also labeled stress,
+# which only the stress preset runs.
+function(_project_add_gtest target)
+  cmake_parse_arguments(PARSE_ARGV 1 arg "" "" "SOURCES;DEPS")
+  add_executable(${target} ${arg_SOURCES})
   target_link_libraries(
     ${target}
-    PRIVATE myproj::${name} myproj_test_support myproj_warnings myproj_options
+    PRIVATE ${arg_DEPS} myproj_test_support myproj_warnings myproj_options
   )
   if(ENABLE_COVERAGE)
     enable_coverage(${target})
   endif()
-  gtest_discover_tests(${target} DISCOVERY_MODE PRE_TEST)
-  # A directory label, because CMake 3.28 keeps only the first entry of a LABELS list
-  # passed through gtest_discover_tests. libs/<n> holds no other tests.
-  set_property(DIRECTORY APPEND PROPERTY LABELS unit ${name})
+  gtest_discover_tests(${target} DISCOVERY_MODE PRE_TEST TEST_FILTER "-*Stress.*:*Stress/*")
+  gtest_discover_tests(
+    ${target}
+    DISCOVERY_MODE PRE_TEST
+    TEST_FILTER "*Stress.*:*Stress/*"
+    PROPERTIES LABELS stress
+  )
 endfunction()
 
 # project_add_app(NAME <n> [DEPS ...] [SOURCES ...])

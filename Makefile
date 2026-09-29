@@ -15,7 +15,9 @@ help: ## List every target
 bootstrap: ## Install the toolchain, tools, and vcpkg once per machine
 	scripts/bootstrap.sh
 
-dev: workflow/dev ## Configure, build, and test the everyday debug build
+dev: workflow/dev ## Configure, build, and run unit and integration tests of the debug build
+functional: workflow/functional ## Build dev and run the black-box tests of the apps
+stress: workflow/stress ## Build dev and run the long-running tests labeled stress
 release: workflow/release ## Configure, build, and test the optimized build
 asan: workflow/asan ## Configure, build, and test under AddressSanitizer and UBSan
 tsan: workflow/tsan ## Configure, build, and test under ThreadSanitizer
@@ -24,7 +26,7 @@ coverage: workflow/coverage ## Configure, build, and test with coverage instrume
 build: ## Build PRESET (default dev) after it has been configured
 	cmake --build --preset $(PRESET)
 
-test: ## Run the tests of PRESET (default dev) after it has been built
+test: ## Run the test preset PRESET (default dev) after it has been built
 	ctest --preset $(PRESET)
 
 clean-all: ## Delete every build directory

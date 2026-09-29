@@ -28,6 +28,10 @@ jobs:
       - name: Configure, build, and test
         run: cmake --workflow --preset ${{ matrix.preset }}
 
+      - name: Functional tests
+        if: matrix.preset == 'dev'
+        run: ctest --preset functional
+
       - name: Run CLI
         if: matrix.preset == 'dev' || matrix.preset == 'dev-gcc'
         run: |

@@ -52,6 +52,13 @@ if(PROJECT_BUILD_APPS)
   add_subdirectory(apps)
 endif()
 
+if(PROJECT_BUILD_TESTS)
+  add_subdirectory(tests/integration)
+  if(PROJECT_BUILD_APPS)
+    add_subdirectory(tests/functional)
+  endif()
+endif()
+
 if(PROJECT_BUILD_BENCHMARKS)
   find_package(benchmark CONFIG REQUIRED)
   add_subdirectory(benchmarks/core)

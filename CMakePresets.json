@@ -192,69 +192,94 @@
   ],
   "testPresets": [
     {
-      "name": "dev",
-      "configurePreset": "dev",
+      "name": "test-base",
+      "hidden": true,
       "output": {
         "outputOnFailure": true
       },
+      "execution": {
+        "noTestsAction": "error"
+      }
+    },
+    {
+      "name": "no-stress",
+      "hidden": true,
+      "inherits": "test-base",
+      "filter": {
+        "exclude": {
+          "label": "^stress$"
+        }
+      }
+    },
+    {
+      "name": "unit-integration",
+      "hidden": true,
+      "inherits": "no-stress",
       "filter": {
         "include": {
-          "label": "^unit$"
+          "label": "^(unit|integration)$"
+        },
+        "exclude": {
+          "label": "^stress$"
+        }
+      }
+    },
+    {
+      "name": "dev",
+      "displayName": "Unit and integration tests",
+      "configurePreset": "dev",
+      "inherits": "unit-integration"
+    },
+    {
+      "name": "functional",
+      "displayName": "Black-box tests of the apps, on the dev build",
+      "configurePreset": "dev",
+      "inherits": "test-base",
+      "filter": {
+        "include": {
+          "label": "^functional$"
         }
       },
       "execution": {
-        "noTestsAction": "error"
+        "noTestsAction": "error",
+        "timeout": 60
+      }
+    },
+    {
+      "name": "stress",
+      "displayName": "Long-running tests labeled stress, on the dev build",
+      "configurePreset": "dev",
+      "inherits": "test-base",
+      "filter": {
+        "include": {
+          "label": "^stress$"
+        }
       }
     },
     {
       "name": "release",
       "configurePreset": "release",
-      "output": {
-        "outputOnFailure": true
-      },
-      "execution": {
-        "noTestsAction": "error"
-      }
+      "inherits": "no-stress"
     },
     {
       "name": "asan",
       "configurePreset": "asan",
-      "output": {
-        "outputOnFailure": true
-      },
-      "execution": {
-        "noTestsAction": "error"
-      }
+      "inherits": "no-stress"
     },
     {
       "name": "tsan",
       "configurePreset": "tsan",
-      "output": {
-        "outputOnFailure": true
-      },
-      "execution": {
-        "noTestsAction": "error"
-      }
+      "inherits": "no-stress"
     },
     {
       "name": "coverage",
       "configurePreset": "coverage",
-      "output": {
-        "outputOnFailure": true
-      },
-      "execution": {
-        "noTestsAction": "error"
-      }
+      "inherits": "no-stress"
     },
     {
       "name": "dev-gcc",
       "configurePreset": "dev-gcc",
-      "output": {
-        "outputOnFailure": true
-      },
-      "execution": {
-        "noTestsAction": "error"
-      },
+      "inherits": "unit-integration",
       "condition": {
         "type": "equals",
         "lhs": "${hostSystemName}",
@@ -264,12 +289,7 @@
     {
       "name": "release-gcc",
       "configurePreset": "release-gcc",
-      "output": {
-        "outputOnFailure": true
-      },
-      "execution": {
-        "noTestsAction": "error"
-      },
+      "inherits": "no-stress",
       "condition": {
         "type": "equals",
         "lhs": "${hostSystemName}",
@@ -279,12 +299,7 @@
     {
       "name": "coverage-gcc",
       "configurePreset": "coverage-gcc",
-      "output": {
-        "outputOnFailure": true
-      },
-      "execution": {
-        "noTestsAction": "error"
-      },
+      "inherits": "no-stress",
       "condition": {
         "type": "equals",
         "lhs": "${hostSystemName}",
@@ -307,6 +322,40 @@
         {
           "type": "test",
           "name": "dev"
+        }
+      ]
+    },
+    {
+      "name": "functional",
+      "steps": [
+        {
+          "type": "configure",
+          "name": "dev"
+        },
+        {
+          "type": "build",
+          "name": "dev"
+        },
+        {
+          "type": "test",
+          "name": "functional"
+        }
+      ]
+    },
+    {
+      "name": "stress",
+      "steps": [
+        {
+          "type": "configure",
+          "name": "dev"
+        },
+        {
+          "type": "build",
+          "name": "dev"
+        },
+        {
+          "type": "test",
+          "name": "stress"
         }
       ]
     },
