@@ -20,7 +20,7 @@ Counter.AddAccumulates
 When you are not in VS Code, load the project's settings with `-S` and pass the filter after `--`:
 
 ```bash
-lldb -S tools/lldbinit build/current/bin/core_unit_tests -- --gtest_filter='Counter.*'
+lldb -S tools/lldbinit build/current/bin/core_unit_tests -- --gtest_filter='Counter.AddAccumulates'
 ```
 
 ## Stop at a sanitizer report in lldb or gdb
