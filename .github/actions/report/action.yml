@@ -1,0 +1,56 @@
+# Every C++ job ends here, pass or fail: a short step summary and the JUnit files CTest wrote.
+name: Report test results
+description: >-
+  Summarizes build/*/junit-*.xml, and an optional log, in the step summary, then uploads the
+  JUnit files for seven days.
+inputs:
+  name:
+    description: Unique name of the job, for the summary heading and the artifact
+    required: true
+  log:
+    description: A log file whose lines go into the summary verbatim, such as the selftest output
+    required: false
+    default: ""
+runs:
+  using: composite
+  steps:
+    - name: Write the step summary
+      if: always()
+      shell: bash
+      env:
+        REPORT_NAME: ${{ inputs.name }}
+        REPORT_LOG: ${{ inputs.log }}
+      run: |
+        python3 - <<'EOF' >>"${GITHUB_STEP_SUMMARY}"
+        import glob, os
+        import xml.etree.ElementTree as ET
+
+        print(f"### {os.environ['REPORT_NAME']}\n")
+        failed = []
+        rows = []
+        for path in sorted(glob.glob("build/*/junit-*.xml")):
+            cases = list(ET.parse(path).getroot().iter("testcase"))
+            bad = [c.get("name") for c in cases if c.find("failure") is not None or c.find("error") is not None]
+            skipped = sum(c.find("skipped") is not None for c in cases)
+            failed += bad
+            rows.append(f"| `{path}` | {len(cases)} | {len(bad)} | {skipped} |")
+        if rows:
+            print("| Results | Tests | Failed | Skipped |\n| --- | --- | --- | --- |")
+            print("\n".join(rows))
+        else:
+            print("No test ran; the log shows why.")
+        for name in failed[:20]:
+            print(f"- Failed: `{name}`")
+        log = os.environ["REPORT_LOG"]
+        if log and os.path.exists(log):
+            print("\n```text\n" + open(log).read().rstrip() + "\n```")
+        EOF
+
+    - name: Upload the JUnit files
+      if: always()
+      uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+      with:
+        name: junit-${{ inputs.name }}
+        path: build/*/junit-*.xml
+        retention-days: 7
+        if-no-files-found: ignore

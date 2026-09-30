@@ -320,6 +320,42 @@ Narrow choices left to single tickets are appended below the entry they refine.
 - Why: a broken push costs one Linux job, and branch protection never changes with the matrix.
 - Rejected: CI on every branch push; one required check per job; shipping CodeQL (documented instead).
 
+#### D25.1. A `plan` job decides once what runs, and `status` checks against it
+
+- Decision: `plan` sets which job groups should run from the event, the draft flag, the labels, and the changed files. `status` requires success of each job that should run and a skip of each that should not.
+- Why: a job skipped by mistake fails the one required check instead of passing it silently.
+- Rejected: `status` passing on any skipped job; `paths-ignore` on the workflow, which leaves no `status` to report.
+
+#### D25.2. Docs-only means Markdown, `docs/`, and `LICENSE`
+
+- Decision: the compare API lists the changed files. When all match, tier one runs the pre-commit hooks only, and tier two is skipped. More than 300 files counts as a code change.
+- Why: Markdown still gets markdownlint, and nothing C++ is built for a typo.
+- Rejected: a third-party path filter action; a checkout with full history in `plan`.
+
+#### D25.3. What the labels and events add
+
+- Decision: `ci:full` runs tier two on a draft. `ci:msan` adds the `msan` job, with the instrumented libc++ cached. `ci:bench` adds `make bench-compare` against the pull request's base. macOS runs on pull request events only, never in the merge queue or on `main`.
+- Why: the heavy jobs follow a reviewer's judgment, and macOS stays off the paths that repeat a reviewed PR.
+- Rejected: real benchmark numbers as a gate on hosted runners.
+
+#### D25.4. Smoke tests are test presets
+
+- Decision: each benchmark has a CTest test labeled `bench` that runs it once, and the `bench` workflow preset ends with it. `asan-stress` and `tsan-stress` run the `stress` label, each test capped at five minutes. Install smoke is the `install_smoke` and `consumer_isolation` selftest cases, run after `release`. Every test preset writes `junit-<preset>.xml` in its build directory.
+- Why: CI passes no flag a local command does not, and each job's JUnit file comes from its preset.
+- Rejected: benchmark and CTest flags in YAML; stress tests in the default `asan` and `tsan` runs.
+
+#### D25.5. The CI image is found by the hash of its inputs
+
+- Decision: `scripts/ci-image.sh` names `ghcr.io/<owner>/<repo>-ci:<hash>`, hashing the Dockerfile and the files it copies. `plan` probes it anonymously; Linux jobs run in it when it exists and run `scripts/bootstrap.sh --ci` otherwise. The published package must be public.
+- Why: an image built from other pins is never used, and a missing or private image costs minutes, not a red check.
+- Rejected: a `latest` tag; registry credentials in every job.
+
+#### D25.6. Toolchain pins stay in `bootstrap.sh`
+
+- Decision: the setup action adds no version of its own; bootstrap's pin block holds the compilers, vcpkg, and Python tools, and bootstrap installs ccache. Actions are pinned by commit with the tag in a comment, and the selftest case `ci_pins` checks it.
+- Why: CI, the dev container, and a laptop read one pin block.
+- Rejected: a second pin block in the workflow, which drifts from the image.
+
 ### D26. Instantiation
 
 - Decision: literal placeholders. Idempotent `init-project.sh <name> [--strip-samples]`. A self-initializing workflow on first push, also manual. `bootstrap.sh`. `.devcontainer/` on the CI Dockerfile. `setup-repo.sh` for labels, ruleset, merge queue, Dependabot. CI exercises the init script.

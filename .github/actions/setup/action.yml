@@ -1,0 +1,42 @@
+# Every C++ job starts here: the toolchain, then the vcpkg binary cache and ccache of one job.
+# Tool versions are pinned in one place, the block at the top of scripts/bootstrap.sh.
+name: Set up the toolchain
+description: >-
+  Uses the CI image when the job runs in it, and runs scripts/bootstrap.sh --ci otherwise.
+  Restores the vcpkg binary cache and ccache under the given key.
+inputs:
+  key:
+    description: Cache key of the job, usually its preset
+    required: true
+runs:
+  using: composite
+  steps:
+    - name: Install the toolchain unless the job runs in the CI image
+      shell: bash
+      run: |
+        # vcpkg and ccache keep their caches under ~/.cache on every host, where the steps below look.
+        echo "CCACHE_DIR=${HOME}/.cache/ccache" >>"${GITHUB_ENV}"
+        echo "CCACHE_MAXSIZE=500M" >>"${GITHUB_ENV}"
+        if [ -f /.dockerenv ] && [ -x "${VCPKG_ROOT:-}/vcpkg" ]; then
+          echo "setup: running in the CI image, which has the toolchain"
+          exit 0
+        fi
+        # A hosted runner may carry its own vcpkg; the project's pinned one goes under .vcpkg/.
+        export VCPKG_ROOT="${GITHUB_WORKSPACE}/.vcpkg"
+        echo "VCPKG_ROOT=${VCPKG_ROOT}" >>"${GITHUB_ENV}"
+        scripts/bootstrap.sh --ci
+        pipx environment --value PIPX_BIN_DIR >>"${GITHUB_PATH}"
+
+    - name: Restore the vcpkg binary cache
+      uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+      with:
+        path: ~/.cache/vcpkg/archives
+        key: vcpkg-${{ runner.os }}-${{ inputs.key }}-${{ hashFiles('vcpkg.json', 'triplets/**', 'cmake/toolchain.cmake', 'cmake/toolchain/**', 'scripts/bootstrap.sh') }}
+        restore-keys: vcpkg-${{ runner.os }}-${{ inputs.key }}-
+
+    - name: Restore ccache
+      uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+      with:
+        path: ~/.cache/ccache
+        key: ccache-${{ runner.os }}-${{ inputs.key }}-${{ github.sha }}
+        restore-keys: ccache-${{ runner.os }}-${{ inputs.key }}-

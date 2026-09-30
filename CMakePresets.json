@@ -94,7 +94,7 @@
     },
     {
       "name": "bench",
-      "displayName": "Release build with benchmarks and frame pointers, no tests",
+      "displayName": "Release build with benchmarks and frame pointers; its tests run each benchmark once",
       "inherits": "release",
       "cacheVariables": {
         "PROJECT_BUILD_APPS": "OFF",
@@ -348,7 +348,8 @@
       "name": "test-base",
       "hidden": true,
       "output": {
-        "outputOnFailure": true
+        "outputOnFailure": true,
+        "outputJUnitFile": "junit-${presetName}.xml"
       },
       "execution": {
         "noTestsAction": "error"
@@ -453,6 +454,17 @@
       "inherits": "unit-integration"
     },
     {
+      "name": "bench",
+      "displayName": "Run each benchmark once, as a smoke test",
+      "configurePreset": "bench",
+      "inherits": "test-base",
+      "filter": {
+        "include": {
+          "label": "^bench$"
+        }
+      }
+    },
+    {
       "name": "asan",
       "configurePreset": "asan",
       "inherits": [
@@ -467,6 +479,42 @@
         "no-stress",
         "tsan-options"
       ]
+    },
+    {
+      "name": "asan-stress",
+      "displayName": "Tests labeled stress under AddressSanitizer and UBSan, each capped at five minutes",
+      "configurePreset": "asan",
+      "inherits": [
+        "test-base",
+        "asan-options"
+      ],
+      "filter": {
+        "include": {
+          "label": "^stress$"
+        }
+      },
+      "execution": {
+        "noTestsAction": "error",
+        "timeout": 300
+      }
+    },
+    {
+      "name": "tsan-stress",
+      "displayName": "Tests labeled stress under ThreadSanitizer, each capped at five minutes",
+      "configurePreset": "tsan",
+      "inherits": [
+        "test-base",
+        "tsan-options"
+      ],
+      "filter": {
+        "include": {
+          "label": "^stress$"
+        }
+      },
+      "execution": {
+        "noTestsAction": "error",
+        "timeout": 300
+      }
     },
     {
       "name": "msan",
@@ -711,6 +759,10 @@
         },
         {
           "type": "build",
+          "name": "bench"
+        },
+        {
+          "type": "test",
           "name": "bench"
         }
       ]

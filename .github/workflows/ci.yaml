@@ -1,0 +1,386 @@
+# The one pipeline: tier one on Linux Clang, then the fan-out, then `status`, the only required check.
+# Every job runs preset names or make targets, the same commands as a local build.
+name: CI
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, ready_for_review, labeled]
+  merge_group:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+defaults:
+  run:
+    shell: bash
+
+jobs:
+  plan:
+    name: Plan
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    outputs:
+      image: ${{ steps.image.outputs.image }}
+      cxx: ${{ steps.scope.outputs.cxx }}
+      tier2: ${{ steps.scope.outputs.tier2 }}
+      macos: ${{ steps.scope.outputs.macos }}
+      msan: ${{ steps.scope.outputs.msan }}
+      bench_compare: ${{ steps.scope.outputs.bench_compare }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Use the CI image when it is published for this tree
+        id: image
+        run: |
+          image="$(scripts/ci-image.sh)"
+          if docker manifest inspect "${image}" >/dev/null 2>&1; then
+            echo "Linux jobs run in ${image}"
+            echo "image=${image}" >>"${GITHUB_OUTPUT}"
+          else
+            echo "${image} is not published; Linux jobs run scripts/bootstrap.sh"
+          fi
+
+      - name: Decide which jobs run
+        id: scope
+        env:
+          GH_TOKEN: ${{ github.token }}
+          EVENT: ${{ github.event_name }}
+          DRAFT: ${{ github.event.pull_request.draft }}
+          LABELS: ${{ join(github.event.pull_request.labels.*.name, ' ') }}
+          BASE: ${{ github.event.pull_request.base.sha || github.event.merge_group.base_sha || github.event.before }}
+          HEAD: ${{ github.event.pull_request.head.sha || github.event.merge_group.head_sha || github.sha }}
+        run: |
+          has_label() { [[ " ${LABELS} " == *" $1 "* ]]; }
+          # Only Markdown, docs/, and LICENSE: C++ jobs skip, and status still reports.
+          cxx=true
+          if [[ -n "${BASE}" && "${BASE}" != 0000000000000000000000000000000000000000 ]]; then
+            files="$(gh api "repos/${GITHUB_REPOSITORY}/compare/${BASE}...${HEAD}" --jq '.files[].filename')"
+            # The compare API lists at most 300 files; more is never a docs-only change.
+            if [[ -n "${files}" && "$(wc -l <<<"${files}")" -lt 300 ]] &&
+              ! grep -qvE '^(docs/.*|.*\.md|LICENSE)$' <<<"${files}"; then
+              cxx=false
+            fi
+          fi
+          draft=false
+          if [[ "${EVENT}" == pull_request && "${DRAFT}" == true ]]; then draft=true; fi
+          tier2=false macos=false msan=false bench_compare=false
+          if [[ "${cxx}" == true ]]; then
+            if [[ "${draft}" == false ]] || has_label ci:full; then tier2=true; fi
+            if [[ "${EVENT}" == pull_request && "${draft}" == false ]]; then macos=true; fi
+            if has_label ci:msan; then msan=true; fi
+            if has_label ci:bench; then bench_compare=true; fi
+          fi
+          {
+            echo "cxx=${cxx}"
+            echo "tier2=${tier2}"
+            echo "macos=${macos}"
+            echo "msan=${msan}"
+            echo "bench_compare=${bench_compare}"
+          } | tee -a "${GITHUB_OUTPUT}"
+
+  tier-one:
+    name: Tier one, lint and dev on Linux Clang
+    needs: plan
+    runs-on: ubuntu-24.04
+    container: ${{ needs.plan.outputs.image }}
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: ./.github/actions/setup
+        with:
+          key: tier-one
+      - name: Run every pre-commit hook over every file
+        run: pre-commit run --all-files --show-diff-on-failure
+      - name: Build dev and run its unit and integration tests
+        if: needs.plan.outputs.cxx == 'true'
+        run: cmake --workflow --preset dev
+      - name: Run the black-box tests of the apps
+        if: needs.plan.outputs.cxx == 'true'
+        run: ctest --preset functional
+      - name: Run clang-tidy
+        if: needs.plan.outputs.cxx == 'true'
+        run: make lint
+      - uses: ./.github/actions/report
+        if: always()
+        with:
+          name: tier-one
+
+  linux:
+    name: ${{ matrix.preset }} on Linux
+    needs: [plan, tier-one]
+    if: needs.plan.outputs.tier2 == 'true'
+    runs-on: ubuntu-24.04
+    container: ${{ needs.plan.outputs.image }}
+    timeout-minutes: 60
+    strategy:
+      fail-fast: false
+      matrix:
+        preset: [dev-gcc, release, release-gcc]
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: ./.github/actions/setup
+        with:
+          key: ${{ matrix.preset }}
+      - name: Configure, build, and test ${{ matrix.preset }}
+        run: cmake --workflow --preset ${{ matrix.preset }}
+      - name: Install smoke, find_package and FetchContent consumers
+        if: matrix.preset == 'release'
+        run: scripts/selftest.sh install_smoke consumer_isolation
+      - uses: ./.github/actions/report
+        if: always()
+        with:
+          name: ${{ matrix.preset }}
+
+  macos:
+    name: dev on macOS
+    needs: [plan, tier-one]
+    if: needs.plan.outputs.macos == 'true'
+    runs-on: macos-15
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: ./.github/actions/setup
+        with:
+          key: dev
+      - name: Configure, build, and test dev
+        run: cmake --workflow --preset dev
+      - uses: ./.github/actions/report
+        if: always()
+        with:
+          name: macos-dev
+
+  sanitizers:
+    name: ${{ matrix.preset }} with stress tests
+    needs: [plan, tier-one]
+    if: needs.plan.outputs.tier2 == 'true'
+    runs-on: ubuntu-24.04
+    container: ${{ needs.plan.outputs.image }}
+    timeout-minutes: 60
+    strategy:
+      fail-fast: false
+      matrix:
+        preset: [asan, tsan]
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: ./.github/actions/setup
+        with:
+          key: ${{ matrix.preset }}
+      - name: Configure, build, and test ${{ matrix.preset }}
+        run: cmake --workflow --preset ${{ matrix.preset }}
+      - name: Run the stress tests, each capped at five minutes
+        run: ctest --preset ${{ matrix.preset }}-stress
+      - uses: ./.github/actions/report
+        if: always()
+        with:
+          name: ${{ matrix.preset }}
+
+  fuzz:
+    name: Fuzz smoke, thirty seconds per harness
+    needs: [plan, tier-one]
+    if: needs.plan.outputs.tier2 == 'true'
+    runs-on: ubuntu-24.04
+    container: ${{ needs.plan.outputs.image }}
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: ./.github/actions/setup
+        with:
+          key: fuzz
+      - name: Build the harnesses and replay their seed corpora
+        run: cmake --workflow --preset fuzz
+      - name: Fuzz every harness
+        run: make fuzz
+      - name: Upload the inputs that crashed
+        if: failure()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: fuzz-crashes
+          path: build/fuzz/fuzz/*/crash-*
+          retention-days: 7
+          if-no-files-found: ignore
+      - uses: ./.github/actions/report
+        if: always()
+        with:
+          name: fuzz
+
+  bench:
+    name: Bench smoke, each benchmark once
+    needs: [plan, tier-one]
+    if: needs.plan.outputs.tier2 == 'true'
+    runs-on: ubuntu-24.04
+    container: ${{ needs.plan.outputs.image }}
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: ./.github/actions/setup
+        with:
+          key: bench
+      - name: Build bench and run each benchmark once
+        run: cmake --workflow --preset bench
+      - uses: ./.github/actions/report
+        if: always()
+        with:
+          name: bench
+
+  coverage:
+    name: Coverage
+    needs: [plan, tier-one]
+    if: needs.plan.outputs.tier2 == 'true'
+    runs-on: ubuntu-24.04
+    container: ${{ needs.plan.outputs.image }}
+    timeout-minutes: 45
+    env:
+      CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: ./.github/actions/setup
+        with:
+          key: coverage
+      - name: Run the tests and write lcov.info
+        run: make coverage
+      # Coverage is shown, never a gate (D21); without the secret the report stays an artifact.
+      - name: Upload to Codecov
+        if: env.CODECOV_TOKEN != ''
+        uses: codecov/codecov-action@2320916714171c258d01dbd81040d64d798c6f8e # v7.1.1
+        with:
+          token: ${{ env.CODECOV_TOKEN }}
+          files: build/coverage/coverage/lcov.info
+          disable_search: true
+      - name: Upload lcov.info
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: lcov
+          path: build/coverage/coverage/lcov.info
+          retention-days: 7
+      - uses: ./.github/actions/report
+        if: always()
+        with:
+          name: coverage
+
+  selftest:
+    name: Template selftest
+    needs: [plan, tier-one]
+    if: needs.plan.outputs.tier2 == 'true'
+    runs-on: ubuntu-24.04
+    container: ${{ needs.plan.outputs.image }}
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: ./.github/actions/setup
+        with:
+          key: selftest
+      - name: Run every selftest case
+        run: scripts/selftest.sh 2>&1 | tee "${RUNNER_TEMP}/selftest.log"
+      - uses: ./.github/actions/report
+        if: always()
+        with:
+          name: selftest
+          log: ${{ runner.temp }}/selftest.log
+
+  msan:
+    name: msan, on the ci:msan label
+    needs: [plan, tier-one]
+    if: needs.plan.outputs.msan == 'true'
+    runs-on: ubuntu-24.04
+    container: ${{ needs.plan.outputs.image }}
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: ./.github/actions/setup
+        with:
+          key: msan
+      - name: Restore the instrumented libc++
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ~/.cache/myproj/msan-libcxx
+          key: msan-libcxx-${{ hashFiles('scripts/build-msan-libcxx.sh', 'scripts/bootstrap.sh') }}
+      - name: Build the instrumented libc++ unless it was restored
+        run: scripts/build-msan-libcxx.sh
+      - name: Configure, build, and test msan
+        run: make msan
+      - uses: ./.github/actions/report
+        if: always()
+        with:
+          name: msan
+
+  bench-compare:
+    name: bench-compare against the base, on the ci:bench label
+    needs: [plan, tier-one]
+    if: needs.plan.outputs.bench_compare == 'true'
+    runs-on: ubuntu-24.04
+    container: ${{ needs.plan.outputs.image }}
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+      - uses: ./.github/actions/setup
+        with:
+          key: bench
+      # Hosted runners are noisy: the numbers inform a review and never fail the job.
+      - name: Compare the benchmarks with the base of the pull request
+        env:
+          BASE: ${{ github.event.pull_request.base.sha }}
+        run: make bench-compare BASE="${BASE}" 2>&1 | tee "${RUNNER_TEMP}/bench-compare.log"
+      - uses: ./.github/actions/report
+        if: always()
+        with:
+          name: bench-compare
+          log: ${{ runner.temp }}/bench-compare.log
+
+  status:
+    name: status
+    needs: [plan, tier-one, linux, macos, sanitizers, fuzz, bench, coverage, selftest, msan, bench-compare]
+    if: always()
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - name: Fail on any failed job, and on any job skipped that should have run
+        env:
+          PLAN: ${{ needs.plan.result }}
+          TIER2: ${{ needs.plan.outputs.tier2 }}
+          MACOS: ${{ needs.plan.outputs.macos }}
+          MSAN: ${{ needs.plan.outputs.msan }}
+          BENCH_COMPARE: ${{ needs.plan.outputs.bench_compare }}
+          RESULTS: ${{ toJSON(needs) }}
+        run: |
+          # A new job needs a line here and an entry in needs: above.
+          expected=(
+            "plan true"
+            "tier-one true"
+            "linux ${TIER2}"
+            "sanitizers ${TIER2}"
+            "fuzz ${TIER2}"
+            "bench ${TIER2}"
+            "coverage ${TIER2}"
+            "selftest ${TIER2}"
+            "macos ${MACOS}"
+            "msan ${MSAN}"
+            "bench-compare ${BENCH_COMPARE}"
+          )
+          if [[ "${PLAN}" != success ]]; then
+            echo "plan: ${PLAN}; nothing else can be judged" | tee -a "${GITHUB_STEP_SUMMARY}"
+            exit 1
+          fi
+          failed=0
+          rows="| Job | Result |"$'\n'"| --- | --- |"
+          for entry in "${expected[@]}"; do
+            read -r job should_run <<<"${entry}"
+            result="$(jq -r --arg job "${job}" '.[$job].result' <<<"${RESULTS}")"
+            want=skipped
+            if [[ "${should_run}" == true ]]; then want=success; fi
+            if [[ "${result}" == "${want}" ]]; then
+              rows+=$'\n'"| ${job} | ${result} |"
+            else
+              rows+=$'\n'"| ${job} | ${result}, expected ${want} |"
+              failed=1
+            fi
+          done
+          tee -a "${GITHUB_STEP_SUMMARY}" <<<"${rows}"
+          exit "${failed}"

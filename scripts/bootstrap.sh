@@ -17,7 +17,7 @@ usage() {
     cat <<USAGE
 Usage: scripts/bootstrap.sh [--ci]
 
-Installs the compilers, lldb, CMake, Ninja, Make, pre-commit, gersemi, and vcpkg at its pinned commit.
+Installs the compilers, lldb, CMake, Ninja, Make, ccache, pre-commit, gersemi, and vcpkg at its pinned commit.
 
   --ci  For the Dockerfile and CI jobs: install vcpkg into \$VCPKG_ROOT when it is set,
         and leave the git hook and the shell profile alone.
@@ -43,7 +43,7 @@ install_macos() {
         echo "bootstrap: Homebrew is required on macOS, see https://brew.sh" >&2
         exit 1
     fi
-    for formula in llvm cmake ninja pkg-config pipx; do
+    for formula in llvm cmake ninja ccache pkg-config pipx; do
         brew list --versions "${formula}" >/dev/null || brew install "${formula}"
     done
 }
@@ -59,7 +59,7 @@ install_linux() {
 
     ${sudo} apt-get update -qq
     ${sudo} apt-get install -y -qq --no-install-recommends \
-        ca-certificates cmake curl git make ninja-build pkg-config sudo tar unzip zip \
+        ca-certificates ccache cmake curl git make ninja-build pkg-config sudo tar unzip zip \
         python3 python3-venv pipx lcov \
         "g++-${GCC_VERSION}"
 

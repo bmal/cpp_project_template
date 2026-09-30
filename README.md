@@ -13,7 +13,7 @@ A compact, modern C++23 template for projects that start small and still grow cl
 - One toolchain file that picks the compiler and builds dependencies with it.
 - CMake presets for development, release, benchmarks, sanitizers, fuzzing, and coverage.
 - VS Code settings, debug launches, and tasks that follow the last configured preset.
-- GitHub Actions for normal build/test, coverage, and sanitizer checks, with heavier benchmark/perf workflows kept opt-in.
+- One GitHub Actions pipeline that runs the same presets, reporting through one `status` check.
 
 ## Requirements
 
@@ -39,7 +39,7 @@ tests/sanitizers/                Sanitizer suppression files, read by the asan a
 benchmarks/<module>/             Google Benchmark executables, one per module
 benchmarks/support/              The shared benchmark main, cache flush, and percentile helpers
 cmake/                           Module helpers, compiler policy, install and packaging, the toolchain file
-scripts/                         Bootstrap, scaffolding, benchmark, MSan libc++, and template selftest scripts
+scripts/                         Bootstrap, scaffolding, benchmark, MSan libc++, CI image, and template selftest scripts
 triplets/                        vcpkg triplets that build dependencies with the project compiler
 vcpkg.json                       Dependency manifest
 ```
@@ -249,6 +249,12 @@ Look for memory errors, undefined behavior, and data races, after changing owner
 make asan tsan
 ```
 
+Run the stress tests under AddressSanitizer after `make asan`, as CI does; `tsan-stress` is the same for ThreadSanitizer:
+
+```bash
+ctest --preset asan-stress
+```
+
 Dependencies are rebuilt with the same sanitizer. [docs/how-to/sanitizers.md](docs/how-to/sanitizers.md) covers skipping a test and suppressing a report.
 
 On Linux, `make msan` looks for reads of uninitialized memory after a one-time libc++ build; [docs/how-to/msan.md](docs/how-to/msan.md) covers it.
@@ -349,17 +355,20 @@ clangd, the Testing view, and Coverage Gutters read `build/current`, so they fol
 
 ## CI
 
-The default GitHub Actions pipeline is intentionally lean:
+`.github/workflows/ci.yaml` runs on pull requests, the merge queue, and pushes to `main`.
+Tier one runs the pre-commit hooks, `dev`, and `make lint` on Linux Clang. The other jobs start only when it passes.
+Require only the `status` check; it fails when any job fails or is skipped when it should have run.
 
-- Build and run tests with the `dev`, `release`, `dev-gcc`, and `release-gcc` workflow presets.
-- Generate coverage.
-- Run sanitizer checks.
+Draft pull requests run tier one only, and macOS runs `dev` on ready pull requests only.
+A change to Markdown, `docs/`, or `LICENSE` alone skips every C++ step.
 
-Codecov upload is enabled when the repository secret `CODECOV_TOKEN` is configured. Without that secret, CI still generates and uploads the coverage report artifact, but skips the external Codecov upload to avoid tokenless rate-limit failures.
+| Label on a pull request | Adds |
+| --- | --- |
+| `ci:full` | Every tier-two job, on a draft |
+| `ci:msan` | The `msan` preset |
+| `ci:bench` | `make bench-compare` against the base branch |
 
-Benchmarks, valgrind, cachegrind, and broader performance workflows remain available as opt-in workflows. This keeps ordinary pull requests fast while preserving tooling for performance-critical projects.
-
-Linux runners are pinned to explicit Ubuntu versions instead of floating `ubuntu-latest` to reduce surprise toolchain changes.
+Codecov receives the coverage report when the repository secret `CODECOV_TOKEN` exists; it never fails a check.
 
 ## Platform Notes
 
