@@ -33,6 +33,7 @@ cases=(
     "vscode_files        .vscode/*.json parses as JSONC, reaches builds only through build/current, and defines its own problem matcher"
     "container_files     the Dockerfile installs only through bootstrap.sh --ci, and devcontainer.json builds it and installs the git hook"
     "debugger_init       lldb is installed and loads tools/lldbinit; gdb, where installed, loads tools/gdbinit"
+    "ci_pins             every uses: under .github/ names a local action or a commit SHA with its version"
 )
 
 usage() {
@@ -837,6 +838,15 @@ case_debugger_init() {
     if command -v gdb >/dev/null; then
         gdb -batch -x "${root}/tools/gdbinit" 2>&1 | tee "${work}/debugger_init.gdb"
         grep -q "^Breakpoint 2 (__ubsan_on_report) pending" "${work}/debugger_init.gdb"
+    fi
+}
+
+case_ci_pins() {
+    # A tag can be moved to other code after review; a commit cannot.
+    if grep -rnE "uses:" "${root}/.github" |
+        grep -vE "uses: (\./[^ ]+|[^ @]+@[0-9a-f]{40} # v[0-9][^ ]*)$"; then
+        echo "an action above is not pinned; use <action>@<commit SHA> # <version tag>"
+        return 1
     fi
 }
 

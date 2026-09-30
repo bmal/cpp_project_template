@@ -148,7 +148,8 @@ endfunction()
 
 # project_add_benchmark(MODULE <n> [DEPS ...] [SOURCES ...])
 # Creates <n>_benchmarks from the .cpp files under benchmarks/<n>/, linked to myproj::<n> and
-# the bench support main. The run_benchmarks target runs every one of them.
+# the bench support main. The run_benchmarks target runs every one of them. A CTest test labeled
+# bench runs each benchmark once, so a benchmark that crashes fails ctest --preset bench.
 function(project_add_benchmark)
   cmake_parse_arguments(PARSE_ARGV 0 arg "" "MODULE" "DEPS;SOURCES")
   if(arg_UNPARSED_ARGUMENTS)
@@ -170,6 +171,9 @@ function(project_add_benchmark)
     PRIVATE myproj::${arg_MODULE} ${arg_DEPS} myproj_bench_support myproj_warnings myproj_options
   )
   set_property(GLOBAL APPEND PROPERTY MYPROJ_BENCHMARKS ${target})
+
+  add_test(NAME ${target}.RunsOnce COMMAND ${target} --benchmark_min_time=1x)
+  set_tests_properties(${target}.RunsOnce PROPERTIES LABELS bench)
 endfunction()
 
 # Adds run_benchmarks, which runs every benchmark one after another with repetitions,
