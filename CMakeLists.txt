@@ -58,11 +58,12 @@ if(PROJECT_BUILD_APPS)
   add_subdirectory(apps)
 endif()
 
-if(PROJECT_BUILD_TESTS)
+# A test kind attaches when its directory exists, so scripts/init-project.sh --strip-samples can drop one.
+if(PROJECT_BUILD_TESTS AND EXISTS "${PROJECT_SOURCE_DIR}/tests/integration")
   add_subdirectory(tests/integration)
-  if(PROJECT_BUILD_APPS)
-    add_subdirectory(tests/functional)
-  endif()
+endif()
+if(PROJECT_BUILD_TESTS AND PROJECT_BUILD_APPS AND EXISTS "${PROJECT_SOURCE_DIR}/tests/functional")
+  add_subdirectory(tests/functional)
 endif()
 
 if(PROJECT_BUILD_BENCHMARKS)
@@ -73,7 +74,9 @@ endif()
 
 if(PROJECT_BUILD_FUZZ)
   enable_testing()
-  add_subdirectory(tests/fuzz)
+  if(EXISTS "${PROJECT_SOURCE_DIR}/tests/fuzz")
+    add_subdirectory(tests/fuzz)
+  endif()
   project_add_fuzz_run_target()
 endif()
 

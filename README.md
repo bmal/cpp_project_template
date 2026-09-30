@@ -39,14 +39,29 @@ tests/sanitizers/                Sanitizer suppression files, read by the asan a
 benchmarks/<module>/             Google Benchmark executables, one per module
 benchmarks/support/              The shared benchmark main, cache flush, and percentile helpers
 cmake/                           Module helpers, compiler policy, install and packaging, the toolchain file
-scripts/                         Bootstrap, scaffolding, benchmark, MSan libc++, CI image, and template selftest scripts
+scripts/                         Bootstrap, init, scaffolding, benchmark, MSan libc++, CI image, and template selftest scripts
 triplets/                        vcpkg triplets that build dependencies with the project compiler
 vcpkg.json                       Dependency manifest
 ```
 
-Placeholders are literal: `myproj` for namespaces, targets, and directories, `MyProj` for the CMake project.
-
 The sample code is small and each file opens with the mechanism it demonstrates: `libs/parser` is header-only and exception-free, `libs/core` is compiled and wires the parser to an output interface, and `apps/myproj_cli` prints through that interface.
+
+## Name The Project
+
+A repository created from this template names itself on its first push, from the repository name.
+Until then the placeholders are literal: `myproj`, `MyProj`, and `MYPROJ`.
+
+When the name it picked is wrong, or you copied the template by hand, rename in one command and commit:
+
+```bash
+scripts/init-project.sh order_book
+```
+
+When you want a project with only `core`, one app, and one passing test, drop the parser sample too:
+
+```bash
+scripts/init-project.sh order_book --strip-samples
+```
 
 ## Quick Start
 

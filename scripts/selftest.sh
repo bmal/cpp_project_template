@@ -36,6 +36,9 @@ cases=(
     "debugger_init       lldb is installed and loads tools/lldbinit; gdb, where installed, loads tools/gdbinit"
     "release_tag         check-release-tag.sh accepts v<project version> and its pre-releases, and names both versions otherwise"
     "ci_pins             every uses: under .github/ names a local action or a commit SHA with its version"
+    "init_rename         init-project.sh leaves no placeholder, the result builds and tests, and a bad name fails in one line"
+    "init_strip          init-project.sh --strip-samples leaves core, one app, and passing tests"
+    "init_idempotent     a second init-project.sh with the same arguments changes nothing"
 )
 
 usage() {
@@ -430,7 +433,7 @@ case_sample_headers() {
 case_stress_label() {
     local src="${work}/stress_label" name
     copy_tree "${src}"
-    cat >"${src}/tests/unit/parser/test_label_probe.cpp" <<'EOF'
+    cat >"${src}/tests/unit/core/test_label_probe.cpp" <<'EOF'
 // Selftest: every shape of test name that does or does not belong to the stress label.
 // Only a suite name that ends in Stress counts.
 #include <gtest/gtest.h>
@@ -455,7 +458,7 @@ TEST(StressfulProbe, Runs) { SUCCEED(); }
 TEST(QuickPlainProbe, SurvivesStress) { SUCCEED(); }
 EOF
     configure_dev "${src}" -DPROJECT_BUILD_APPS=OFF
-    (cd "${src}" && cmake --build --preset dev --target parser_unit_tests)
+    (cd "${src}" && cmake --build --preset dev --target core_unit_tests)
     (cd "${src}" && ctest --preset dev -N) | tee "${work}/stress_label.dev"
     (cd "${src}" && ctest --preset stress -N) | tee "${work}/stress_label.stress"
     for name in "TypedProbeStress.Runs<int>" "TypedProbeStress.Runs<long>" "Probe/ParamProbeStress.Runs/" \
@@ -633,13 +636,13 @@ case_fuzz_preset_only() {
     fi
 }
 
-# Adds the unit test source $2 to the parser tests of the copy in $1, then runs preset $3 on it.
+# Adds the unit test source $2 to the core tests of the copy in $1, then runs preset $3 on it.
 # Passes only when the preset fails the test and prints the sanitizer report $4.
 expect_sanitizer_report() {
     local src="$1" test_source="$2" preset="$3" report="$4" out="${work}/${3}_planted.out"
-    cp "${test_source}" "${src}/tests/unit/parser/test_planted.cpp"
+    cp "${test_source}" "${src}/tests/unit/core/test_planted.cpp"
     (cd "${src}" && cmake --preset "${preset}" -DVCPKG_INSTALLED_DIR="${vcpkg_installed}")
-    (cd "${src}" && cmake --build --preset "${preset}" --target parser_unit_tests)
+    (cd "${src}" && cmake --build --preset "${preset}" --target core_unit_tests)
     if (cd "${src}" && ctest --preset "${preset}" -R '^Planted\.') >"${out}" 2>&1; then
         cat "${out}"
         echo "the ${preset} preset passed a test with a planted bug"
@@ -725,7 +728,7 @@ EOF
 case_valgrind_leak() {
     local src="${work}/valgrind_leak" out="${work}/valgrind_leak.out"
     copy_tree "${src}"
-    cat >"${src}/tests/unit/parser/test_planted.cpp" <<'EOF'
+    cat >"${src}/tests/unit/core/test_planted.cpp" <<'EOF'
 // Selftest: allocates and never frees, which Valgrind memcheck reports as definitely lost.
 // The pointer is volatile so the compiler cannot drop the allocation.
 #include <gtest/gtest.h>
@@ -758,7 +761,9 @@ expect_lcov() {
     (cd "${src}" && cmake --build --preset "${preset}")
     (cd "${src}" && ctest --preset "${preset}")
     (cd "${src}" && cmake --build --preset "${preset}" --target coverage)
-    for module in core parser; do
+    # Every module, so a project without the parser sample checks only the modules it has.
+    for module in "${root}"/libs/*/; do
+        module="$(basename "${module}")"
         if ! grep -q "^SF:.*${libs}/${module}/" "${info}"; then
             echo "${preset}: ${info} has no record for libs/${module}"
             return 1
@@ -897,9 +902,83 @@ case_release_tag() {
     done
 }
 
+# A name for init-project.sh that appears nowhere in the tree, as the script requires; $$ keeps it out.
+probe_name() {
+    echo "$1_probe_$$"
+}
+
+case_init_rename() {
+    local src="${work}/init_rename" first_run=0 name
+    name="$(probe_name renamed)"
+    copy_tree "${src}"
+    if "${src}/scripts/init-project.sh" "9 bad name" 2>"${work}/init_rename.err"; then
+        echo "init-project.sh accepted the name '9 bad name'"
+        return 1
+    fi
+    cat "${work}/init_rename.err"
+    [ "$(wc -l <"${work}/init_rename.err")" -eq 1 ]
+    # The self-init workflow exists only until the first init.
+    if [ -e "${src}/.github/workflows/init.yaml" ]; then first_run=1; fi
+    # Mixed case and a hyphen, as a repository name has them.
+    "${src}/scripts/init-project.sh" "Renamed-Probe-$$"
+    if grep -rnI --exclude-dir=.git -e myproj -e MyProj -e MYPROJ "${src}"; then
+        echo "init-project.sh left the old name in the lines above"
+        return 1
+    fi
+    grep -q "^project(RenamedProbe$$ VERSION" "${src}/CMakeLists.txt"
+    grep -q "\"name\": \"renamed-probe-$$\"" "${src}/vcpkg.json"
+    if [ "${first_run}" -eq 1 ]; then
+        grep -q "^project(RenamedProbe$$ VERSION 0.1.0 " "${src}/CMakeLists.txt"
+        grep -q "^# RenamedProbe$$\$" "${src}/README.md"
+        grep -q '^make dev$' "${src}/README.md"
+        [ ! -e "${src}/.github/workflows/init.yaml" ]
+    fi
+    # The first configure seeds the shared vcpkg tree; the workflow then reuses its cache.
+    configure_dev "${src}"
+    (cd "${src}" && cmake --workflow --preset dev)
+    echo "a=1" | "${src}/build/dev/bin/${name}_cli" | grep -q "^${name} "
+}
+
+case_init_strip() {
+    local src="${work}/init_strip" name
+    name="$(probe_name strip)"
+    copy_tree "${src}"
+    "${src}/scripts/init-project.sh" "${name}" --strip-samples
+    if grep -rnwI -e parser -e echo_fields "${src}/libs" "${src}/apps" "${src}/tests" "${src}/benchmarks"; then
+        echo "--strip-samples left the parser sample in the lines above"
+        return 1
+    fi
+    [ -d "${src}/libs/core" ]
+    configure_dev "${src}"
+    (cd "${src}" && cmake --build --preset dev)
+    (cd "${src}" && ctest --preset dev && ctest --preset functional)
+    "${src}/build/dev/bin/${name}_cli" </dev/null | grep -q "^${name} "
+}
+
+case_init_idempotent() {
+    local src="${work}/init_idempotent" name before after
+    name="$(probe_name idem)"
+    copy_tree "${src}"
+    "${src}/scripts/init-project.sh" "${name}" --strip-samples
+    before="$(cd "${src}" && git add -A && git write-tree)"
+    "${src}/scripts/init-project.sh" "${name}" --strip-samples | tee "${work}/init_idempotent.out"
+    after="$(cd "${src}" && git add -A && git write-tree)"
+    if [ "${before}" != "${after}" ]; then
+        (cd "${src}" && git diff --cached --stat "${before}")
+        echo "the second run changed the files above"
+        return 1
+    fi
+    grep -q "nothing to change" "${work}/init_idempotent.out"
+}
+
 # Prints why a case cannot run on this host, or nothing when it can.
 skip_reason() {
     case "$1" in
+    parser_no_throw)
+        if [ ! -d "${root}/libs/parser" ]; then
+            echo "the parser sample was removed by scripts/init-project.sh --strip-samples"
+        fi
+        ;;
     pre_commit_hooks)
         if ! command -v pipx >/dev/null ||
             [ ! -x "$(pipx environment --value PIPX_BIN_DIR)/pre-commit" ]; then

@@ -76,7 +76,7 @@ write_file() {
     echo "created $1"
 }
 
-# Prints $1 in CamelCase: order_book becomes OrderBook.
+# Prints $1 in CamelCase: price_level becomes PriceLevel.
 camel_case() {
     awk -F_ '{ for (i = 1; i <= NF; i++) printf "%s%s", toupper(substr($i, 1, 1)), substr($i, 2) }' <<<"$1"
 }

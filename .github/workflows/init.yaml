@@ -1,0 +1,55 @@
+# Names a repository created from the template: runs scripts/init-project.sh on its first push.
+# The script deletes this file, so the commit it pushes removes the workflow with the placeholder.
+name: Init
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      name:
+        description: Project name; lowercased, with other characters turned into _
+        required: true
+        type: string
+
+permissions:
+  contents: write
+
+defaults:
+  run:
+    shell: bash
+
+jobs:
+  init:
+    name: Name the project
+    # Never in the template itself or a fork of it, which still carry the placeholder on purpose.
+    if: >-
+      github.repository != 'bmal/cpp_project_template'
+      && !github.event.repository.is_template
+      && !github.event.repository.fork
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Rename, commit, and push
+        env:
+          NAME: ${{ inputs.name || github.event.repository.name }}
+        run: |
+          # A push after the first one finds the placeholder gone and changes nothing.
+          if [[ "${GITHUB_EVENT_NAME}" == push ]] && ! grep -q '^  "name": "myproj",$' vcpkg.json; then
+            echo "The project is already named; nothing to do."
+            exit 0
+          fi
+          scripts/init-project.sh "${NAME}"
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git commit -m "Name the project ${NAME} from the template"
+          git push origin "HEAD:${GITHUB_REF_NAME}"
+
+      - name: Say how to pick the name by hand
+        if: failure()
+        run: >-
+          echo "::error::The repository name is not a usable project name.
+          Run this workflow with one: gh workflow run init.yaml -f name=<name>"
