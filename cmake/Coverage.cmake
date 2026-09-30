@@ -1,55 +1,65 @@
-function(enable_coverage target_name)
-  if(NOT TARGET ${target_name})
-    message(FATAL_ERROR "Coverage target '${target_name}' does not exist")
+# Coverage: ENABLE_COVERAGE instruments every internal target through myproj_options, and the
+# coverage target writes coverage/lcov.info, from llvm-cov on Clang and from gcov and lcov on GCC.
+
+function(project_configure_coverage)
+  if(NOT ENABLE_COVERAGE)
+    return()
   endif()
-
-  if(NOT CMAKE_BUILD_TYPE STREQUAL "Debug")
-    message(WARNING "Code coverage is most useful with a Debug build")
-  endif()
-
-  if(CMAKE_CXX_COMPILER_ID MATCHES "(Apple)?Clang")
-    message(STATUS "Enabling LLVM coverage for ${target_name}")
-    target_compile_options(
-      ${target_name}
-      PRIVATE -fprofile-instr-generate -fcoverage-mapping -O0 -g
-    )
-    target_link_options(${target_name} PRIVATE -fprofile-instr-generate -fcoverage-mapping)
-  elseif(CMAKE_CXX_COMPILER_ID MATCHES "GNU")
-    message(STATUS "Enabling GCC/lcov coverage for ${target_name}")
-    target_compile_options(${target_name} PRIVATE --coverage -O0 -g)
-    target_link_options(${target_name} PRIVATE --coverage)
-
-    find_program(LCOV_EXECUTABLE lcov)
-    find_program(GENHTML_EXECUTABLE genhtml)
-
-    if(LCOV_EXECUTABLE AND GENHTML_EXECUTABLE)
-      set(COVERAGE_INFO "${CMAKE_BINARY_DIR}/coverage.info")
-      set(COVERAGE_REPORT_DIR "${CMAKE_BINARY_DIR}/coverage_report")
-
-      add_custom_target(
-        ${target_name}_coverage_report
-        COMMAND ${CMAKE_COMMAND} -E make_directory ${COVERAGE_REPORT_DIR}
-        COMMAND
-          ${LCOV_EXECUTABLE} --capture --initial --directory . --output-file ${COVERAGE_INFO}.base
-        COMMAND ${LCOV_EXECUTABLE} --capture --directory . --output-file ${COVERAGE_INFO}.test
-        COMMAND
-          ${LCOV_EXECUTABLE} --add-tracefile ${COVERAGE_INFO}.base --add-tracefile
-          ${COVERAGE_INFO}.test --output-file ${COVERAGE_INFO}.total
-        COMMAND
-          ${LCOV_EXECUTABLE} --remove ${COVERAGE_INFO}.total '${CMAKE_BINARY_DIR}/*'
-          '${CMAKE_SOURCE_DIR}/tests/*' '${CMAKE_SOURCE_DIR}/build/*' '${CMAKE_SOURCE_DIR}/_deps/*'
-          '/usr/include/*' '/usr/lib/*' --output-file ${COVERAGE_INFO}
-        COMMAND ${GENHTML_EXECUTABLE} --demangle-cpp -o ${COVERAGE_REPORT_DIR} ${COVERAGE_INFO}
-        WORKING_DIRECTORY ${CMAKE_BINARY_DIR}
-        COMMENT "Generating coverage report for ${target_name}"
-      )
-    else()
-      message(
-        STATUS
-        "lcov/genhtml not found; coverage flags are enabled but no report target was added"
-      )
-    endif()
+  if(CMAKE_CXX_COMPILER_ID MATCHES "Clang")
+    set(flags -fprofile-instr-generate -fcoverage-mapping)
+  elseif(CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
+    set(flags --coverage)
   else()
-    message(WARNING "Coverage is not configured for compiler ${CMAKE_CXX_COMPILER_ID}")
+    message(FATAL_ERROR "ENABLE_COVERAGE needs Clang or GCC, not ${CMAKE_CXX_COMPILER_ID}.")
   endif()
+  target_compile_options(myproj_options INTERFACE ${flags})
+  target_link_options(myproj_options INTERFACE ${flags})
+endfunction()
+
+# Call after every test target exists: the coverage target builds them, runs them, and reports.
+function(project_add_coverage_target)
+  if(NOT ENABLE_COVERAGE OR NOT PROJECT_BUILD_TESTS)
+    return()
+  endif()
+  cmake_path(GET CMAKE_CXX_COMPILER PARENT_PATH compiler_bin)
+  string(REGEX MATCH "^[0-9]+" major "${CMAKE_CXX_COMPILER_VERSION}")
+  if(CMAKE_CXX_COMPILER_ID MATCHES "Clang")
+    set(tools llvm-profdata llvm-cov)
+  else()
+    set(tools gcov lcov)
+  endif()
+  set(tool_args "")
+  foreach(tool IN LISTS tools)
+    string(REPLACE "-" "_" var "${tool}")
+    # The versioned name first, so the tool reads the format this compiler writes.
+    find_program(${var} NAMES "${tool}-${major}" "${tool}" HINTS "${compiler_bin}" NO_CACHE)
+    if(NOT ${var})
+      add_custom_target(
+        coverage
+        COMMAND
+          "${CMAKE_COMMAND}" -E echo "coverage: ${tool} was not found; run scripts/bootstrap.sh"
+        COMMAND "${CMAKE_COMMAND}" -E false
+        VERBATIM
+      )
+      return()
+    endif()
+    list(APPEND tool_args "-D${var}=${${var}}")
+  endforeach()
+
+  get_property(test_targets GLOBAL PROPERTY PROJECT_TEST_TARGETS)
+  list(TRANSFORM test_targets REPLACE "^.+$" "$<TARGET_FILE:\\0>" OUTPUT_VARIABLE test_files)
+  list(JOIN test_files "\n" test_files)
+  file(GENERATE OUTPUT "${PROJECT_BINARY_DIR}/coverage-objects.txt" CONTENT "${test_files}\n")
+
+  add_custom_target(
+    coverage
+    COMMAND
+      "${CMAKE_COMMAND}" ${tool_args} -DCOMPILER_ID=${CMAKE_CXX_COMPILER_ID}
+      "-DSOURCE_DIR=${PROJECT_SOURCE_DIR}" "-DBINARY_DIR=${PROJECT_BINARY_DIR}"
+      "-DCTEST=${CMAKE_CTEST_COMMAND}" -P "${PROJECT_SOURCE_DIR}/cmake/CoverageReport.cmake"
+    COMMENT "Running the tests and writing coverage/lcov.info"
+    USES_TERMINAL
+    VERBATIM
+  )
+  add_dependencies(coverage ${test_targets})
 endfunction()

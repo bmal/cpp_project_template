@@ -20,7 +20,7 @@ option(PROJECT_BUILD_BENCHMARKS "Build benchmarks/" OFF)
 option(PROJECT_BUILD_FUZZ "Build the libFuzzer harnesses under tests/fuzz/; needs Clang" OFF)
 set(PROJECT_FUZZ_SECONDS 30 CACHE STRING "Seconds the run_fuzz target spends on each harness")
 option(PROJECT_INSTALL "Generate install and package rules" ${PROJECT_IS_TOP_LEVEL})
-option(ENABLE_COVERAGE "Enable test coverage" OFF)
+option(ENABLE_COVERAGE "Instrument every target for coverage and add the coverage target" OFF)
 
 set(CMAKE_CXX_EXTENSIONS OFF)
 # No source uses C++20 modules. Scanning would put build-time .modmap files into
@@ -37,6 +37,8 @@ if(PROJECT_IS_TOP_LEVEL)
 endif()
 include(cmake/Sanitizers.cmake)
 include(cmake/ProjectModules.cmake)
+include(cmake/Coverage.cmake)
+project_configure_coverage()
 
 # ---- Dependencies come from vcpkg.json through the toolchain in cmake/toolchain.cmake ----
 
@@ -46,7 +48,6 @@ if(PROJECT_BUILD_TESTS)
   enable_testing()
   find_package(GTest CONFIG REQUIRED)
   include(GoogleTest)
-  include(cmake/Coverage.cmake)
   add_subdirectory(tests/support)
 endif()
 
@@ -78,6 +79,7 @@ endif()
 if(PROJECT_IS_TOP_LEVEL)
   include(cmake/Lint.cmake)
   project_add_lint_target()
+  project_add_coverage_target()
   include(cmake/Format.cmake)
   project_add_format_targets()
   include(cmake/CurrentBuild.cmake)

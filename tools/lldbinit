@@ -1,0 +1,4 @@
+# Opt-in LLDB breakpoints; docs/how-to/debug-a-test.md shows how to load them.
+# Stop once a sanitizer has printed its report, before it exits, with the faulting frames live.
+breakpoint set --name __sanitizer::Die
+breakpoint set --name __ubsan_on_report

@@ -252,6 +252,12 @@ Narrow choices left to single tickets are appended below the entry they refine.
 - Why: tests resist refactoring, and the strategy is visible in code.
 - Rejected: coverage as a gate, including the old `codecov.yaml` thresholds; mocks of in-process neighbors.
 
+#### D21.1. Coverage per compiler
+
+- Decision: Clang builds with `-fprofile-instr-generate -fcoverage-mapping` and reports with `llvm-cov export -format=lcov`; GCC builds with `--coverage` and reports with `gcov` and `lcov`. Both write `build/<preset>/coverage/lcov.info` from the `coverage` target, with records for `libs/` only. The `coverage` preset uses Clang, and `coverage-gcc` exists on Linux.
+- Why: each compiler's native format is exact for its own build, and one output path serves Coverage Gutters and Codecov alike.
+- Rejected: gcov-format output from Clang, which is less precise and needs `lcov` on macOS; Clang only, which leaves GCC builds without coverage.
+
 ### D22. Benchmarks
 
 - Decision: the `bench` preset shares the release flag base. A support library with cache flush and percentiles. libpfm counters on Linux where the port allows. A machine-prep script. Smoke in CI, real numbers nightly on a self-hosted label. `make bench-compare BASE=main`. JSON to `build/current/bench/`.

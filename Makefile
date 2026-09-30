@@ -6,7 +6,7 @@ BASE ?= main
 FUZZ_SECONDS ?= 30
 
 .DEFAULT_GOAL := help
-.PHONY: help bootstrap bench bench-compare fuzz lint format format-check build test clean-all
+.PHONY: help bootstrap coverage bench bench-compare fuzz lint format format-check build test clean-all
 
 help: ## List every target
 	@echo "Usage: make <target> [PRESET=<preset>] [BASE=<git ref>] [FUZZ_SECONDS=<n>]"
@@ -27,7 +27,10 @@ cxx26: workflow/cxx26 ## Configure, build, and run unit and integration tests in
 asan: workflow/asan ## Configure, build, and test under AddressSanitizer and UBSan
 tsan: workflow/tsan ## Configure, build, and test under ThreadSanitizer
 msan: workflow/msan ## Configure, build, and test under MemorySanitizer; Linux, after scripts/build-msan-libcxx.sh
-coverage: workflow/coverage ## Configure, build, and test with coverage instrumentation
+
+coverage: ## Configure the coverage preset, run its tests, and write build/current/coverage/lcov.info
+	cmake --preset coverage
+	cmake --build --preset coverage --target coverage
 
 bench: ## Build the bench preset and run every benchmark, writing JSON to build/current/bench/
 	cmake --preset bench

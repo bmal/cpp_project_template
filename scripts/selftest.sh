@@ -29,6 +29,8 @@ cases=(
     "asan_overflow       a heap overflow planted in a unit test fails the asan preset with a report"
     "tsan_race           a data race planted in a unit test fails the tsan preset with a report"
     "msan_uninit         an uninitialized read planted in a unit test fails the msan preset; Linux only"
+    "coverage_report     the coverage target writes lcov.info for libs/ only, with Clang and, on Linux, GCC"
+    "vscode_files        .vscode/*.json parses as JSONC and reaches builds only through build/current"
 )
 
 usage() {
@@ -713,6 +715,54 @@ TEST(Planted, UninitializedRead) {
 EOF
     expect_sanitizer_report "${src}" "${work}/msan_uninit.cpp" msan \
         "WARNING: MemorySanitizer: use-of-uninitialized-value"
+}
+
+# Runs the coverage preset $2 in the copy $1 and checks its lcov.info names libs/ and no dependency.
+expect_lcov() {
+    local src="$1" preset="$2" info libs
+    info="${src}/build/${preset}/coverage/lcov.info"
+    # Records carry the normalized source path, which a TMPDIR ending in / would not match.
+    libs="/$(basename "${src}")/libs"
+    (cd "${src}" && cmake --preset "${preset}" -DVCPKG_INSTALLED_DIR="${vcpkg_installed}")
+    (cd "${src}" && cmake --build --preset "${preset}")
+    (cd "${src}" && ctest --preset "${preset}")
+    (cd "${src}" && cmake --build --preset "${preset}" --target coverage)
+    for module in core parser; do
+        if ! grep -q "^SF:.*${libs}/${module}/" "${info}"; then
+            echo "${preset}: ${info} has no record for libs/${module}"
+            return 1
+        fi
+    done
+    if grep "^SF:" "${info}" | grep -v "^SF:.*${libs}/"; then
+        echo "${preset}: ${info} has records outside libs/, listed above"
+        return 1
+    fi
+    # Coverage Gutters reads this path, which follows the last configured preset.
+    [ "${src}/build/current/coverage/lcov.info" -ef "${info}" ]
+}
+
+case_coverage_report() {
+    local src="${work}/coverage_report"
+    copy_tree "${src}"
+    expect_lcov "${src}" coverage
+    if [ "$(uname -s)" = Linux ]; then
+        expect_lcov "${src}" coverage-gcc
+    fi
+}
+
+case_vscode_files() {
+    python3 - "${root}"/.vscode/*.json <<'PY'
+import json, re, sys
+for path in sys.argv[1:]:
+    text = open(path).read()
+    # JSONC: drop // comments outside strings, then trailing commas.
+    text = re.sub(r'("(?:\\.|[^"\\])*")|//[^\n]*', lambda m: m.group(1) or "", text)
+    json.loads(re.sub(r",(\s*[}\]])", r"\1", text))
+PY
+    if grep -rn "build/[a-z0-9-]*/" "${root}/.vscode" | grep -v "build/current/"; then
+        echo ".vscode names a preset build directory instead of build/current, listed above"
+        return 1
+    fi
 }
 
 # Prints why a case cannot run on this host, or nothing when it can.

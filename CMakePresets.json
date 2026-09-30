@@ -152,7 +152,7 @@
     },
     {
       "name": "coverage",
-      "displayName": "Debug build with coverage instrumentation",
+      "displayName": "Debug build with coverage; its coverage target writes coverage/lcov.info",
       "inherits": "host",
       "cacheVariables": {
         "CMAKE_BUILD_TYPE": "Debug",
@@ -222,11 +222,7 @@
       "inherits": [
         "gcc",
         "coverage"
-      ],
-      "cacheVariables": {
-        "CMAKE_CXX_FLAGS": "--coverage -fno-inline",
-        "CMAKE_EXE_LINKER_FLAGS": "--coverage"
-      }
+      ]
     }
   ],
   "buildPresets": [

@@ -12,7 +12,7 @@ A compact, modern C++23 template for projects that start small and still grow cl
 - Dependencies from a vcpkg manifest, consumed only through `find_package`.
 - One toolchain file that picks the compiler and builds dependencies with it.
 - CMake presets for development, release, benchmarks, sanitizers, fuzzing, and coverage.
-- VS Code tasks and debug launch configs that do not depend on the project name.
+- VS Code settings, debug launches, and tasks that follow the last configured preset.
 - GitHub Actions for normal build/test, coverage, and sanitizer checks, with heavier benchmark/perf workflows kept opt-in.
 
 ## Requirements
@@ -152,7 +152,7 @@ PROJECT_SANITIZER          # address, undefined, thread, memory, leak, or a list
 PROJECT_TRIPLET_VARIANT    # Builds dependencies with triplets/<host>-<variant>.cmake, for example asan
 PROJECT_WARNINGS_AS_ERRORS # -Werror; ON when top level, never applied to consumers
 PROJECT_STDLIB_HARDENING   # libstdc++ assertions and libc++ debug hardening; ON in dev
-ENABLE_COVERAGE            # Enable coverage flags for tests
+ENABLE_COVERAGE            # Instrument every target and add the coverage target; ON in coverage
 ```
 
 Warnings and options come from the `myproj_warnings` and `myproj_options` interface targets in [cmake/CompilerPolicy.cmake](cmake/CompilerPolicy.cmake). The module and app helpers link both `PRIVATE`.
@@ -341,12 +341,9 @@ make bench-compare BASE=main
 
 ## VS Code Workflow
 
-Included VS Code files provide:
-
-- Configure/build/test tasks.
-- Benchmark run and CLI run tasks.
-- Debug launch configs for `build/dev/bin/core_unit_tests` and `build/dev/bin/myproj_cli`.
-- clangd reading the root `compile_commands.json`, which follows the last configured preset.
+Open the folder, install the recommended extensions, pick a configure preset in the CMake Tools status bar, and press F5 to debug the launch target.
+clangd, the Testing view, and Coverage Gutters read `build/current`, so they follow that preset.
+[docs/how-to/debug-a-test.md](docs/how-to/debug-a-test.md) covers one test and a filter, and [docs/how-to/view-coverage.md](docs/how-to/view-coverage.md) covers coverage in the gutter.
 
 ## CI
 

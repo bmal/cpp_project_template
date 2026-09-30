@@ -116,9 +116,7 @@ function(_project_add_gtest target)
     ${target}
     PRIVATE ${arg_DEPS} myproj_test_support myproj_warnings myproj_options
   )
-  if(ENABLE_COVERAGE)
-    enable_coverage(${target})
-  endif()
+  set_property(GLOBAL APPEND PROPERTY PROJECT_TEST_TARGETS ${target})
   gtest_discover_tests(${target} DISCOVERY_MODE PRE_TEST TEST_FILTER "-*Stress.*:*Stress/*.*")
   gtest_discover_tests(
     ${target}

@@ -1,0 +1,9 @@
+{
+  "recommendations": [
+    "ms-vscode.cmake-tools",
+    "llvm-vs-code-extensions.vscode-clangd",
+    "vadimcn.vscode-lldb",
+    "matepek.vscode-catch2-test-adapter",
+    "ryanluker.vscode-coverage-gutters"
+  ]
+}

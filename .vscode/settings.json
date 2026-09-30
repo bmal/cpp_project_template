@@ -1,8 +1,36 @@
 {
+  // Every path below goes through build/current, which follows the last configured preset.
+  "cmake.useCMakePresets": "always",
+  "cmake.ctest.testExplorerIntegrationEnabled": false,
+  "C_Cpp.intelliSenseEngine": "disabled",
   "clangd.arguments": [
     "--background-index",
     "--clang-tidy",
     "--header-insertion=iwyu",
     "--completion-style=detailed"
-  ]
+  ],
+  "[cpp]": {
+    "editor.defaultFormatter": "llvm-vs-code-extensions.vscode-clangd",
+    "editor.formatOnSave": true
+  },
+  "[c]": {
+    "editor.defaultFormatter": "llvm-vs-code-extensions.vscode-clangd",
+    "editor.formatOnSave": true
+  },
+  "testMate.cpp.test.executables": "build/current/bin/*_tests",
+  "testMate.cpp.debug.configTemplate": {
+    "type": "lldb",
+    "program": "${exec}",
+    "args": "${argsArray}",
+    "cwd": "${cwd}",
+    // The same sanitizer options as .vscode/launch.json, so a report stops the debugger.
+    "env": {
+      "ASAN_OPTIONS": "abort_on_error=1:detect_leaks=1:detect_stack_use_after_return=1:check_initialization_order=1:strict_string_checks=1:suppressions=${workspaceFolder}/tests/sanitizers/asan.supp",
+      "UBSAN_OPTIONS": "abort_on_error=1:halt_on_error=1:print_stacktrace=1",
+      "LSAN_OPTIONS": "abort_on_error=1:suppressions=${workspaceFolder}/tests/sanitizers/lsan.supp",
+      "TSAN_OPTIONS": "abort_on_error=1:halt_on_error=1:second_deadlock_stack=1:suppressions=${workspaceFolder}/tests/sanitizers/tsan.supp"
+    }
+  },
+  "coverage-gutters.coverageBaseDir": "build/current/coverage",
+  "coverage-gutters.coverageFileNames": ["lcov.info"]
 }

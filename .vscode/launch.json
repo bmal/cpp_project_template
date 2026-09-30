@@ -1,23 +1,48 @@
 {
+  // Pick the program with "CMake: Set Launch/Debug Target"; both launches build it first.
+  // The sanitizer options are the asan and tsan test presets' own, so a report stops the debugger.
   "version": "0.2.0",
   "configurations": [
     {
-      "name": "Debug Tests",
+      "name": "Debug launch target",
       "type": "lldb",
       "request": "launch",
-      "program": "${workspaceFolder}/build/dev/bin/core_unit_tests",
-      "args": [],
+      "program": "${command:cmake.launchTargetPath}",
       "cwd": "${workspaceFolder}",
-      "preLaunchTask": "CMake Build Dev"
+      "env": {
+        "ASAN_OPTIONS": "abort_on_error=1:detect_leaks=1:detect_stack_use_after_return=1:check_initialization_order=1:strict_string_checks=1:suppressions=${workspaceFolder}/tests/sanitizers/asan.supp",
+        "UBSAN_OPTIONS": "abort_on_error=1:halt_on_error=1:print_stacktrace=1",
+        "LSAN_OPTIONS": "abort_on_error=1:suppressions=${workspaceFolder}/tests/sanitizers/lsan.supp",
+        "TSAN_OPTIONS": "abort_on_error=1:halt_on_error=1:second_deadlock_stack=1:suppressions=${workspaceFolder}/tests/sanitizers/tsan.supp"
+      }
     },
     {
-      "name": "Debug CLI",
+      "name": "Debug tests by filter",
       "type": "lldb",
       "request": "launch",
-      "program": "${workspaceFolder}/build/dev/bin/myproj_cli",
-      "args": [],
+      "program": "${command:cmake.launchTargetPath}",
+      "args": ["--gtest_filter=${input:gtestFilter}"],
       "cwd": "${workspaceFolder}",
-      "preLaunchTask": "CMake Build Dev"
+      "env": {
+        "ASAN_OPTIONS": "abort_on_error=1:detect_leaks=1:detect_stack_use_after_return=1:check_initialization_order=1:strict_string_checks=1:suppressions=${workspaceFolder}/tests/sanitizers/asan.supp",
+        "UBSAN_OPTIONS": "abort_on_error=1:halt_on_error=1:print_stacktrace=1",
+        "LSAN_OPTIONS": "abort_on_error=1:suppressions=${workspaceFolder}/tests/sanitizers/lsan.supp",
+        "TSAN_OPTIONS": "abort_on_error=1:halt_on_error=1:second_deadlock_stack=1:suppressions=${workspaceFolder}/tests/sanitizers/tsan.supp"
+      }
+    },
+    {
+      "name": "Attach",
+      "type": "lldb",
+      "request": "attach",
+      "pid": "${command:pickMyProcess}"
+    }
+  ],
+  "inputs": [
+    {
+      "id": "gtestFilter",
+      "type": "promptString",
+      "description": "GoogleTest filter, such as Counter.* or Parser.RejectsEmptyKey",
+      "default": "*"
     }
   ]
 }

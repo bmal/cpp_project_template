@@ -1,63 +1,32 @@
 {
+  // Each task runs the Makefile target of its name; `make help` describes them.
   "version": "2.0.0",
   "tasks": [
     {
-      "label": "CMake Configure Dev",
+      "label": "lint",
       "type": "shell",
-      "command": "cmake --preset dev",
-      "group": "build",
+      "command": "make lint",
       "problemMatcher": "$gcc"
     },
     {
-      "label": "CMake Build Dev",
+      "label": "format",
       "type": "shell",
-      "command": "cmake --build --preset dev",
-      "group": {
-        "kind": "build",
-        "isDefault": true
-      },
-      "dependsOn": ["CMake Configure Dev"],
+      "command": "make format",
       "problemMatcher": "$gcc"
     },
     {
-      "label": "Run Unit Tests",
+      "label": "coverage",
       "type": "shell",
-      "command": "ctest --preset dev",
-      "group": {
-        "kind": "test",
-        "isDefault": true
-      },
-      "dependsOn": ["CMake Build Dev"],
-      "problemMatcher": "$gcc"
-    },
-    {
-      "label": "CMake Configure Benchmarks",
-      "type": "shell",
-      "command": "cmake --preset bench",
-      "group": "build",
-      "problemMatcher": "$gcc"
-    },
-    {
-      "label": "CMake Build Benchmarks",
-      "type": "shell",
-      "command": "cmake --build --preset bench",
-      "group": "build",
-      "dependsOn": ["CMake Configure Benchmarks"],
-      "problemMatcher": "$gcc"
-    },
-    {
-      "label": "Run Benchmarks",
-      "type": "shell",
-      "command": "cmake --build --preset bench --target run_benchmarks",
+      "command": "make coverage",
       "group": "test",
-      "dependsOn": ["CMake Build Benchmarks"]
+      "problemMatcher": "$gcc"
     },
     {
-      "label": "Run CLI",
+      "label": "bench",
       "type": "shell",
-      "command": "build/dev/bin/myproj_cli",
+      "command": "make bench",
       "group": "test",
-      "dependsOn": ["CMake Build Dev"]
+      "problemMatcher": "$gcc"
     }
   ]
 }

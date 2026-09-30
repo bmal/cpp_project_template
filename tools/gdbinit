@@ -1,0 +1,5 @@
+# Opt-in GDB breakpoints; docs/how-to/debug-a-test.md shows how to load them.
+# Stop once a sanitizer has printed its report, before it exits, with the faulting frames live.
+set breakpoint pending on
+break __sanitizer::Die
+break __ubsan_on_report
