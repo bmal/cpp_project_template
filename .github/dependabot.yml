@@ -1,0 +1,12 @@
+# Weekly updates of every pinned action, in one pull request; the version comment moves with the SHA.
+version: 2
+updates:
+  - package-ecosystem: github-actions
+    directories:
+      - /
+      - /.github/actions/*
+    schedule:
+      interval: weekly
+    groups:
+      actions:
+        patterns: ["*"]

@@ -5,6 +5,7 @@
 #include "parser/parser.hpp"
 #include "support/line_builder.hpp"
 
+#include <ostream>
 #include <string>
 #include <string_view>
 #include <vector>
@@ -42,6 +43,11 @@ struct MalformedLine {
     std::string_view line;
     ParseError error;
 };
+
+// Without a printer GoogleTest prints the raw bytes, padding included, which Valgrind reports.
+std::ostream& operator<<(std::ostream& out, const MalformedLine& malformed) {
+    return out << malformed.name;
+}
 
 class ParseLineRejects : public testing::TestWithParam<MalformedLine> {};
 

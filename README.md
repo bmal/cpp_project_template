@@ -370,6 +370,18 @@ A change to Markdown, `docs/`, or `LICENSE` alone skips every C++ step.
 
 Codecov receives the coverage report when the repository secret `CODECOV_TOKEN` exists; it never fails a check.
 
+`nightly.yaml` runs `msan`, `cxx26`, and `make valgrind` each night unless the last successful nightly checked the same commit, and on demand.
+When you want real benchmark numbers each night, register a quiet self-hosted runner under a label and name it:
+
+```bash
+gh variable set BENCH_RUNNER_LABEL --body <label>
+```
+
+`image.yaml` rebuilds the CI image when a file `scripts/ci-image.sh` hashes changes, and on `main` publishes it after `make dev` passes inside it.
+Until then CI runs `scripts/bootstrap.sh` instead, so a pull request never runs in the image its own change describes.
+The package must be public, because CI looks for it without logging in.
+A `v*` tag makes a release: see [docs/how-to/release.md](docs/how-to/release.md).
+
 ## Platform Notes
 
 macOS is supported for everyday development: configure, build, tests, app runs, coverage, and basic benchmark smoke checks. Do not treat macOS benchmark CPU metadata or affinity behavior as authoritative for final latency claims.

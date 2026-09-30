@@ -6,7 +6,7 @@ BASE ?= main
 FUZZ_SECONDS ?= 30
 
 .DEFAULT_GOAL := help
-.PHONY: help bootstrap coverage bench bench-compare fuzz lint format format-check build test clean-all
+.PHONY: help bootstrap valgrind coverage bench bench-compare fuzz lint format format-check build test clean-all
 
 help: ## List every target
 	@echo "Usage: make <target> [PRESET=<preset>] [BASE=<git ref>] [FUZZ_SECONDS=<n>]"
@@ -27,6 +27,14 @@ cxx26: workflow/cxx26 ## Configure, build, and run unit and integration tests in
 asan: workflow/asan ## Configure, build, and test under AddressSanitizer and UBSan
 tsan: workflow/tsan ## Configure, build, and test under ThreadSanitizer
 msan: workflow/msan ## Configure, build, and test under MemorySanitizer; Linux, after scripts/build-msan-libcxx.sh
+
+# Valgrind exits 1 on any error or definite leak, which fails that test.
+# -T reads its configuration from the current directory unless --test-dir names the build.
+valgrind: ## Build dev and run its unit and integration tests under Valgrind memcheck; Linux
+	cmake --preset dev
+	cmake --build --preset dev
+	ctest --preset dev --test-dir build/dev -T memcheck --overwrite MemoryCheckCommand="$$(command -v valgrind)" \
+		--overwrite "MemoryCheckCommandOptions=--error-exitcode=1 --leak-check=full --errors-for-leak-kinds=definite --track-origins=yes"
 
 coverage: ## Configure the coverage preset, run its tests, and write build/current/coverage/lcov.info
 	cmake --preset coverage

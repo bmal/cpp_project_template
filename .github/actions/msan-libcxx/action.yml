@@ -1,0 +1,32 @@
+# The msan jobs start here: the instrumented libc++ is restored from the cache, or built once per Clang.
+name: Instrumented libc++ for MemorySanitizer
+description: >-
+  Restores the libc++ that scripts/build-msan-libcxx.sh builds, keyed by the full Clang version and
+  the script, and builds it when the cache has none.
+runs:
+  using: composite
+  steps:
+    - name: Find the Clang version the msan preset uses
+      id: clang
+      shell: bash
+      run: |
+        # Both the "already built" and the "not built" message name the version; --check exits 1 on the latter.
+        version="$({ scripts/build-msan-libcxx.sh --check 2>&1 || true; } |
+          sed -n 's/.* for Clang \([0-9][0-9.]*\).*/\1/p')"
+        if [[ -z "${version}" ]]; then
+          scripts/build-msan-libcxx.sh --check || true
+          echo "msan-libcxx: no Clang version in the message above" >&2
+          exit 1
+        fi
+        echo "Clang ${version}"
+        echo "version=${version}" >>"${GITHUB_OUTPUT}"
+
+    - name: Restore the instrumented libc++
+      uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+      with:
+        path: ~/.cache/myproj/msan-libcxx
+        key: msan-libcxx-clang-${{ steps.clang.outputs.version }}-${{ hashFiles('scripts/build-msan-libcxx.sh') }}
+
+    - name: Build the instrumented libc++ unless it was restored
+      shell: bash
+      run: scripts/build-msan-libcxx.sh

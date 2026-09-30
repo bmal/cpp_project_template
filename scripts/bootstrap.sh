@@ -17,7 +17,7 @@ usage() {
     cat <<USAGE
 Usage: scripts/bootstrap.sh [--ci]
 
-Installs the compilers, lldb, CMake, Ninja, Make, ccache, pre-commit, gersemi, and vcpkg at its pinned commit.
+Installs the compilers, lldb, CMake, Ninja, Make, ccache, Valgrind on Linux, pre-commit, gersemi, and vcpkg at its pinned commit.
 
   --ci  For the Dockerfile and CI jobs: install vcpkg into \$VCPKG_ROOT when it is set,
         and leave the git hook and the shell profile alone.
@@ -60,7 +60,7 @@ install_linux() {
     ${sudo} apt-get update -qq
     ${sudo} apt-get install -y -qq --no-install-recommends \
         ca-certificates ccache cmake curl git make ninja-build pkg-config sudo tar unzip zip \
-        python3 python3-venv pipx lcov \
+        python3 python3-venv pipx lcov valgrind \
         "g++-${GCC_VERSION}"
 
     if ! apt-cache show "clang-${CLANG_VERSION}" >/dev/null 2>&1; then

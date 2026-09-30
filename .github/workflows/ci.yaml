@@ -36,16 +36,8 @@ jobs:
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
-      - name: Use the CI image when it is published for this tree
+      - uses: ./.github/actions/image
         id: image
-        run: |
-          image="$(scripts/ci-image.sh)"
-          if docker manifest inspect "${image}" >/dev/null 2>&1; then
-            echo "Linux jobs run in ${image}"
-            echo "image=${image}" >>"${GITHUB_OUTPUT}"
-          else
-            echo "${image} is not published; Linux jobs run scripts/bootstrap.sh"
-          fi
 
       - name: Decide which jobs run
         id: scope
@@ -320,13 +312,7 @@ jobs:
       - uses: ./.github/actions/setup
         with:
           key: msan
-      - name: Restore the instrumented libc++
-        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
-        with:
-          path: ~/.cache/myproj/msan-libcxx
-          key: msan-libcxx-${{ hashFiles('scripts/build-msan-libcxx.sh', 'scripts/bootstrap.sh') }}
-      - name: Build the instrumented libc++ unless it was restored
-        run: scripts/build-msan-libcxx.sh
+      - uses: ./.github/actions/msan-libcxx
       - name: Configure, build, and test msan
         run: make msan
       - uses: ./.github/actions/report

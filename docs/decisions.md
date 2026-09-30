@@ -356,6 +356,24 @@ Narrow choices left to single tickets are appended below the entry they refine.
 - Why: CI, the dev container, and a laptop read one pin block.
 - Rejected: a second pin block in the workflow, which drifts from the image.
 
+#### D25.7. The nightly skips only its schedule, and Valgrind wraps the `dev` tests
+
+- Decision: a scheduled run whose commit is the head of the last successful nightly runs nothing; a manual run always runs. `make valgrind` runs the `dev` unit and integration tests under CTest memcheck, and Valgrind's exit code fails a test on any error or definite leak. The instrumented libc++ is cached per full Clang version.
+- Why: a failed nightly retries the next night, a person who asks for a run gets one, and Valgrind needs no build of its own.
+- Rejected: a `valgrind` preset, which adds a build directory for the same binaries; a cache per Clang major, which a patch update would leave stale.
+
+#### D25.8. The image is published only after `make dev` passes inside it
+
+- Decision: `image.yaml` builds the image on a change to its inputs, runs `make dev` in it, and pushes on `main` and manual runs. A pull request builds and checks it without publishing.
+- Why: a tool that bootstrap forgets fails before any job can pull the image.
+- Rejected: `docker/build-push-action`, one more third-party action to pin for three commands.
+
+#### D25.9. A release tag names the project version
+
+- Decision: `v<project(VERSION)>` releases; `v<project(VERSION)>-<suffix>` makes a pre-release. `scripts/check-release-tag.sh` refuses any other tag before a build starts, naming both versions. The `package` job builds in the CI image, and a separate `publish` job holds the only write permission.
+- Why: the archive's version and the tag cannot disagree, and a release candidate needs no version bump.
+- Rejected: reading the version from the tag, which makes `project(VERSION)` a second source.
+
 ### D26. Instantiation
 
 - Decision: literal placeholders. Idempotent `init-project.sh <name> [--strip-samples]`. A self-initializing workflow on first push, also manual. `bootstrap.sh`. `.devcontainer/` on the CI Dockerfile. `setup-repo.sh` for labels, ruleset, merge queue, Dependabot. CI exercises the init script.

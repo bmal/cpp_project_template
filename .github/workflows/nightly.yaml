@@ -1,0 +1,148 @@
+# The slow checks that gate nothing: msan, the C++26 canary, Valgrind, and real benchmark numbers.
+# A scheduled run does nothing when main has not moved since the last successful run.
+name: Nightly
+
+on:
+  schedule:
+    - cron: "17 3 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: nightly
+  cancel-in-progress: false
+
+defaults:
+  run:
+    shell: bash
+
+jobs:
+  plan:
+    name: Plan
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    permissions:
+      contents: read
+      actions: read
+    outputs:
+      run: ${{ steps.changed.outputs.run }}
+      image: ${{ steps.image.outputs.image }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      # A manual run always runs; a scheduled one only for a commit no nightly has passed on.
+      - name: Skip when main is unchanged since the last successful run
+        id: changed
+        env:
+          GH_TOKEN: ${{ github.token }}
+          EVENT: ${{ github.event_name }}
+        run: |
+          last="$(gh run list --repo "${GITHUB_REPOSITORY}" --workflow nightly.yaml --branch main \
+            --status success --limit 1 --json headSha --jq '.[0].headSha // ""')"
+          if [[ "${EVENT}" == schedule && "${last}" == "${GITHUB_SHA}" ]]; then
+            echo "main is still at ${GITHUB_SHA}, which the last successful nightly checked" |
+              tee -a "${GITHUB_STEP_SUMMARY}"
+            echo "run=false" >>"${GITHUB_OUTPUT}"
+          else
+            echo "run=true" >>"${GITHUB_OUTPUT}"
+          fi
+
+      - uses: ./.github/actions/image
+        if: steps.changed.outputs.run == 'true'
+        id: image
+
+  msan:
+    name: msan
+    needs: plan
+    if: needs.plan.outputs.run == 'true'
+    runs-on: ubuntu-24.04
+    container:
+      image: ${{ needs.plan.outputs.image }}
+      options: --cap-add=SYS_PTRACE --security-opt seccomp=unconfined
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: ./.github/actions/setup
+        with:
+          key: msan
+      - uses: ./.github/actions/msan-libcxx
+      - name: Configure, build, and test msan
+        run: make msan
+      - uses: ./.github/actions/report
+        if: always()
+        with:
+          name: msan
+
+  cxx26:
+    name: cxx26 canary
+    needs: plan
+    if: needs.plan.outputs.run == 'true'
+    runs-on: ubuntu-24.04
+    container:
+      image: ${{ needs.plan.outputs.image }}
+      options: --cap-add=SYS_PTRACE --security-opt seccomp=unconfined
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: ./.github/actions/setup
+        with:
+          key: cxx26
+      - name: Configure, build, and test cxx26
+        run: cmake --workflow --preset cxx26
+      - uses: ./.github/actions/report
+        if: always()
+        with:
+          name: cxx26
+
+  valgrind:
+    name: Valgrind memcheck
+    needs: plan
+    if: needs.plan.outputs.run == 'true'
+    runs-on: ubuntu-24.04
+    container:
+      image: ${{ needs.plan.outputs.image }}
+      options: --cap-add=SYS_PTRACE --security-opt seccomp=unconfined
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: ./.github/actions/setup
+        with:
+          key: dev
+      - name: Run the unit and integration tests under memcheck
+        run: make valgrind
+      - name: Upload the memcheck logs
+        if: failure()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: memcheck-logs
+          path: build/dev/Testing/Temporary/MemoryChecker.*.log
+          retention-days: 7
+          if-no-files-found: ignore
+      - uses: ./.github/actions/report
+        if: always()
+        with:
+          name: valgrind
+
+  # Hosted runners are too noisy for numbers. Set the repository variable BENCH_RUNNER_LABEL to the
+  # label of a quiet self-hosted runner to turn this job on.
+  bench:
+    name: Benchmarks on ${{ vars.BENCH_RUNNER_LABEL }}
+    needs: plan
+    if: needs.plan.outputs.run == 'true' && vars.BENCH_RUNNER_LABEL != ''
+    runs-on: ${{ vars.BENCH_RUNNER_LABEL }}
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: ./.github/actions/setup
+        with:
+          key: bench
+      - name: Run every benchmark
+        run: make bench
+      - name: Upload the benchmark JSON
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: bench-${{ github.sha }}
+          path: build/bench/bench/*.json
+          retention-days: 7

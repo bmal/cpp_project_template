@@ -1,0 +1,66 @@
+# Builds the CI image when a file it is built from changes, runs make dev inside it, then publishes it.
+# ci.yaml finds the image by the same name, from scripts/ci-image.sh, and bootstraps when it is missing.
+name: CI image
+
+on:
+  push:
+    branches: [main]
+    # The inputs scripts/ci-image.sh hashes, and this file.
+    paths:
+      - Dockerfile
+      - scripts/bootstrap.sh
+      - .pre-commit-config.yaml
+      - .github/workflows/image.yaml
+  pull_request:
+    paths:
+      - Dockerfile
+      - scripts/bootstrap.sh
+      - .pre-commit-config.yaml
+      - .github/workflows/image.yaml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: image-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+defaults:
+  run:
+    shell: bash
+
+jobs:
+  image:
+    name: Build, check, and publish the CI image
+    runs-on: ubuntu-24.04
+    timeout-minutes: 120
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Build the image
+        run: |
+          image="$(scripts/ci-image.sh)"
+          echo "IMAGE=${image}" >>"${GITHUB_ENV}"
+          # The label links the package to this repository.
+          docker build --label "org.opencontainers.image.source=${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}" \
+            --tag "${image}" .
+
+      # A tool bootstrap forgot fails here, before anything is published.
+      - name: Run make dev inside the image, as a clean machine
+        run: |
+          docker run --rm --cap-add=SYS_PTRACE --security-opt seccomp=unconfined \
+            --volume "${PWD}:/workspaces/src" --workdir /workspaces/src "${IMAGE}" make dev
+
+      # A pull request only checks; the image it would publish belongs to its merge.
+      - name: Publish the image
+        if: github.event_name != 'pull_request'
+        env:
+          TOKEN: ${{ github.token }}
+        run: |
+          docker login ghcr.io --username "${GITHUB_ACTOR}" --password-stdin <<<"${TOKEN}"
+          docker push "${IMAGE}"
+          echo "Published ${IMAGE}" | tee -a "${GITHUB_STEP_SUMMARY}"

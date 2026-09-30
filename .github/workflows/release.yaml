@@ -1,0 +1,82 @@
+# A v* tag becomes a GitHub release with the CPack archive of the release preset.
+# The tag must name project(VERSION); a tag with a pre-release suffix makes a pre-release.
+name: Release
+
+on:
+  push:
+    tags: ["v*"]
+
+permissions:
+  contents: read
+
+defaults:
+  run:
+    shell: bash
+
+jobs:
+  plan:
+    name: Check the tag against project(VERSION)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    outputs:
+      image: ${{ steps.image.outputs.image }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Refuse a tag that does not name the project version
+        env:
+          TAG: ${{ github.ref_name }}
+        run: scripts/check-release-tag.sh "${TAG}" 2>&1 | tee -a "${GITHUB_STEP_SUMMARY}"
+      - uses: ./.github/actions/image
+        id: image
+
+  package:
+    name: release, tested and packaged
+    needs: plan
+    runs-on: ubuntu-24.04
+    container:
+      image: ${{ needs.plan.outputs.image }}
+      options: --cap-add=SYS_PTRACE --security-opt seccomp=unconfined
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: ./.github/actions/setup
+        with:
+          key: release
+      - name: Configure, build, and test release
+        run: cmake --workflow --preset release
+      - name: Write the archive
+        run: cpack --config build/release/CPackConfig.cmake
+      - name: Upload the archive
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: package
+          path: build/release/package/*.tar.gz
+          retention-days: 7
+          if-no-files-found: error
+      - uses: ./.github/actions/report
+        if: always()
+        with:
+          name: release
+
+  # Runs outside the container, where gh is installed, and is the only job that may write.
+  publish:
+    name: GitHub release
+    needs: package
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: package
+      - name: Create the release with the archive
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ github.ref_name }}
+        run: |
+          prerelease=()
+          if [[ "${TAG}" == *-* ]]; then prerelease=(--prerelease); fi
+          gh release create "${TAG}" --repo "${GITHUB_REPOSITORY}" --verify-tag --title "${TAG}" \
+            --generate-notes "${prerelease[@]}" ./*.tar.gz
+          echo "Released ${TAG} with $(ls ./*.tar.gz)" | tee -a "${GITHUB_STEP_SUMMARY}"

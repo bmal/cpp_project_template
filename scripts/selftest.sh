@@ -29,10 +29,12 @@ cases=(
     "asan_overflow       a heap overflow planted in a unit test fails the asan preset with a report"
     "tsan_race           a data race planted in a unit test fails the tsan preset with a report"
     "msan_uninit         an uninitialized read planted in a unit test fails the msan preset; Linux only"
+    "valgrind_leak       a leak planted in a unit test fails make valgrind with a report; Linux only"
     "coverage_report     the coverage target writes lcov.info for libs/ only, with Clang and, on Linux, GCC"
     "vscode_files        .vscode/*.json parses as JSONC, reaches builds only through build/current, and defines its own problem matcher"
     "container_files     the Dockerfile installs only through bootstrap.sh --ci, and devcontainer.json builds it and installs the git hook"
     "debugger_init       lldb is installed and loads tools/lldbinit; gdb, where installed, loads tools/gdbinit"
+    "release_tag         check-release-tag.sh accepts v<project version> and its pre-releases, and names both versions otherwise"
     "ci_pins             every uses: under .github/ names a local action or a commit SHA with its version"
 )
 
@@ -720,6 +722,32 @@ EOF
         "WARNING: MemorySanitizer: use-of-uninitialized-value"
 }
 
+case_valgrind_leak() {
+    local src="${work}/valgrind_leak" out="${work}/valgrind_leak.out"
+    copy_tree "${src}"
+    cat >"${src}/tests/unit/parser/test_planted.cpp" <<'EOF'
+// Selftest: allocates and never frees, which Valgrind memcheck reports as definitely lost.
+// The pointer is volatile so the compiler cannot drop the allocation.
+#include <gtest/gtest.h>
+
+TEST(Planted, Leak) {
+    int* volatile leaked = new int[4];
+    EXPECT_NE(leaked, nullptr);
+}
+EOF
+    configure_dev "${src}"
+    if make -C "${src}" valgrind >"${out}" 2>&1; then
+        cat "${out}"
+        echo "make valgrind passed a test with a planted leak"
+        return 1
+    fi
+    if ! grep -E "^Memory Leak - [0-9]+" "${out}"; then
+        cat "${out}"
+        echo "make valgrind failed without reporting a memory leak"
+        return 1
+    fi
+}
+
 # Runs the coverage preset $2 in the copy $1 and checks its lcov.info names libs/ and no dependency.
 expect_lcov() {
     local src="$1" preset="$2" info libs
@@ -850,6 +878,25 @@ case_ci_pins() {
     fi
 }
 
+case_release_tag() {
+    local version tag
+    version="$(sed -n 's/^project([^ ]* VERSION \([0-9.]*\).*/\1/p' "${root}/CMakeLists.txt")"
+    for tag in "v${version}" "v${version}-rc.1"; do
+        "${root}/scripts/check-release-tag.sh" "${tag}"
+    done
+    for tag in v0.0.0-test "${version}" "v${version}.1" "v${version}--"; do
+        if "${root}/scripts/check-release-tag.sh" "${tag}" 2>"${work}/release_tag.err"; then
+            echo "check-release-tag.sh accepted ${tag} for project version ${version}"
+            return 1
+        fi
+        cat "${work}/release_tag.err"
+        if [ "${tag}" = v0.0.0-test ] && ! grep -q "0.0.0.*${version}" "${work}/release_tag.err"; then
+            echo "the rejection of ${tag} does not name both 0.0.0 and ${version}"
+            return 1
+        fi
+    done
+}
+
 # Prints why a case cannot run on this host, or nothing when it can.
 skip_reason() {
     case "$1" in
@@ -857,6 +904,13 @@ skip_reason() {
         if ! command -v pipx >/dev/null ||
             [ ! -x "$(pipx environment --value PIPX_BIN_DIR)/pre-commit" ]; then
             echo "pre-commit is not installed; run scripts/bootstrap.sh"
+        fi
+        ;;
+    valgrind_leak)
+        if [ "$(uname -s)" != Linux ]; then
+            echo "Valgrind runs on Linux only"
+        elif ! command -v valgrind >/dev/null; then
+            echo "valgrind is not installed; run scripts/bootstrap.sh"
         fi
         ;;
     msan_uninit)

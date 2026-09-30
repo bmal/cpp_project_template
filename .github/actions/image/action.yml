@@ -1,0 +1,23 @@
+# Every workflow with Linux jobs asks here which container they run in.
+name: Find the CI image
+description: >-
+  Outputs the CI image named by scripts/ci-image.sh when the registry has it, and an empty string
+  otherwise, so the Linux jobs run scripts/bootstrap.sh instead.
+outputs:
+  image:
+    description: The published image of this tree, or empty
+    value: ${{ steps.probe.outputs.image }}
+runs:
+  using: composite
+  steps:
+    - name: Use the CI image when it is published for this tree
+      id: probe
+      shell: bash
+      run: |
+        image="$(scripts/ci-image.sh)"
+        if docker manifest inspect "${image}" >/dev/null 2>&1; then
+          echo "Linux jobs run in ${image}"
+          echo "image=${image}" >>"${GITHUB_OUTPUT}"
+        else
+          echo "${image} is not published; Linux jobs run scripts/bootstrap.sh"
+        fi
