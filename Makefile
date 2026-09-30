@@ -29,7 +29,7 @@ tsan: workflow/tsan ## Configure, build, and test under ThreadSanitizer
 msan: workflow/msan ## Configure, build, and test under MemorySanitizer; Linux, after scripts/build-msan-libcxx.sh
 coverage: workflow/coverage ## Configure, build, and test with coverage instrumentation
 
-bench: ## Build the bench preset and run every benchmark, writing JSON to build/bench/bench/
+bench: ## Build the bench preset and run every benchmark, writing JSON to build/current/bench/
 	cmake --preset bench
 	cmake --build --preset bench --target run_benchmarks
 

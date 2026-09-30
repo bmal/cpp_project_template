@@ -125,6 +125,7 @@ cmake --list-presets=all
 ```
 
 Configure, build, and test presets share a name, and each test preset has a workflow preset. The `-gcc` presets exist on Linux only. Build directories are `build/<preset>`.
+Configure also points `build/current` and the root `compile_commands.json` at that directory. [docs/how-to/personal-presets.md](docs/how-to/personal-presets.md) adds a preset of your own.
 
 Use an existing vcpkg checkout instead of `.vcpkg/`:
 
@@ -345,15 +346,7 @@ Included VS Code files provide:
 - Configure/build/test tasks.
 - Benchmark run and CLI run tasks.
 - Debug launch configs for `build/dev/bin/core_unit_tests` and `build/dev/bin/myproj_cli`.
-- clangd configured to read compile commands from `build/dev`.
-
-Start with:
-
-```bash
-cmake --preset dev
-```
-
-That generates `build/dev/compile_commands.json`, which clangd uses for accurate indexing.
+- clangd reading the root `compile_commands.json`, which follows the last configured preset.
 
 ## CI
 
@@ -377,7 +370,7 @@ Linux is the recommended platform for performance-sensitive work. For HFT-style 
 
 ## Troubleshooting
 
-If clangd shows old commands, regenerate the dev preset:
+If clangd shows old commands, configure the preset you are working in again, here `dev`:
 
 ```bash
 cmake --preset dev

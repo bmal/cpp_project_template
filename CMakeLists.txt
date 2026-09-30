@@ -80,6 +80,8 @@ if(PROJECT_IS_TOP_LEVEL)
   project_add_lint_target()
   include(cmake/Format.cmake)
   project_add_format_targets()
+  include(cmake/CurrentBuild.cmake)
+  project_link_current_build()
 endif()
 
 if(PROJECT_INSTALL)

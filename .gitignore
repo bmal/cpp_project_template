@@ -46,3 +46,6 @@ valgrind.log
 # vcpkg checkout from scripts/bootstrap.sh
 .vcpkg/
 vcpkg_installed/
+
+# Personal presets, see docs/how-to/personal-presets.md
+CMakeUserPresets.json

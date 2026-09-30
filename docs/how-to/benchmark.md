@@ -1,6 +1,6 @@
 # Benchmark a change
 
-`make bench` writes `build/bench/bench/<module>_benchmarks.json`, with p50, p90, and p99 over ten repetitions.
+`make bench` writes `build/current/bench/<module>_benchmarks.json`, with p50, p90, and p99 over ten repetitions.
 
 When you want numbers you can trust on Linux, prepare the machine in one terminal and leave it running:
 

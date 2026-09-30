@@ -11,6 +11,7 @@ cases=(
     "consumer_isolation  a FetchContent consumer gets no tests, apps, flags, or install rules"
     "install_smoke       an installed package builds and runs a find_package consumer"
     "version_header      the version header carries the current git commit"
+    "current_build       build/current and compile_commands.json follow the last configured preset"
     "profile_symbols     the profile preset's CLI has debug info, frame pointers, and no LTO"
     "release_lto         release turns LTO on, links the CLI with -flto, and installs for a non-LTO consumer"
     "scaffold            new-module and new-app output builds, tests, and runs; bad names fail"
@@ -18,7 +19,7 @@ cases=(
     "sample_headers      every source under libs/, apps/, tests/, benchmarks/ opens with two purpose lines"
     "stress_label        only a suite name ending in Stress moves a test from dev to stress"
     "lint_naming         make lint passes, then fails naming readability-identifier-naming on a camelCase function"
-    "lint_presets        make lint passes on every configure preset, so code under #if is linted too"
+    "lint_presets        make lint passes on every configure preset, so code under #if is linted too, and git sees no new file"
     "parser_no_throw     the header-only parser contains no throw and no try"
     "format_roundtrip    make format-check fails on a misformatted C++ or CMake line and make format fixes it"
     "pre_commit_hooks    pre-commit run --all-files passes on the working tree"
@@ -246,6 +247,53 @@ case_version_header() {
     fi
 }
 
+# Fails naming preset $3 when git status of the copy $1 differs from the snapshot $2.
+expect_git_unchanged() {
+    if [ "$(git -C "$1" status --porcelain)" != "$2" ]; then
+        diff <(echo "$2") <(git -C "$1" status --porcelain) || true
+        echo "cmake --preset $3 left files git does not ignore"
+        return 1
+    fi
+}
+
+# Configures preset $2 in the copy $1, then checks that build/current and the root
+# compile_commands.json point at build/$2, with $3 in its commands, and that git sees nothing new.
+expect_current_build() {
+    local src="$1" preset="$2" flag="$3" target before
+    # The copy already shows the uncommitted changes of the working tree.
+    before="$(git -C "${src}" status --porcelain)"
+    (cd "${src}" && cmake --preset "${preset}" -DVCPKG_INSTALLED_DIR="${vcpkg_installed}")
+    target="$(readlink "${src}/build/current")"
+    if [[ "${target}" != */build/"${preset}" ]]; then
+        echo "after cmake --preset ${preset}, build/current points at '${target}'"
+        return 1
+    fi
+    if ! grep -q -- "${flag}" "${src}/compile_commands.json"; then
+        echo "after cmake --preset ${preset}, the root compile_commands.json has no ${flag}"
+        return 1
+    fi
+    expect_git_unchanged "${src}" "${before}" "${preset}"
+}
+
+case_current_build() {
+    local src="${work}/current_build"
+    copy_tree "${src}"
+    expect_current_build "${src}" asan "-fsanitize=address"
+    expect_current_build "${src}" dev "-O0"
+    if grep -q -- "-fsanitize=address" "${src}/compile_commands.json"; then
+        echo "after cmake --preset dev, the root compile_commands.json still has -fsanitize=address"
+        return 1
+    fi
+    # The personal preset from docs/how-to/personal-presets.md, copied from the page itself.
+    awk '/^```json$/ { on = 1; next } /^```$/ { on = 0 } on' "${root}/docs/how-to/personal-presets.md" \
+        >"${src}/CMakeUserPresets.json"
+    if ! git -C "${src}" check-ignore -q CMakeUserPresets.json; then
+        echo "git does not ignore CMakeUserPresets.json"
+        return 1
+    fi
+    expect_current_build "${src}" dev-mine "-O0"
+}
+
 # Succeeds when the binary $1 carries debug information for the translation unit $2.
 has_debug_info() {
     local binary="$1" source="$2" names
@@ -452,8 +500,9 @@ EOF
 }
 
 case_lint_presets() {
-    local src="${work}/lint_presets" preset checked=0
+    local src="${work}/lint_presets" preset checked=0 before
     copy_tree "${src}"
+    before="$(git -C "${src}" status --porcelain)"
     for preset in $(cd "${src}" && cmake --list-presets=configure | sed -n 's/^ *"\([^"]*\)".*/\1/p'); do
         if [ "${preset}" = msan ] && [ -n "$(skip_reason msan_uninit)" ]; then
             echo "msan: skipped, $(skip_reason msan_uninit)"
@@ -464,6 +513,7 @@ case_lint_presets() {
             echo "make lint PRESET=${preset} reports findings that the dev preset does not compile"
             return 1
         fi
+        expect_git_unchanged "${src}" "${before}" "${preset}"
         echo "${preset}: lint is clean"
         checked=$((checked + 1))
     done
