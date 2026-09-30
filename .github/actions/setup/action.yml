@@ -32,7 +32,12 @@ runs:
         # A hosted runner may carry its own vcpkg; the project's pinned one goes under .vcpkg/.
         export VCPKG_ROOT="${GITHUB_WORKSPACE}/.vcpkg"
         echo "VCPKG_ROOT=${VCPKG_ROOT}" >>"${GITHUB_ENV}"
-        scripts/bootstrap.sh --ci
+        # A stalled download from apt.llvm.org hangs bootstrap without output; it is safe to rerun.
+        if command -v timeout >/dev/null; then
+          timeout 15m scripts/bootstrap.sh --ci || timeout 15m scripts/bootstrap.sh --ci
+        else
+          scripts/bootstrap.sh --ci
+        fi
         pipx environment --value PIPX_BIN_DIR >>"${GITHUB_PATH}"
 
     - name: Restore the vcpkg binary cache
