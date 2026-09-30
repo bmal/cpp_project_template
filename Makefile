@@ -20,7 +20,10 @@ bootstrap: ## Install the toolchain, tools, and vcpkg once per machine
 dev: workflow/dev ## Configure, build, and run unit and integration tests of the debug build
 functional: workflow/functional ## Build dev and run the black-box tests of the apps
 stress: workflow/stress ## Build dev and run the long-running tests labeled stress
-release: workflow/release ## Configure, build, and test the optimized build
+release: workflow/release ## Configure, build, and test the optimized build, with LTO, for this machine's CPU
+relwithdebinfo: workflow/relwithdebinfo ## Configure, build, and test at -O2 with debug info and frame pointers
+profile: workflow/profile ## Configure, build, and test the release flags with debug info and no LTO, for perf
+cxx26: workflow/cxx26 ## Configure, build, and run unit and integration tests in C++26
 asan: workflow/asan ## Configure, build, and test under AddressSanitizer and UBSan
 tsan: workflow/tsan ## Configure, build, and test under ThreadSanitizer
 msan: workflow/msan ## Configure, build, and test under MemorySanitizer; Linux, after scripts/build-msan-libcxx.sh

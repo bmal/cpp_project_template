@@ -31,6 +31,10 @@ if(PROJECT_IS_TOP_LEVEL)
 endif()
 
 include(cmake/CompilerPolicy.cmake)
+if(PROJECT_IS_TOP_LEVEL)
+  include(cmake/BuildTools.cmake)
+  project_configure_build_tools()
+endif()
 include(cmake/Sanitizers.cmake)
 include(cmake/ProjectModules.cmake)
 

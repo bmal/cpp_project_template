@@ -51,20 +51,50 @@
       "inherits": "host",
       "cacheVariables": {
         "CMAKE_BUILD_TYPE": "Debug",
+        "CMAKE_CXX_FLAGS_DEBUG": "-O0 -g3 -fno-omit-frame-pointer",
         "PROJECT_STDLIB_HARDENING": "ON"
       }
     },
     {
       "name": "release",
-      "displayName": "Optimized build with tests",
+      "displayName": "Optimized build with LTO for this machine's CPU, with tests",
       "inherits": "host",
       "cacheVariables": {
-        "CMAKE_BUILD_TYPE": "Release"
+        "CMAKE_BUILD_TYPE": "Release",
+        "CMAKE_INTERPROCEDURAL_OPTIMIZATION": "ON",
+        "PROJECT_MARCH": "native"
+      }
+    },
+    {
+      "name": "relwithdebinfo",
+      "displayName": "Optimized at -O2 with debug info and frame pointers, with tests",
+      "inherits": "host",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "RelWithDebInfo",
+        "CMAKE_CXX_FLAGS_RELWITHDEBINFO": "-O2 -g -fno-omit-frame-pointer -DNDEBUG"
+      }
+    },
+    {
+      "name": "profile",
+      "displayName": "Release flags with debug info and frame pointers, no LTO, for perf",
+      "inherits": "release",
+      "cacheVariables": {
+        "CMAKE_CXX_FLAGS_RELEASE": "-O3 -DNDEBUG -g",
+        "CMAKE_INTERPROCEDURAL_OPTIMIZATION": "OFF",
+        "PROJECT_FRAME_POINTERS": "ON"
+      }
+    },
+    {
+      "name": "cxx26",
+      "displayName": "Debug build with tests in C++26",
+      "inherits": "dev",
+      "cacheVariables": {
+        "PROJECT_CXX_STANDARD": "26"
       }
     },
     {
       "name": "bench",
-      "displayName": "Optimized build with benchmarks and frame pointers, no tests",
+      "displayName": "Release build with benchmarks and frame pointers, no tests",
       "inherits": "release",
       "cacheVariables": {
         "PROJECT_BUILD_APPS": "OFF",
@@ -147,6 +177,30 @@
       ]
     },
     {
+      "name": "relwithdebinfo-gcc",
+      "displayName": "Optimized at -O2 with debug info and frame pointers, GCC",
+      "inherits": [
+        "gcc",
+        "relwithdebinfo"
+      ]
+    },
+    {
+      "name": "profile-gcc",
+      "displayName": "Release flags with debug info and frame pointers, no LTO, GCC",
+      "inherits": [
+        "gcc",
+        "profile"
+      ]
+    },
+    {
+      "name": "cxx26-gcc",
+      "displayName": "Debug build with tests in C++26, GCC",
+      "inherits": [
+        "gcc",
+        "cxx26"
+      ]
+    },
+    {
       "name": "asan-gcc",
       "displayName": "AddressSanitizer and UBSan at -O1, GCC",
       "inherits": [
@@ -185,6 +239,18 @@
       "configurePreset": "release"
     },
     {
+      "name": "relwithdebinfo",
+      "configurePreset": "relwithdebinfo"
+    },
+    {
+      "name": "profile",
+      "configurePreset": "profile"
+    },
+    {
+      "name": "cxx26",
+      "configurePreset": "cxx26"
+    },
+    {
       "name": "bench",
       "configurePreset": "bench"
     },
@@ -220,6 +286,33 @@
     {
       "name": "release-gcc",
       "configurePreset": "release-gcc",
+      "condition": {
+        "type": "equals",
+        "lhs": "${hostSystemName}",
+        "rhs": "Linux"
+      }
+    },
+    {
+      "name": "relwithdebinfo-gcc",
+      "configurePreset": "relwithdebinfo-gcc",
+      "condition": {
+        "type": "equals",
+        "lhs": "${hostSystemName}",
+        "rhs": "Linux"
+      }
+    },
+    {
+      "name": "profile-gcc",
+      "configurePreset": "profile-gcc",
+      "condition": {
+        "type": "equals",
+        "lhs": "${hostSystemName}",
+        "rhs": "Linux"
+      }
+    },
+    {
+      "name": "cxx26-gcc",
+      "configurePreset": "cxx26-gcc",
       "condition": {
         "type": "equals",
         "lhs": "${hostSystemName}",
@@ -349,6 +442,21 @@
       "inherits": "no-stress"
     },
     {
+      "name": "relwithdebinfo",
+      "configurePreset": "relwithdebinfo",
+      "inherits": "no-stress"
+    },
+    {
+      "name": "profile",
+      "configurePreset": "profile",
+      "inherits": "no-stress"
+    },
+    {
+      "name": "cxx26",
+      "configurePreset": "cxx26",
+      "inherits": "unit-integration"
+    },
+    {
       "name": "asan",
       "configurePreset": "asan",
       "inherits": [
@@ -405,6 +513,36 @@
       "name": "release-gcc",
       "configurePreset": "release-gcc",
       "inherits": "no-stress",
+      "condition": {
+        "type": "equals",
+        "lhs": "${hostSystemName}",
+        "rhs": "Linux"
+      }
+    },
+    {
+      "name": "relwithdebinfo-gcc",
+      "configurePreset": "relwithdebinfo-gcc",
+      "inherits": "no-stress",
+      "condition": {
+        "type": "equals",
+        "lhs": "${hostSystemName}",
+        "rhs": "Linux"
+      }
+    },
+    {
+      "name": "profile-gcc",
+      "configurePreset": "profile-gcc",
+      "inherits": "no-stress",
+      "condition": {
+        "type": "equals",
+        "lhs": "${hostSystemName}",
+        "rhs": "Linux"
+      }
+    },
+    {
+      "name": "cxx26-gcc",
+      "configurePreset": "cxx26-gcc",
+      "inherits": "unit-integration",
       "condition": {
         "type": "equals",
         "lhs": "${hostSystemName}",
@@ -514,6 +652,57 @@
         {
           "type": "test",
           "name": "release"
+        }
+      ]
+    },
+    {
+      "name": "relwithdebinfo",
+      "steps": [
+        {
+          "type": "configure",
+          "name": "relwithdebinfo"
+        },
+        {
+          "type": "build",
+          "name": "relwithdebinfo"
+        },
+        {
+          "type": "test",
+          "name": "relwithdebinfo"
+        }
+      ]
+    },
+    {
+      "name": "profile",
+      "steps": [
+        {
+          "type": "configure",
+          "name": "profile"
+        },
+        {
+          "type": "build",
+          "name": "profile"
+        },
+        {
+          "type": "test",
+          "name": "profile"
+        }
+      ]
+    },
+    {
+      "name": "cxx26",
+      "steps": [
+        {
+          "type": "configure",
+          "name": "cxx26"
+        },
+        {
+          "type": "build",
+          "name": "cxx26"
+        },
+        {
+          "type": "test",
+          "name": "cxx26"
         }
       ]
     },
@@ -646,6 +835,57 @@
         {
           "type": "test",
           "name": "release-gcc"
+        }
+      ]
+    },
+    {
+      "name": "relwithdebinfo-gcc",
+      "steps": [
+        {
+          "type": "configure",
+          "name": "relwithdebinfo-gcc"
+        },
+        {
+          "type": "build",
+          "name": "relwithdebinfo-gcc"
+        },
+        {
+          "type": "test",
+          "name": "relwithdebinfo-gcc"
+        }
+      ]
+    },
+    {
+      "name": "profile-gcc",
+      "steps": [
+        {
+          "type": "configure",
+          "name": "profile-gcc"
+        },
+        {
+          "type": "build",
+          "name": "profile-gcc"
+        },
+        {
+          "type": "test",
+          "name": "profile-gcc"
+        }
+      ]
+    },
+    {
+      "name": "cxx26-gcc",
+      "steps": [
+        {
+          "type": "configure",
+          "name": "cxx26-gcc"
+        },
+        {
+          "type": "build",
+          "name": "cxx26-gcc"
+        },
+        {
+          "type": "test",
+          "name": "cxx26-gcc"
         }
       ]
     },

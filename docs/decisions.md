@@ -196,6 +196,12 @@ Narrow choices left to single tickets are appended below the entry they refine.
 - Why: the first parent wins, so a `gcc` preset that inherited the base options overrode its twin's.
 - Rejected: repeating each twin's options in its `-gcc` variant.
 
+#### D15.2. `release` builds for this machine's CPU
+
+- Decision: `PROJECT_MARCH` is empty by default and `native` in `release`, so also in `bench` and `profile`. A release binary is not portable unless it is configured with a baseline such as `x86-64-v3`.
+- Why: a latency-sensitive build ships and measures the fastest code for the machine it runs on, and portability is one flag away.
+- Rejected: a portable default, which makes a forgotten flag a silent slowdown; a per-architecture baseline, which needs detection and differs by host.
+
 ### D16. One toolchain shim
 
 - Decision: it locates vcpkg, picks the compiler from `PROJECT_COMPILER`, fixes the Homebrew libc++ link path, and chainloads vcpkg. Triplets chainload the same compiler file.
@@ -219,6 +225,12 @@ Narrow choices left to single tickets are appended below the entry they refine.
 - Decision: ccache when found. mold, else lld, else default on Linux; the Apple linker on macOS. A root `Makefile` with `make help`, convenience only.
 - Why: rebuilds are fast without configuration, and no one looks up a preset command.
 - Rejected: Makefile targets that are not a preset or target.
+
+#### D19.1. `auto` skips a linker that cannot link the build
+
+- Decision: `PROJECT_LINKER=auto` takes mold, then lld, only if the compiler links with it, and with LTO too when LTO is on. Otherwise it keeps the compiler's default. An explicit `mold` or `lld` that fails stops configure. `CMAKE_INTERPROCEDURAL_OPTIMIZATION` is checked with the chosen linker and stops configure in one sentence when LTO does not work.
+- Why: lld cannot link GCC's LTO objects, so `release-gcc` on a machine with lld and without mold would fail at the last step.
+- Rejected: a fixed order that ignores whether the linker works; `CMAKE_LINKER_TYPE`, which needs CMake 3.29 against the 3.28 floor.
 
 ## Extension and code
 

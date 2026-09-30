@@ -11,6 +11,8 @@ cases=(
     "consumer_isolation  a FetchContent consumer gets no tests, apps, flags, or install rules"
     "install_smoke       an installed package builds and runs a find_package consumer"
     "version_header      the version header carries the current git commit"
+    "profile_symbols     the profile preset's CLI has debug info, frame pointers, and no LTO"
+    "release_lto         release turns LTO on, links the CLI with -flto, and installs for a non-LTO consumer"
     "scaffold            new-module and new-app output builds, tests, and runs; bad names fail"
     "make_help           make help exits 0 and describes every Makefile target"
     "sample_headers      every source under libs/, apps/, tests/, benchmarks/ opens with two purpose lines"
@@ -117,6 +119,23 @@ configure_consumer() {
         "$@"
 }
 
+# Builds and runs a find_package consumer $3, without LTO, of the package installed from $1 into $2.
+link_installed_consumer() {
+    local src="$1" prefix="$2" consumer="$3"
+    mkdir -p "${consumer}"
+    cat >"${consumer}/CMakeLists.txt" <<'EOF'
+cmake_minimum_required(VERSION 3.28)
+project(Consumer LANGUAGES CXX)
+find_package(MyProj REQUIRED)
+add_executable(consumer main.cpp)
+target_link_libraries(consumer PRIVATE MyProj::core)
+EOF
+    write_consumer_main "${consumer}"
+    configure_consumer "${consumer}" "${consumer}/build" "${src}" -DCMAKE_PREFIX_PATH="${prefix}"
+    cmake --build "${consumer}/build"
+    "${consumer}/build/consumer" | grep -q "^42 "
+}
+
 # Writes a consumer main.cpp into $1 that prints the version it was built against.
 write_consumer_main() {
     cat >"$1/main.cpp" <<'EOF'
@@ -207,19 +226,7 @@ case_install_smoke() {
     configure_dev "${src}" -DPROJECT_BUILD_TESTS=OFF -DPROJECT_BUILD_APPS=OFF
     (cd "${src}" && cmake --build --preset dev)
     cmake --install "${src}/build/dev" --prefix "${prefix}"
-
-    mkdir -p "${consumer}"
-    cat >"${consumer}/CMakeLists.txt" <<'EOF'
-cmake_minimum_required(VERSION 3.28)
-project(Consumer LANGUAGES CXX)
-find_package(MyProj REQUIRED)
-add_executable(consumer main.cpp)
-target_link_libraries(consumer PRIVATE MyProj::core)
-EOF
-    write_consumer_main "${consumer}"
-    configure_consumer "${consumer}" "${consumer}/build" "${src}" -DCMAKE_PREFIX_PATH="${prefix}"
-    cmake --build "${consumer}/build"
-    "${consumer}/build/consumer" | grep -q "^42 "
+    link_installed_consumer "${src}" "${prefix}" "${consumer}"
 }
 
 case_version_header() {
@@ -237,6 +244,70 @@ case_version_header() {
         echo "expected a prefix of ${commit}, got '${short}'"
         return 1
     fi
+}
+
+# Succeeds when the binary $1 carries debug information for the translation unit $2.
+has_debug_info() {
+    local binary="$1" source="$2" names
+    # Captured first: grep -q ends the pipe early, and pipefail would report the writer's SIGPIPE.
+    if [ "$(uname -s)" = Darwin ]; then
+        # macOS keeps DWARF in the object files; the binary's debug map names each one.
+        names="$(nm -ap "${binary}" | grep ' OSO ')" || return 1
+        grep -qF "${source}.o" <<<"${names}"
+    else
+        names="$(readelf --debug-dump=info "${binary}" | grep 'DW_AT_name')" || return 1
+        grep -qF "${source}" <<<"${names}"
+    fi
+}
+
+# Prints the compile command of every project source under libs/ and apps/ in the build $1.
+own_compile_commands() {
+    grep '"command"' "$1/compile_commands.json" | grep -E '/(libs|apps)/[^ ]*\.cpp"'
+}
+
+case_profile_symbols() {
+    local src="${work}/profile_symbols" build command
+    copy_tree "${src}"
+    build="${src}/build/profile"
+    (cd "${src}" && cmake --preset profile -DVCPKG_INSTALLED_DIR="${vcpkg_installed}" -DPROJECT_BUILD_TESTS=OFF)
+    (cd "${src}" && cmake --build --preset profile --target myproj_cli)
+    if ! has_debug_info "${build}/bin/myproj_cli" main.cpp; then
+        echo "the profile build of myproj_cli has no debug information for main.cpp"
+        return 1
+    fi
+    [ -n "$(own_compile_commands "${build}")" ]
+    while IFS= read -r command; do
+        if [[ " ${command} " != *" -fno-omit-frame-pointer "* || " ${command} " != *" -g "* ]]; then
+            echo "a profile compile command lacks -g or -fno-omit-frame-pointer: ${command}"
+            return 1
+        fi
+    done < <(own_compile_commands "${build}")
+    if ninja -C "${build}" -t commands myproj_cli | tail -n 1 | grep -q -- "-flto"; then
+        echo "the profile build links myproj_cli with LTO, which hides inlined frames from perf"
+        return 1
+    fi
+}
+
+case_release_lto() {
+    local src="${work}/release_lto" build
+    copy_tree "${src}"
+    build="${src}/build/release"
+    (cd "${src}" && cmake --preset release -DVCPKG_INSTALLED_DIR="${vcpkg_installed}" -DPROJECT_BUILD_TESTS=OFF)
+    (cd "${src}" && cmake --build --preset release --target myproj_cli)
+    if ! grep -Eq '^CMAKE_INTERPROCEDURAL_OPTIMIZATION(:[A-Z]+)?=ON$' "${build}/CMakeCache.txt"; then
+        grep CMAKE_INTERPROCEDURAL_OPTIMIZATION "${build}/CMakeCache.txt" || true
+        echo "the release cache does not turn CMAKE_INTERPROCEDURAL_OPTIMIZATION on"
+        return 1
+    fi
+    ninja -C "${build}" -t commands myproj_cli | tail -n 1 | tee "${work}/release_lto.link"
+    if ! grep -q -- "-flto" "${work}/release_lto.link"; then
+        echo "the release link line of myproj_cli has no -flto"
+        return 1
+    fi
+    echo "a=1" | "${build}/bin/myproj_cli"
+    # A consumer that links without LTO must still link the installed LTO archives.
+    cmake --install "${build}" --prefix "${work}/release_lto-prefix"
+    link_installed_consumer "${src}" "${work}/release_lto-prefix" "${work}/release_lto-consumer"
 }
 
 case_scaffold() {

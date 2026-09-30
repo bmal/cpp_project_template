@@ -6,7 +6,7 @@ A compact, modern C++23 template for projects that start small and still grow cl
 
 - `project_add_module` and `project_add_app`: one call per directory, compiled or header-only.
 - Unit tests under `tests/unit/<module>` attach to their module automatically.
-- C++23 enforced for every module, app, test, and benchmark.
+- C++23 for every module, app, test, and benchmark; the `cxx26` preset builds the same code as C++26.
 - One strict warning set with `-Werror`, applied to every internal target and never to consumers.
 - Every executable lands in `build/<preset>/bin/`.
 - Dependencies from a vcpkg manifest, consumed only through `find_package`.
@@ -136,6 +136,10 @@ Root project options:
 
 ```cmake
 PROJECT_COMPILER           # clang (default) or gcc
+PROJECT_CXX_STANDARD       # 23 (default) or 26; 26 in cxx26
+PROJECT_MARCH              # Value of -march; native in release, bench, and profile, empty elsewhere
+PROJECT_LINKER             # auto (default), mold, lld, or default; auto picks mold, then lld, on Linux
+CMAKE_CXX_COMPILER_LAUNCHER # ccache when found; set it empty to build without ccache
 PROJECT_BUILD_APPS         # Build apps/; ON when top level
 PROJECT_BUILD_TESTS        # Build tests/; ON when top level
 PROJECT_BUILD_BENCHMARKS   # Build benchmarks/ and install the vcpkg benchmarks feature
@@ -151,6 +155,19 @@ ENABLE_COVERAGE            # Enable coverage flags for tests
 ```
 
 Warnings and options come from the `myproj_warnings` and `myproj_options` interface targets in [cmake/CompilerPolicy.cmake](cmake/CompilerPolicy.cmake). The module and app helpers link both `PRIVATE`.
+
+`release` binaries run only on CPUs with this machine's instruction set.
+When the binary will run on other machines, build for a baseline CPU instead:
+
+```bash
+cmake --preset release -DPROJECT_MARCH=x86-64-v3
+```
+
+When the linker `auto` found fails on your code, link with the compiler's default:
+
+```bash
+cmake --preset dev -DPROJECT_LINKER=default
+```
 
 When a compiler upgrade raises a warning you cannot fix yet, build without `-Werror`:
 
