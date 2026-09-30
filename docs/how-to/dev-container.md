@@ -12,9 +12,7 @@ Dev Containers: Reopen in Container
 ```
 
 The first open builds the image, then configures and builds `dev`.
-The Linux targets of `make help` then work in the VS Code terminal.
-
-Container builds live in a Docker volume mounted at `build/`, apart from the host's builds.
+Container builds live in a Docker volume at `build/`, apart from the host's builds.
 A second volume keeps the vcpkg binary cache and the MemorySanitizer libc++ across rebuilds.
 
 ## Build the image without VS Code
