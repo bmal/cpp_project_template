@@ -59,7 +59,7 @@ install_linux() {
 
     ${sudo} apt-get update -qq
     ${sudo} apt-get install -y -qq --no-install-recommends \
-        ca-certificates cmake curl git make ninja-build pkg-config tar unzip zip \
+        ca-certificates cmake curl git make ninja-build pkg-config sudo tar unzip zip \
         python3 python3-venv pipx lcov \
         "g++-${GCC_VERSION}"
 

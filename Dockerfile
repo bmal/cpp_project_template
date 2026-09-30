@@ -16,9 +16,12 @@ RUN "${VCPKG_ROOT}/vcpkg" fetch cmake >/dev/null && "${VCPKG_ROOT}/vcpkg" fetch 
 
 # Installs the hook environments now, so pre-commit run --all-files downloads nothing.
 # Any user may build with vcpkg and pre-commit, and git reads a checkout mounted from the host.
+# The dev container works as ubuntu, so files it writes into the checkout belong to the host's user;
+# sudo lets it take ownership of its volumes.
 COPY .pre-commit-config.yaml /opt/bootstrap/
 RUN cd /opt/bootstrap && git init --quiet && pre-commit install-hooks && \
     cd / && rm -rf /opt/bootstrap && chmod -R a+rwX "${VCPKG_ROOT}" "${PRE_COMMIT_HOME}" && \
-    git config --system --add safe.directory '*'
+    git config --system --add safe.directory '*' && \
+    echo "ubuntu ALL=(ALL) NOPASSWD:ALL" > /etc/sudoers.d/ubuntu && chmod 0440 /etc/sudoers.d/ubuntu
 
 WORKDIR /workspaces

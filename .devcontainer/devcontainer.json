@@ -1,17 +1,19 @@
 {
   // The image from the root Dockerfile, with the extensions of .vscode/extensions.json.
-  // It runs as root, so /root/.cache below holds the vcpkg and MemorySanitizer caches.
   "name": "myproj",
   "build": { "dockerfile": "../Dockerfile", "context": ".." },
+  // Not root: on Linux, VS Code gives ubuntu the host user's UID, so the checkout stays theirs.
+  "remoteUser": "ubuntu",
   // Container builds and caches live in volumes, so they never collide with the host's build/.
   "mounts": [
     "source=myproj-build-${devcontainerId},target=${containerWorkspaceFolder}/build,type=volume",
-    "source=myproj-cache,target=/root/.cache,type=volume"
+    "source=myproj-cache,target=/home/ubuntu/.cache,type=volume"
   ],
   // The debugger needs ptrace, and the sanitizers need to turn off address randomization.
   "runArgs": ["--cap-add=SYS_PTRACE", "--security-opt", "seccomp=unconfined"],
-  // clangd, the Testing view, and Coverage Gutters follow build/current, which this points at dev.
-  "postCreateCommand": "cmake --preset dev && cmake --build --preset dev",
+  // Docker creates both volumes owned by root. clangd, the Testing view, and Coverage Gutters
+  // follow build/current, which the configure points at dev.
+  "postCreateCommand": "sudo chown \"$(id -u):$(id -g)\" build ~/.cache && cmake --preset dev && cmake --build --preset dev",
   "customizations": {
     "vscode": {
       "extensions": [
