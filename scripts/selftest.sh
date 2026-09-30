@@ -39,6 +39,7 @@ cases=(
     "init_rename         init-project.sh leaves no placeholder, the result builds and tests, and a bad name fails in one line"
     "init_strip          init-project.sh --strip-samples leaves core, one app, and passing tests"
     "init_idempotent     a second init-project.sh with the same arguments changes nothing"
+    "setup_repo_auth     setup-repo.sh with gh logged out exits non-zero and prints gh auth login"
 )
 
 usage() {
@@ -971,6 +972,19 @@ case_init_idempotent() {
     grep -q "nothing to change" "${work}/init_idempotent.out"
 }
 
+case_setup_repo_auth() {
+    # An empty config directory and no token variables log gh out without touching the real login.
+    mkdir -p "${work}/gh_logged_out"
+    if env -u GH_TOKEN -u GITHUB_TOKEN -u GH_ENTERPRISE_TOKEN -u GITHUB_ENTERPRISE_TOKEN \
+        GH_CONFIG_DIR="${work}/gh_logged_out" "${root}/scripts/setup-repo.sh" --repo octo/none \
+        2>"${work}/setup_repo_auth.err"; then
+        echo "setup-repo.sh succeeded with gh logged out"
+        return 1
+    fi
+    cat "${work}/setup_repo_auth.err"
+    grep -q "gh auth login" "${work}/setup_repo_auth.err"
+}
+
 # Prints why a case cannot run on this host, or nothing when it can.
 skip_reason() {
     case "$1" in
@@ -984,6 +998,9 @@ skip_reason() {
             [ ! -x "$(pipx environment --value PIPX_BIN_DIR)/pre-commit" ]; then
             echo "pre-commit is not installed; run scripts/bootstrap.sh"
         fi
+        ;;
+    setup_repo_auth)
+        if ! command -v gh >/dev/null; then echo "the GitHub CLI is not installed"; fi
         ;;
     valgrind_leak)
         if [ "$(uname -s)" != Linux ]; then

@@ -6,7 +6,7 @@ BASE ?= main
 FUZZ_SECONDS ?= 30
 
 .DEFAULT_GOAL := help
-.PHONY: help bootstrap valgrind coverage bench bench-compare fuzz lint format format-check build test clean-all
+.PHONY: help bootstrap setup-repo valgrind coverage bench bench-compare fuzz lint format format-check build test clean-all
 
 help: ## List every target
 	@echo "Usage: make <target> [PRESET=<preset>] [BASE=<git ref>] [FUZZ_SECONDS=<n>]"
@@ -16,6 +16,9 @@ help: ## List every target
 
 bootstrap: ## Install the toolchain, tools, and vcpkg once per machine
 	scripts/bootstrap.sh
+
+setup-repo: ## Create the ci:* labels, protect main with the status check, and squash-merge only; GitHub CLI
+	scripts/setup-repo.sh
 
 dev: workflow/dev ## Configure, build, and run unit and integration tests of the debug build
 functional: workflow/functional ## Build dev and run the black-box tests of the apps

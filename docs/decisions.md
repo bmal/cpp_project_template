@@ -380,6 +380,12 @@ Narrow choices left to single tickets are appended below the entry they refine.
 - Why: a named, protected, green repository in under ten minutes.
 - Rejected: a templating engine such as Copier or cookiecutter; the rename cache variable.
 
+#### D26.1. setup-repo.sh adds the merge queue only for a public organization repository
+
+- Decision: the `main` ruleset gets the `merge_queue` rule only when the repository is public and an organization owns it. Otherwise the script says so on stderr and sets up everything else. Squash is the only merge method, titled by the pull request.
+- Why: GitHub rejects the merge queue rule on user-owned repositories, and on private ones outside Enterprise Cloud, which the API does not reveal. Asking for it there would fail the whole setup.
+- Rejected: failing on user-owned repositories; branch protection rules instead of a ruleset.
+
 ### D27. Documentation per Diátaxis
 
 - Decision: a one-screen README, a one-page getting started, how-tos under forty lines, generated reference, one testing guide, this register. Short, command first.

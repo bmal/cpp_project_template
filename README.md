@@ -63,6 +63,17 @@ When you want a project with only `core`, one app, and one passing test, drop th
 scripts/init-project.sh order_book --strip-samples
 ```
 
+## Protect The Repository
+
+When the repository is on GitHub and its first push has named it, add the CI labels, require `status` on `main`, and allow only squash merges:
+
+```bash
+make setup-repo
+```
+
+It prints one line per change, or `no changes`. It needs `gh auth login` as an administrator of the repository.
+Pushes to `main` then go through pull requests. The merge queue is added only to a public repository an organization owns, because GitHub offers it nowhere else outside Enterprise Cloud.
+
 ## Quick Start
 
 Install the toolchain, `make`, and vcpkg once per machine:
@@ -372,7 +383,7 @@ clangd, the Testing view, and Coverage Gutters read `build/current`, so they fol
 
 `.github/workflows/ci.yaml` runs on pull requests, the merge queue, and pushes to `main`.
 Tier one runs the pre-commit hooks, `dev`, and `make lint` on Linux Clang. The other jobs start only when it passes.
-Require only the `status` check; it fails when any job fails or is skipped when it should have run.
+`make setup-repo` requires only the `status` check; it fails when any job fails or is skipped when it should have run.
 
 Draft pull requests run tier one only, and macOS runs `dev` on ready pull requests only.
 A change to Markdown, `docs/`, or `LICENSE` alone skips every C++ step.
