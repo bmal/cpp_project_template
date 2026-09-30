@@ -128,7 +128,7 @@ jobs:
   # Hosted runners are too noisy for numbers. Set the repository variable BENCH_RUNNER_LABEL to the
   # label of a quiet self-hosted runner to turn this job on.
   bench:
-    name: Benchmarks on ${{ vars.BENCH_RUNNER_LABEL }}
+    name: Benchmarks on the self-hosted runner
     needs: plan
     if: needs.plan.outputs.run == 'true' && vars.BENCH_RUNNER_LABEL != ''
     runs-on: ${{ vars.BENCH_RUNNER_LABEL }}
