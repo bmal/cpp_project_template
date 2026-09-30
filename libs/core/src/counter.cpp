@@ -31,3 +31,4 @@ std::uint64_t Counter::value() const noexcept { return value_; }
 void Counter::reset() noexcept { value_ = 0; }
 
 } // namespace myproj::core
+// Draft change for the #23 acceptance test.
