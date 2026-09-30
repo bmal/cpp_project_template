@@ -190,6 +190,12 @@ Narrow choices left to single tickets are appended below the entry they refine.
 - Why: the how-to's terminal command needs a debugger on a bootstrapped machine. Ubuntu's lldb asks `debuginfod.ubuntu.com` about every library, which took 50 to 100 seconds per launch in the dev container.
 - Rejected: gdb in bootstrap, whose Ubuntu package sets `DEBUGINFOD_URLS` in every login shell; a `~/.lldbinit` written by bootstrap.
 
+#### D14.2. `release` omits frame pointers
+
+- Decision: "everywhere" in D14 means every preset built to debug or profile. `dev`, `cxx26`, `relwithdebinfo`, `profile`, `bench`, and the sanitizer and fuzz presets pass `-fno-omit-frame-pointer`. `release` does not. The coverage presets do not pass it either; they are unoptimized, and an unoptimized build keeps frame pointers without the flag.
+- Why: `release` is the build that ships, and a frame pointer costs a register in the hot path. `profile` is `release` with frame pointers and debug info, which is the build to give `perf`.
+- Rejected: the flag in `release`; the flag in the coverage presets, where it changes nothing.
+
 ### D15. Presets as the single source of truth
 
 - Decision: `dev`, `release`, `relwithdebinfo`, `profile`, `asan`, `tsan`, `msan`, `fuzz`, `coverage`, `bench`, `cxx26`, plus `-gcc` variants and workflow presets. Same names locally and in CI. `CMakeUserPresets.json` is gitignored.
