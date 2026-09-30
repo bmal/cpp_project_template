@@ -21,7 +21,7 @@ You should see one table per benchmark executable; negative `Time` values are fa
 The baseline builds in `build/bench-base/`, so the next comparison against the same ref is incremental.
 The first comparison downloads `numpy` and `scipy` from PyPI into `build/bench-venv/`.
 
-## Hardware counters
+## Count cycles and instructions
 
 The pinned vcpkg `benchmark` port has no libpfm feature, and vcpkg has no libpfm port.
 When you want cycle and instruction counts on Linux, copy the port as an overlay:

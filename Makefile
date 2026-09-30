@@ -6,7 +6,7 @@ BASE ?= main
 FUZZ_SECONDS ?= 30
 
 .DEFAULT_GOAL := help
-.PHONY: help bootstrap setup-repo valgrind coverage bench bench-compare fuzz lint format format-check build test clean-all
+.PHONY: help bootstrap setup-repo valgrind coverage bench bench-compare fuzz lint format format-check docs build test clean-all
 
 help: ## List every target
 	@echo "Usage: make <target> [PRESET=<preset>] [BASE=<git ref>] [FUZZ_SECONDS=<n>]"
@@ -63,6 +63,9 @@ format: ## Rewrite every C++ and CMake file with clang-format and gersemi
 
 format-check: ## Fail on any C++ or CMake file that make format would change; changes nothing
 	scripts/format.sh --check
+
+docs: ## Regenerate docs/reference/commands.md and presets.md from make help and CMakePresets.json
+	scripts/gen-reference.sh
 
 build: ## Build PRESET (default dev) after it has been configured
 	cmake --build --preset $(PRESET)

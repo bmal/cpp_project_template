@@ -19,13 +19,22 @@ repos:
         entry: scripts/format.sh
         language: system
         types: [cmake]
+      - id: reference-pages
+        name: generated reference pages
+        entry: scripts/gen-reference.sh --check
+        language: system
+        files: ^(Makefile|CMakePresets\.json|docs/reference/(commands|presets)\.md|scripts/gen-reference\.sh)$
+        pass_filenames: false
   - repo: https://github.com/shellcheck-py/shellcheck-py
     rev: v0.11.0.1-1
     hooks:
       - id: shellcheck
+        # Follows each source directive even when the sourced file is not among the staged files.
+        args: [--external-sources]
         files: ^scripts/
   - repo: https://github.com/DavidAnson/markdownlint-cli2
     rev: v0.23.3
     hooks:
       - id: markdownlint-cli2
+        alias: markdownlint
         files: ^(README\.md|CONTRIBUTING\.md|docs/)

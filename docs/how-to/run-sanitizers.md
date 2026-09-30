@@ -1,8 +1,16 @@
-# Skip a test or suppress a report under a sanitizer
+# Run sanitizers
 
-`make asan` and `make tsan` run every test under a sanitizer; a report fails the test and says where.
+When you changed ownership, lifetimes, or threading, run every test under ASan with UBSan, then TSan; a report fails the test:
 
-## Rerun one test
+```bash
+make asan tsan
+```
+
+When you want the tests whose suite ends in `Stress` under ASan too, as CI runs them, after `make asan`:
+
+```bash
+ctest --preset asan-stress
+```
 
 When you want the report of one failing test without the rest of the suite:
 
@@ -10,19 +18,13 @@ When you want the report of one failing test without the rest of the suite:
 ctest --preset asan -R '^Counter\.' --output-on-failure
 ```
 
-## Skip a test one sanitizer cannot run
-
 When a test cannot work under one sanitizer, such as a death test under TSan, skip it with the reason:
 
 ```cpp
-#include "support/sanitizers.hpp"
-
 MYPROJ_SKIP_UNDER_SANITIZER(TSAN, "a death test forks a process that already runs threads");
 ```
 
-The names are `ASAN`, `TSAN`, and `MSAN`, on GCC and Clang. `ctest` lists the test as skipped.
-
-## Suppress a report in code you do not own
+It comes from `support/sanitizers.hpp`; the names are `ASAN`, `TSAN`, and `MSAN`, on GCC and Clang. `ctest` lists the test as skipped.
 
 When a report comes from a dependency, add one line with the reason above it to `tests/sanitizers/<tool>.supp`:
 

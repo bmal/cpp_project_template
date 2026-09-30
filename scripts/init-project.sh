@@ -152,9 +152,10 @@ make help
 
 | Page | Contents |
 | --- | --- |
-| [Getting started](docs/getting-started.md) | First build to first breakpoint |
+| [Getting started](docs/getting-started.md) | First ten minutes, from a new repository to a breakpoint |
 | [How-to guides](docs/how-to/README.md) | One page per task |
-| [Reference](docs/reference/README.md) | Presets, helper API, test labels, conventions |
+| [Testing guide](docs/testing-guide.md) | What to test, at which level, and how |
+| [Reference](docs/reference/README.md) | Commands, presets, options, helper API, test labels, conventions |
 | [Decisions](docs/decisions.md) | Why each choice was made and what was rejected |
 README
     echo "replaced README.md with a project stub"

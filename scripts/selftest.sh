@@ -40,6 +40,7 @@ cases=(
     "init_strip          init-project.sh --strip-samples leaves core, one app, and passing tests"
     "init_idempotent     a second init-project.sh with the same arguments changes nothing"
     "setup_repo_auth     setup-repo.sh with gh logged out exits non-zero and prints gh auth login"
+    "docs_limits         README is under 60 lines, each how-to under 40, the reference is current, and markdownlint passes"
 )
 
 usage() {
@@ -99,7 +100,7 @@ copy_tree() {
     git clone --quiet --shared "${root}" "${dest}"
     (
         cd "${root}"
-        { git diff -z --name-only HEAD && git ls-files -z --others --exclude-standard; } |
+        { git diff -z --name-only --no-renames HEAD && git ls-files -z --others --exclude-standard; } |
             while IFS= read -r -d '' file; do
                 if [ -e "${file}" ] || [ -L "${file}" ]; then
                     mkdir -p "${dest}/$(dirname "${file}")"
@@ -553,12 +554,20 @@ case_format_roundtrip() {
     grep -q "^  project_add_lint_target()$" "${src}/CMakeLists.txt"
 }
 
+# Prints the pre-commit that bootstrap.sh installs through pipx, else the one on PATH, else nothing.
+pre_commit_bin() {
+    local bin
+    bin="$(pipx environment --value PIPX_BIN_DIR 2>/dev/null)/pre-commit"
+    if [ ! -x "${bin}" ]; then bin="$(command -v pre-commit || true)"; fi
+    echo "${bin}"
+}
+
 case_pre_commit_hooks() {
     local src="${work}/pre_commit_hooks"
     copy_tree "${src}"
     # --all-files reads the index, so new files in the working tree must be staged.
     git -C "${src}" add -A
-    (cd "${src}" && "$(pipx environment --value PIPX_BIN_DIR)/pre-commit" run --all-files --show-diff-on-failure)
+    (cd "${src}" && "$(pre_commit_bin)" run --all-files --show-diff-on-failure)
 }
 
 case_clang_format_pinned() {
@@ -985,6 +994,47 @@ case_setup_repo_auth() {
     grep -q "gh auth login" "${work}/setup_repo_auth.err"
 }
 
+case_docs_limits() {
+    local src="${work}/docs_limits" page lines names name missing=0
+    copy_tree "${src}"
+    lines="$(wc -l <"${src}/README.md")"
+    if [ "${lines}" -ge 60 ]; then
+        echo "README.md has ${lines} lines; the limit is 59"
+        missing=1
+    fi
+    for page in "${src}"/docs/how-to/*.md; do
+        lines="$(wc -l <"${page}")"
+        if [ "${lines}" -ge 40 ]; then
+            echo "${page#"${src}"/} has ${lines} lines; the limit is 39"
+            missing=1
+        fi
+    done
+    # The generated pages match their sources, so every make target and preset has a row.
+    (cd "${src}" && scripts/gen-reference.sh --check) || missing=1
+    names="$(make -C "${src}" --no-print-directory help | sed -n 's/^  \([A-Za-z0-9_.-]*\) .*/\1/p')"
+    for name in ${names}; do
+        if ! grep -q "^| \`make ${name}\` |" "${src}/docs/reference/commands.md"; then
+            echo "docs/reference/commands.md has no row for make ${name}"
+            missing=1
+        fi
+    done
+    names="$(python3 -c 'import json, sys
+presets = json.load(open(sys.argv[1]))
+print("\n".join(sorted({p["name"] for kind, entries in presets.items() if kind.endswith("Presets")
+    for p in entries if not p.get("hidden")})))' "${src}/CMakePresets.json")"
+    [ -n "${names}" ]
+    for name in ${names}; do
+        if ! grep -q "^| \`${name}\` |" "${src}/docs/reference/presets.md"; then
+            echo "docs/reference/presets.md has no row for preset ${name}"
+            missing=1
+        fi
+    done
+    # --all-files reads the index, so new pages in the working tree must be staged.
+    git -C "${src}" add -A
+    (cd "${src}" && "$(pre_commit_bin)" run markdownlint --all-files) || missing=1
+    [ "${missing}" -eq 0 ]
+}
+
 # Prints why a case cannot run on this host, or nothing when it can.
 skip_reason() {
     case "$1" in
@@ -993,11 +1043,8 @@ skip_reason() {
             echo "the parser sample was removed by scripts/init-project.sh --strip-samples"
         fi
         ;;
-    pre_commit_hooks)
-        if ! command -v pipx >/dev/null ||
-            [ ! -x "$(pipx environment --value PIPX_BIN_DIR)/pre-commit" ]; then
-            echo "pre-commit is not installed; run scripts/bootstrap.sh"
-        fi
+    pre_commit_hooks | docs_limits)
+        if [ -z "$(pre_commit_bin)" ]; then echo "pre-commit is not installed; run scripts/bootstrap.sh"; fi
         ;;
     setup_repo_auth)
         if ! command -v gh >/dev/null; then echo "the GitHub CLI is not installed"; fi

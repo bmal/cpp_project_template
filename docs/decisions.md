@@ -392,6 +392,12 @@ Narrow choices left to single tickets are appended below the entry they refine.
 - Why: a stranger does the task and leaves.
 - Rejected: documenting what a preset name or a `make help` line already says.
 
+#### D27.1. The command and preset tables are generated and checked
+
+- Decision: `scripts/gen-reference.sh` writes `docs/reference/commands.md` from `make help` and `docs/reference/presets.md` from `CMakePresets.json`; `make docs` runs it. A pre-commit hook and the selftest case `docs_limits` fail when either page is stale. The helper, option, label, and convention pages are written by hand.
+- Why: a new target or preset cannot be missing from the reference, and the hand-written pages hold what no file states in a readable form.
+- Rejected: generating the helper and option pages from CMake comments, which would move prose into build files; a hand-kept presets table, which drifts.
+
 ### D28. Delivery
 
 - Decision: one program, one parent issue, one register, five milestones, an adversarial review per milestone, then one final review. Every child names acceptance commands at a seam and closes only after running them.
