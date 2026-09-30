@@ -76,6 +76,9 @@ install_linux() {
     ${sudo} apt-get install -y -qq --no-install-recommends \
         "clang-${CLANG_VERSION}" "clang-tidy-${CLANG_VERSION}" "clang-format-${CLANG_VERSION}" \
         "clangd-${CLANG_VERSION}" "libclang-rt-${CLANG_VERSION}-dev" "llvm-${CLANG_VERSION}"
+    # The clangd extension runs plain clangd.
+    ${sudo} update-alternatives --quiet --install /usr/bin/clangd clangd "/usr/bin/clangd-${CLANG_VERSION}" 100
+    ${sudo} update-alternatives --quiet --set clangd "/usr/bin/clangd-${CLANG_VERSION}"
 }
 
 # Installs package $1 at version $2 with pipx, replacing any other installed version.

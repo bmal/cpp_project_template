@@ -11,6 +11,9 @@ ENV VCPKG_ROOT=/opt/vcpkg \
 COPY scripts/bootstrap.sh /opt/bootstrap/scripts/bootstrap.sh
 RUN /opt/bootstrap/scripts/bootstrap.sh --ci && rm -rf /var/lib/apt/lists/*
 
+# vcpkg's own CMake and Ninja, fetched now so no container or CI job downloads them on configure.
+RUN "${VCPKG_ROOT}/vcpkg" fetch cmake >/dev/null && "${VCPKG_ROOT}/vcpkg" fetch ninja >/dev/null
+
 # Installs the hook environments now, so pre-commit run --all-files downloads nothing.
 # Any user may build with vcpkg and pre-commit, and git reads a checkout mounted from the host.
 COPY .pre-commit-config.yaml /opt/bootstrap/
