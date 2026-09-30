@@ -12,9 +12,10 @@ on:
 permissions:
   contents: read
 
+# A new push to a pull request cancels its older run. Runs on main queue, so each commit saves caches.
 concurrency:
   group: ci-${{ github.event.pull_request.number || github.ref }}
-  cancel-in-progress: true
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 defaults:
   run:
@@ -60,7 +61,9 @@ jobs:
           # Only Markdown, docs/, and LICENSE: C++ jobs skip, and status still reports.
           cxx=true
           if [[ -n "${BASE}" && "${BASE}" != 0000000000000000000000000000000000000000 ]]; then
-            files="$(gh api "repos/${GITHUB_REPOSITORY}/compare/${BASE}...${HEAD}" --jq '.files[].filename')"
+            # A base the API cannot compare, such as one lost to a force-push, counts as a code change.
+            files="$(gh api "repos/${GITHUB_REPOSITORY}/compare/${BASE}...${HEAD}" --jq '.files[].filename')" ||
+              files=""
             # The compare API lists at most 300 files; more is never a docs-only change.
             if [[ -n "${files}" && "$(wc -l <<<"${files}")" -lt 300 ]] &&
               ! grep -qvE '^(docs/.*|.*\.md|LICENSE)$' <<<"${files}"; then
@@ -88,7 +91,11 @@ jobs:
     name: Tier one, lint and dev on Linux Clang
     needs: plan
     runs-on: ubuntu-24.04
-    container: ${{ needs.plan.outputs.image }}
+    # An empty image runs the job on the runner. The options match .devcontainer/devcontainer.json:
+    # the sanitizers turn off address randomization.
+    container:
+      image: ${{ needs.plan.outputs.image }}
+      options: --cap-add=SYS_PTRACE --security-opt seccomp=unconfined
     timeout-minutes: 60
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -116,7 +123,9 @@ jobs:
     needs: [plan, tier-one]
     if: needs.plan.outputs.tier2 == 'true'
     runs-on: ubuntu-24.04
-    container: ${{ needs.plan.outputs.image }}
+    container:
+      image: ${{ needs.plan.outputs.image }}
+      options: --cap-add=SYS_PTRACE --security-opt seccomp=unconfined
     timeout-minutes: 60
     strategy:
       fail-fast: false
@@ -160,7 +169,9 @@ jobs:
     needs: [plan, tier-one]
     if: needs.plan.outputs.tier2 == 'true'
     runs-on: ubuntu-24.04
-    container: ${{ needs.plan.outputs.image }}
+    container:
+      image: ${{ needs.plan.outputs.image }}
+      options: --cap-add=SYS_PTRACE --security-opt seccomp=unconfined
     timeout-minutes: 60
     strategy:
       fail-fast: false
@@ -185,7 +196,9 @@ jobs:
     needs: [plan, tier-one]
     if: needs.plan.outputs.tier2 == 'true'
     runs-on: ubuntu-24.04
-    container: ${{ needs.plan.outputs.image }}
+    container:
+      image: ${{ needs.plan.outputs.image }}
+      options: --cap-add=SYS_PTRACE --security-opt seccomp=unconfined
     timeout-minutes: 45
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -201,7 +214,11 @@ jobs:
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: fuzz-crashes
-          path: build/fuzz/fuzz/*/crash-*
+          path: |
+            build/fuzz/fuzz/*/crash-*
+            build/fuzz/fuzz/*/leak-*
+            build/fuzz/fuzz/*/timeout-*
+            build/fuzz/fuzz/*/oom-*
           retention-days: 7
           if-no-files-found: ignore
       - uses: ./.github/actions/report
@@ -214,7 +231,9 @@ jobs:
     needs: [plan, tier-one]
     if: needs.plan.outputs.tier2 == 'true'
     runs-on: ubuntu-24.04
-    container: ${{ needs.plan.outputs.image }}
+    container:
+      image: ${{ needs.plan.outputs.image }}
+      options: --cap-add=SYS_PTRACE --security-opt seccomp=unconfined
     timeout-minutes: 45
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -233,7 +252,9 @@ jobs:
     needs: [plan, tier-one]
     if: needs.plan.outputs.tier2 == 'true'
     runs-on: ubuntu-24.04
-    container: ${{ needs.plan.outputs.image }}
+    container:
+      image: ${{ needs.plan.outputs.image }}
+      options: --cap-add=SYS_PTRACE --security-opt seccomp=unconfined
     timeout-minutes: 45
     env:
       CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
@@ -268,7 +289,9 @@ jobs:
     needs: [plan, tier-one]
     if: needs.plan.outputs.tier2 == 'true'
     runs-on: ubuntu-24.04
-    container: ${{ needs.plan.outputs.image }}
+    container:
+      image: ${{ needs.plan.outputs.image }}
+      options: --cap-add=SYS_PTRACE --security-opt seccomp=unconfined
     timeout-minutes: 120
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -288,7 +311,9 @@ jobs:
     needs: [plan, tier-one]
     if: needs.plan.outputs.msan == 'true'
     runs-on: ubuntu-24.04
-    container: ${{ needs.plan.outputs.image }}
+    container:
+      image: ${{ needs.plan.outputs.image }}
+      options: --cap-add=SYS_PTRACE --security-opt seccomp=unconfined
     timeout-minutes: 120
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -314,7 +339,9 @@ jobs:
     needs: [plan, tier-one]
     if: needs.plan.outputs.bench_compare == 'true'
     runs-on: ubuntu-24.04
-    container: ${{ needs.plan.outputs.image }}
+    container:
+      image: ${{ needs.plan.outputs.image }}
+      options: --cap-add=SYS_PTRACE --security-opt seccomp=unconfined
     timeout-minutes: 60
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1

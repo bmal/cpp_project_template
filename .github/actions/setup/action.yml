@@ -12,11 +12,19 @@ runs:
   using: composite
   steps:
     - name: Install the toolchain unless the job runs in the CI image
+      id: toolchain
       shell: bash
       run: |
         # vcpkg and ccache keep their caches under ~/.cache on every host, where the steps below look.
         echo "CCACHE_DIR=${HOME}/.cache/ccache" >>"${GITHUB_ENV}"
         echo "CCACHE_MAXSIZE=500M" >>"${GITHUB_ENV}"
+        # -march=native objects run only on the CPU that built them, so ccache is kept per CPU model.
+        if [ "$(uname -s)" = Darwin ]; then
+          cpu="$(sysctl -n machdep.cpu.brand_string)"
+        else
+          cpu="$(grep -m1 '^model name' /proc/cpuinfo)"
+        fi
+        echo "cpu=$(printf '%s' "${cpu}" | cksum | cut -d' ' -f1)" >>"${GITHUB_OUTPUT}"
         if [ -f /.dockerenv ] && [ -x "${VCPKG_ROOT:-}/vcpkg" ]; then
           echo "setup: running in the CI image, which has the toolchain"
           exit 0
@@ -38,5 +46,5 @@ runs:
       uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
       with:
         path: ~/.cache/ccache
-        key: ccache-${{ runner.os }}-${{ inputs.key }}-${{ github.sha }}
-        restore-keys: ccache-${{ runner.os }}-${{ inputs.key }}-
+        key: ccache-${{ runner.os }}-${{ inputs.key }}-${{ steps.toolchain.outputs.cpu }}-${{ github.sha }}
+        restore-keys: ccache-${{ runner.os }}-${{ inputs.key }}-${{ steps.toolchain.outputs.cpu }}-
