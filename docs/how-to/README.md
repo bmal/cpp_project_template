@@ -15,3 +15,5 @@ Placeholder: the remaining guides arrive with the documentation tree (#27).
 | Replay a failure with rr | [replay-with-rr.md](replay-with-rr.md) |
 | Skip a test or suppress a report under a sanitizer | [sanitizers.md](sanitizers.md) |
 | See which lines the tests run | [view-coverage.md](view-coverage.md) |
+
+Docs-only change for the #23 acceptance test.
