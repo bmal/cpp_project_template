@@ -17,7 +17,7 @@ usage() {
     cat <<USAGE
 Usage: scripts/bootstrap.sh [--ci]
 
-Installs the compilers, CMake, Ninja, Make, pre-commit, gersemi, and vcpkg at its pinned commit.
+Installs the compilers, lldb, CMake, Ninja, Make, pre-commit, gersemi, and vcpkg at its pinned commit.
 
   --ci  For the Dockerfile and CI jobs: install vcpkg into \$VCPKG_ROOT when it is set,
         and leave the git hook and the shell profile alone.
@@ -75,10 +75,14 @@ install_linux() {
     fi
     ${sudo} apt-get install -y -qq --no-install-recommends \
         "clang-${CLANG_VERSION}" "clang-tidy-${CLANG_VERSION}" "clang-format-${CLANG_VERSION}" \
-        "clangd-${CLANG_VERSION}" "libclang-rt-${CLANG_VERSION}-dev" "llvm-${CLANG_VERSION}"
-    # The clangd extension runs plain clangd.
-    ${sudo} update-alternatives --quiet --install /usr/bin/clangd clangd "/usr/bin/clangd-${CLANG_VERSION}" 100
-    ${sudo} update-alternatives --quiet --set clangd "/usr/bin/clangd-${CLANG_VERSION}"
+        "clangd-${CLANG_VERSION}" "lldb-${CLANG_VERSION}" "libclang-rt-${CLANG_VERSION}-dev" \
+        "llvm-${CLANG_VERSION}"
+    # The clangd extension runs plain clangd, and docs/how-to/debug-a-test.md runs plain lldb.
+    local tool
+    for tool in clangd lldb; do
+        ${sudo} update-alternatives --quiet --install "/usr/bin/${tool}" "${tool}" "/usr/bin/${tool}-${CLANG_VERSION}" 100
+        ${sudo} update-alternatives --quiet --set "${tool}" "/usr/bin/${tool}-${CLANG_VERSION}"
+    done
 }
 
 # Installs package $1 at version $2 with pipx, replacing any other installed version.

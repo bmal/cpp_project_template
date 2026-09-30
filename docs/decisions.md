@@ -184,6 +184,12 @@ Narrow choices left to single tickets are appended below the entry they refine.
 - Why: the debugger shows full types, and `perf` output is readable.
 - Rejected: auto-loaded debugger init files; split DWARF by default.
 
+#### D14.1. lldb is the terminal debugger bootstrap installs, with its symbol server off
+
+- Decision: Linux bootstrap installs `lldb-<version>` as plain `lldb`, and no gdb. `tools/lldbinit` clears lldb's debuginfod server list, and the how-to loads it with `-S`.
+- Why: the how-to's terminal command needs a debugger on a bootstrapped machine. Ubuntu's lldb asks `debuginfod.ubuntu.com` about every library, which took 50 to 100 seconds per launch in the dev container.
+- Rejected: gdb in bootstrap, whose Ubuntu package sets `DEBUGINFOD_URLS` in every login shell; a `~/.lldbinit` written by bootstrap.
+
 ### D15. Presets as the single source of truth
 
 - Decision: `dev`, `release`, `relwithdebinfo`, `profile`, `asan`, `tsan`, `msan`, `fuzz`, `coverage`, `bench`, `cxx26`, plus `-gcc` variants and workflow presets. Same names locally and in CI. `CMakeUserPresets.json` is gitignored.
@@ -219,6 +225,12 @@ Narrow choices left to single tickets are appended below the entry they refine.
 - Decision: CMake Tools in presets mode, clangd, CodeLLDB, C++ TestMate, Coverage Gutters. `launch.json` uses the launch-target variable and a test-filter prompt. `.editorconfig`.
 - Why: F5 hits a breakpoint with no configuration.
 - Rejected: the CMake Tools test explorer; Microsoft IntelliSense; editors other than VS Code (CLion works through presets).
+
+#### D18.1. The tasks spell out the gcc problem matcher
+
+- Decision: each task in `tasks.json` carries the pattern of `$gcc` inline and names no matcher by reference. The pattern also reads the check or warning name in brackets as the finding's code.
+- Why: `$gcc` is defined by the Microsoft C/C++ extension, which D18 leaves out, so a task that names it reports nothing in the Problems panel. VS Code keeps one finding per position and code, so two checks on one token need the name to both show.
+- Rejected: recommending the C/C++ extension for one pattern; a `declares` block to share the pattern, which VS Code reads and its `tasks.json` schema rejects.
 
 ### D19. Fast rebuilds and `make help`
 

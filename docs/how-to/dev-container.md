@@ -11,7 +11,7 @@ When you want Linux, GCC, or MemorySanitizer on a Mac, open the command palette 
 Dev Containers: Reopen in Container
 ```
 
-The first open builds the image, then configures and builds `dev`.
+The first open builds the image, installs the pre-commit hook, then configures and builds `dev`.
 CMake Tools cannot preselect a preset, so pick `dev` under Configure in its panel once per checkout.
 Container builds live in a Docker volume at `build/`, apart from the host's builds.
 A second volume keeps the vcpkg binary cache and the MemorySanitizer libc++ across rebuilds.

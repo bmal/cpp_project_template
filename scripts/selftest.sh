@@ -30,8 +30,9 @@ cases=(
     "tsan_race           a data race planted in a unit test fails the tsan preset with a report"
     "msan_uninit         an uninitialized read planted in a unit test fails the msan preset; Linux only"
     "coverage_report     the coverage target writes lcov.info for libs/ only, with Clang and, on Linux, GCC"
-    "vscode_files        .vscode/*.json parses as JSONC and reaches builds only through build/current"
-    "container_files     the Dockerfile installs only through bootstrap.sh --ci, and devcontainer.json builds it"
+    "vscode_files        .vscode/*.json parses as JSONC, reaches builds only through build/current, and defines its own problem matcher"
+    "container_files     the Dockerfile installs only through bootstrap.sh --ci, and devcontainer.json builds it and installs the git hook"
+    "debugger_init       lldb is installed and loads tools/lldbinit; gdb, where installed, loads tools/gdbinit"
 )
 
 usage() {
@@ -764,16 +765,40 @@ PY
 }
 
 case_vscode_files() {
-    parse_jsonc "${root}"/.vscode/*.json >/dev/null
-    if grep -rn "build/[a-z0-9-]*/" "${root}/.vscode" | grep -v "build/current/"; then
-        echo ".vscode names a preset build directory instead of build/current, listed above"
-        return 1
-    fi
+    parse_jsonc "${root}"/.vscode/{extensions,launch,settings,tasks}.json | python3 -c '
+import json, re, sys
+
+_, launch, settings, tasks = (json.loads(line) for line in sys.stdin)
+
+def strings(node):
+    if isinstance(node, str):
+        yield node
+    elif isinstance(node, dict):
+        for child in node.values():
+            yield from strings(child)
+    elif isinstance(node, list):
+        for child in node:
+            yield from strings(child)
+
+for text in strings([launch, settings, tasks]):
+    if re.search(r"build/(?!current(/|$))", text):
+        sys.exit(".vscode names a build directory other than build/current: " + text)
+# With either setting gone, the extension searches every build directory.
+for key in ("testMate.cpp.test.executables", "coverage-gutters.coverageBaseDir"):
+    if not settings.get(key, "").startswith("build/current/"):
+        sys.exit("settings.json does not point " + key + " at build/current/")
+# A matcher named by reference belongs to an extension; none in extensions.json defines one.
+for task in tasks["tasks"]:
+    if not isinstance(task.get("problemMatcher"), dict):
+        sys.exit("task " + task["label"] + " does not define its problem matcher in tasks.json")
+'
 }
 
 case_container_files() {
     # Tool versions live only in bootstrap.sh; a package installed here would drift from it.
-    if grep -nE "apt(-get)? install|brew install|pipx? install" "${root}/Dockerfile"; then
+    # Options may stand between the package manager and its install command.
+    if grep -nE "(apt|apt-get|brew|pip|pipx)[[:space:]]+([^&|;]*[[:space:]])?install([[:space:]]|$)" \
+        "${root}/Dockerfile"; then
         echo "Dockerfile installs a package itself, listed above; add it to scripts/bootstrap.sh"
         return 1
     fi
@@ -789,7 +814,30 @@ if container["build"]["dockerfile"] != "../Dockerfile":
     sys.exit("devcontainer.json does not build the root Dockerfile")
 if container["customizations"]["vscode"]["extensions"] != editor["recommendations"]:
     sys.exit("devcontainer.json extensions differ from .vscode/extensions.json")
+# bootstrap.sh --ci runs with no checkout, so the hook can only be installed after create.
+if "pre-commit install" not in container["postCreateCommand"]:
+    sys.exit("devcontainer.json does not install the pre-commit hook after create")
 '
+}
+
+case_debugger_init() {
+    # docs/how-to/debug-a-test.md runs lldb by its plain name with -S. No program is loaded here,
+    # so each breakpoint stays pending, which is what loading the file from ~/.lldbinit does.
+    if ! command -v lldb >/dev/null; then
+        echo "lldb is not installed; run scripts/bootstrap.sh"
+        return 1
+    fi
+    lldb --batch -S "${root}/tools/lldbinit" 2>&1 | tee "${work}/debugger_init.lldb"
+    if grep "^error:" "${work}/debugger_init.lldb"; then
+        echo "this lldb rejects a command of tools/lldbinit, listed above"
+        return 1
+    fi
+    grep -q "^Breakpoint 2: " "${work}/debugger_init.lldb"
+    # Bootstrap leaves gdb out: on Ubuntu it turns on symbol downloads for every debugger.
+    if command -v gdb >/dev/null; then
+        gdb -batch -x "${root}/tools/gdbinit" 2>&1 | tee "${work}/debugger_init.gdb"
+        grep -q "^Breakpoint 2 (__ubsan_on_report) pending" "${work}/debugger_init.gdb"
+    fi
 }
 
 # Prints why a case cannot run on this host, or nothing when it can.

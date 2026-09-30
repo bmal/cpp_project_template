@@ -1,32 +1,84 @@
 {
   // Each task runs the Makefile target of its name; `make help` describes them.
+  // The matcher is the pattern of $gcc, spelled out: $gcc itself belongs to the Microsoft C/C++
+  // extension, which this workspace does not use. The check or warning name in brackets is the
+  // code, because VS Code keeps one finding per position and code. Each task owns its findings
+  // until it runs again.
   "version": "2.0.0",
   "tasks": [
     {
       "label": "lint",
       "type": "shell",
       "command": "make lint",
-      "problemMatcher": "$gcc"
+      "problemMatcher": {
+        "owner": "lint",
+        "fileLocation": ["autoDetect", "${workspaceFolder}"],
+        "pattern": {
+          "regexp": "^(.*?):(\\d+):(\\d*):?\\s+(?:fatal\\s+)?(warning|error):\\s+(.*?)(?:\\s+\\[([-\\w.,=+]+)\\])?$",
+          "file": 1,
+          "line": 2,
+          "column": 3,
+          "severity": 4,
+          "message": 5,
+          "code": 6
+        }
+      }
     },
     {
       "label": "format",
       "type": "shell",
       "command": "make format",
-      "problemMatcher": "$gcc"
+      "problemMatcher": {
+        "owner": "format",
+        "fileLocation": ["autoDetect", "${workspaceFolder}"],
+        "pattern": {
+          "regexp": "^(.*?):(\\d+):(\\d*):?\\s+(?:fatal\\s+)?(warning|error):\\s+(.*?)(?:\\s+\\[([-\\w.,=+]+)\\])?$",
+          "file": 1,
+          "line": 2,
+          "column": 3,
+          "severity": 4,
+          "message": 5,
+          "code": 6
+        }
+      }
     },
     {
       "label": "coverage",
       "type": "shell",
       "command": "make coverage",
       "group": "test",
-      "problemMatcher": "$gcc"
+      "problemMatcher": {
+        "owner": "coverage",
+        "fileLocation": ["autoDetect", "${workspaceFolder}"],
+        "pattern": {
+          "regexp": "^(.*?):(\\d+):(\\d*):?\\s+(?:fatal\\s+)?(warning|error):\\s+(.*?)(?:\\s+\\[([-\\w.,=+]+)\\])?$",
+          "file": 1,
+          "line": 2,
+          "column": 3,
+          "severity": 4,
+          "message": 5,
+          "code": 6
+        }
+      }
     },
     {
       "label": "bench",
       "type": "shell",
       "command": "make bench",
       "group": "test",
-      "problemMatcher": "$gcc"
+      "problemMatcher": {
+        "owner": "bench",
+        "fileLocation": ["autoDetect", "${workspaceFolder}"],
+        "pattern": {
+          "regexp": "^(.*?):(\\d+):(\\d*):?\\s+(?:fatal\\s+)?(warning|error):\\s+(.*?)(?:\\s+\\[([-\\w.,=+]+)\\])?$",
+          "file": 1,
+          "line": 2,
+          "column": 3,
+          "severity": 4,
+          "message": 5,
+          "code": 6
+        }
+      }
     }
   ]
 }

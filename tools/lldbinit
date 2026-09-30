@@ -1,4 +1,6 @@
-# Opt-in LLDB breakpoints; docs/how-to/debug-a-test.md shows how to load them.
+# Opt-in LLDB settings; docs/how-to/debug-a-test.md shows how to load them.
+# Ubuntu's lldb asks a symbol server about every library it loads, which costs a minute per launch.
+settings clear plugin.symbol-locator.debuginfod.server-urls
 # Stop once a sanitizer has printed its report, before it exits, with the faulting frames live.
 breakpoint set --name __sanitizer::Die
 breakpoint set --name __ubsan_on_report
