@@ -31,6 +31,7 @@ cases=(
     "msan_uninit         an uninitialized read planted in a unit test fails the msan preset; Linux only"
     "coverage_report     the coverage target writes lcov.info for libs/ only, with Clang and, on Linux, GCC"
     "vscode_files        .vscode/*.json parses as JSONC and reaches builds only through build/current"
+    "container_files     the Dockerfile installs only through bootstrap.sh --ci, and devcontainer.json builds it"
 )
 
 usage() {
@@ -750,19 +751,45 @@ case_coverage_report() {
     fi
 }
 
-case_vscode_files() {
-    python3 - "${root}"/.vscode/*.json <<'PY'
+# Parses each argument as JSONC and prints it as JSON, one document per line.
+parse_jsonc() {
+    python3 - "$@" <<'PY'
 import json, re, sys
 for path in sys.argv[1:]:
     text = open(path).read()
     # JSONC: drop // comments outside strings, then trailing commas.
     text = re.sub(r'("(?:\\.|[^"\\])*")|//[^\n]*', lambda m: m.group(1) or "", text)
-    json.loads(re.sub(r",(\s*[}\]])", r"\1", text))
+    print(json.dumps(json.loads(re.sub(r",(\s*[}\]])", r"\1", text))))
 PY
+}
+
+case_vscode_files() {
+    parse_jsonc "${root}"/.vscode/*.json >/dev/null
     if grep -rn "build/[a-z0-9-]*/" "${root}/.vscode" | grep -v "build/current/"; then
         echo ".vscode names a preset build directory instead of build/current, listed above"
         return 1
     fi
+}
+
+case_container_files() {
+    # Tool versions live only in bootstrap.sh; a package installed here would drift from it.
+    if grep -nE "apt(-get)? install|brew install|pipx? install" "${root}/Dockerfile"; then
+        echo "Dockerfile installs a package itself, listed above; add it to scripts/bootstrap.sh"
+        return 1
+    fi
+    if ! grep -q "scripts/bootstrap.sh --ci" "${root}/Dockerfile"; then
+        echo "Dockerfile does not run scripts/bootstrap.sh --ci"
+        return 1
+    fi
+    parse_jsonc "${root}/.devcontainer/devcontainer.json" "${root}/.vscode/extensions.json" |
+        python3 -c '
+import json, sys
+container, editor = (json.loads(line) for line in sys.stdin)
+if container["build"]["dockerfile"] != "../Dockerfile":
+    sys.exit("devcontainer.json does not build the root Dockerfile")
+if container["customizations"]["vscode"]["extensions"] != editor["recommendations"]:
+    sys.exit("devcontainer.json extensions differ from .vscode/extensions.json")
+'
 }
 
 # Prints why a case cannot run on this host, or nothing when it can.

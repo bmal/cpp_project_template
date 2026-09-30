@@ -1,0 +1,4 @@
+# The image needs only these; everything else would slow every build of it.
+*
+!scripts/bootstrap.sh
+!.pre-commit-config.yaml

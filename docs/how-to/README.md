@@ -8,6 +8,7 @@ Placeholder: the remaining guides arrive with the documentation tree (#27).
 | --- | --- |
 | Benchmark a change | [benchmark.md](benchmark.md) |
 | Debug one test | [debug-a-test.md](debug-a-test.md) |
+| Work in the Linux dev container | [dev-container.md](dev-container.md) |
 | Fuzz code that reads input | [fuzz.md](fuzz.md) |
 | Find uninitialized reads with MemorySanitizer | [msan.md](msan.md) |
 | Keep a personal preset | [personal-presets.md](personal-presets.md) |

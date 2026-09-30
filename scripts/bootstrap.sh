@@ -13,6 +13,31 @@ GERSEMI_VERSION="0.29.1"
 
 root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 
+usage() {
+    cat <<USAGE
+Usage: scripts/bootstrap.sh [--ci]
+
+Installs the compilers, CMake, Ninja, Make, pre-commit, gersemi, and vcpkg at its pinned commit.
+
+  --ci  For the Dockerfile and CI jobs: install vcpkg into \$VCPKG_ROOT when it is set,
+        and leave the git hook and the shell profile alone.
+USAGE
+}
+
+ci=0
+case "${1:-}" in
+"") ;;
+--ci) ci=1 ;;
+-h | --help)
+    usage
+    exit 0
+    ;;
+*)
+    usage >&2
+    exit 2
+    ;;
+esac
+
 install_macos() {
     if ! command -v brew >/dev/null; then
         echo "bootstrap: Homebrew is required on macOS, see https://brew.sh" >&2
@@ -50,7 +75,7 @@ install_linux() {
     fi
     ${sudo} apt-get install -y -qq --no-install-recommends \
         "clang-${CLANG_VERSION}" "clang-tidy-${CLANG_VERSION}" "clang-format-${CLANG_VERSION}" \
-        "libclang-rt-${CLANG_VERSION}-dev" "llvm-${CLANG_VERSION}"
+        "clangd-${CLANG_VERSION}" "libclang-rt-${CLANG_VERSION}-dev" "llvm-${CLANG_VERSION}"
 }
 
 # Installs package $1 at version $2 with pipx, replacing any other installed version.
@@ -68,6 +93,7 @@ install_pipx_tool() {
 install_format_tools() {
     install_pipx_tool pre-commit "${PRE_COMMIT_VERSION}"
     install_pipx_tool gersemi "${GERSEMI_VERSION}"
+    if [ "${ci}" -eq 1 ]; then return; fi
     # Puts pipx's directory on PATH in the shell profile, for pre-commit on the command line.
     pipx ensurepath >/dev/null
     if git -C "${root}" rev-parse --git-dir >/dev/null 2>&1; then
@@ -78,6 +104,7 @@ install_format_tools() {
 
 install_vcpkg() {
     local dir="${root}/.vcpkg"
+    if [ "${ci}" -eq 1 ] && [ -n "${VCPKG_ROOT:-}" ]; then dir="${VCPKG_ROOT}"; fi
     if [ ! -d "${dir}/.git" ]; then
         git clone --quiet https://github.com/microsoft/vcpkg.git "${dir}"
     fi

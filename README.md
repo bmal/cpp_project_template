@@ -22,6 +22,7 @@ A compact, modern C++23 template for projects that start small and still grow cl
 - CMake 3.28 or newer, Ninja, and Make.
 
 `scripts/bootstrap.sh` installs all of these, plus vcpkg pinned under `.vcpkg/` and the pre-commit hook.
+The root `Dockerfile` runs it too, for the Linux dev container.
 
 ## Repository Layout
 
@@ -344,6 +345,7 @@ make bench-compare BASE=main
 Open the folder, install the recommended extensions, pick a configure preset in the CMake Tools status bar, and press F5 to debug the launch target.
 clangd, the Testing view, and Coverage Gutters read `build/current`, so they follow that preset.
 [docs/how-to/debug-a-test.md](docs/how-to/debug-a-test.md) covers one test and a filter, and [docs/how-to/view-coverage.md](docs/how-to/view-coverage.md) covers coverage in the gutter.
+[docs/how-to/dev-container.md](docs/how-to/dev-container.md) opens the same folder in a Linux container.
 
 ## CI
 
