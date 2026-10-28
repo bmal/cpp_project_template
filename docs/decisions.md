@@ -398,6 +398,12 @@ Narrow choices left to single tickets are appended below the entry they refine.
 - Why: a name longer than `myproj` pushes lines past 100 columns, and the Init commit then fails tier one at `pre-commit run --all-files`.
 - Rejected: running Init in the CI image, which a new repository has not published yet; unpinned formatters from the runner.
 
+#### D26.3. Green in ten minutes means tier one
+
+- Decision: the ten-minute clock starts at `gh repo create` and stops when tier one passes on the Init commit. The full fan-out still gates every pull request through `status` (issue #33).
+- Why: the goal is being able to start work, which tier one shows. A full push run on `main` took 22.5 minutes.
+- Rejected: slimming the push-to-`main` run until `status` fits, which reopens D25's job set; a thirty-minute target.
+
 ### D27. Documentation per Diátaxis
 
 - Decision: a one-screen README, a one-page getting started, how-tos under forty lines, generated reference, one testing guide, this register. Short, command first.
