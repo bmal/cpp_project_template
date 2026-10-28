@@ -9,19 +9,18 @@ A C++23 project on CMake presets and vcpkg, for Linux and macOS. It carries a we
 
 ## Quick start
 
-Create your repository from the template on GitHub, then clone it, install the toolchain, and build:
+When you start a project, create it from the template, clone it, and watch Init name it:
 
 ```bash
-gh repo create order_book --public --clone --template bmal/cpp_project_template
-cd order_book && scripts/bootstrap.sh
-make dev
+gh repo create order_book --public --clone --template bmal/cpp_project_template && cd order_book && gh run watch
 ```
 
-The Init workflow names the project after the repository within a minute.
-When `gh run watch` finds no run in progress, fetch the rename:
+Init finishes within a minute; `found no in progress runs` means it already has.
+
+When Init is done, fetch the rename, install the toolchain, and build and test:
 
 ```bash
-git pull
+git pull && scripts/bootstrap.sh && make dev
 ```
 
 When the repository is named, require the `status` check on `main` and allow only squash merges:

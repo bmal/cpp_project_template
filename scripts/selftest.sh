@@ -36,7 +36,7 @@ cases=(
     "debugger_init       lldb is installed and loads tools/lldbinit; gdb, where installed, loads tools/gdbinit"
     "release_tag         check-release-tag.sh accepts v<project version> and its pre-releases, and names both versions otherwise"
     "ci_pins             every uses: under .github/ names a local action or a commit SHA with its version"
-    "ci_dispatch         Init dispatches ci.yaml after its push, and ci.yaml accepts a dispatch"
+    "ci_dispatch         Init cancels CI on the template's commit, then dispatches ci.yaml, and ci.yaml accepts a dispatch"
     "init_rename         init-project.sh to a long name leaves no placeholder, passes make format-check, builds and tests, and a bad name fails in one line"
     "init_strip          init-project.sh --strip-samples leaves core, one app, and passing tests"
     "init_idempotent     a second init-project.sh with the same arguments changes nothing"
@@ -907,6 +907,15 @@ case_ci_dispatch() {
     fi
     if ! sed -n '/git push/,$p' "${init}" | grep -q 'gh workflow run ci.yaml --ref'; then
         echo "init.yaml does not run gh workflow run ci.yaml --ref after its git push"
+        return 1
+    fi
+    # CI on the template's commit holds the concurrency group, so Init's run would wait for it (D25.11).
+    if ! sed -n '/git push/,/gh workflow run/p' "${init}" | grep -qF "gh run list --workflow ci.yaml --commit \"\${GITHUB_SHA}\""; then
+        echo "init.yaml does not list the CI runs on GITHUB_SHA, the commit it renamed, before it dispatches"
+        return 1
+    fi
+    if ! sed -n '/gh run list --workflow ci.yaml --commit/,/gh workflow run/p' "${init}" | grep -q 'gh run cancel'; then
+        echo "init.yaml does not cancel those runs before it dispatches"
         return 1
     fi
 }

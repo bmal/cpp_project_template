@@ -380,6 +380,12 @@ Narrow choices left to single tickets are appended below the entry they refine.
 - Why: a push with `GITHUB_TOKEN` starts no workflow, so without a dispatch `main` has no `status` until a second push.
 - Rejected: a token or App secret, which a new repository lacks; `status` first on the next push.
 
+#### D25.11. Init cancels CI on the template's commit
+
+- Decision: before it dispatches, Init cancels every unfinished CI run on the commit it renamed. The selftest case `ci_dispatch` checks the cancel (issue #37).
+- Why: that run holds CI's concurrency group on `main` for the full fan-out. Tier one on Init's commit waited 17 minutes behind it.
+- Rejected: `cancel-in-progress` for pushes to `main`, which loses the caches each commit saves. A `Plan` job that skips the unnamed tree, which every project would carry forever.
+
 ### D26. Instantiation
 
 - Decision: literal placeholders. Idempotent `init-project.sh <name> [--strip-samples]`. A self-initializing workflow on first push, also manual. `bootstrap.sh`. `.devcontainer/` on the CI Dockerfile. `setup-repo.sh` for labels, ruleset, merge queue, Dependabot. CI exercises the init script.

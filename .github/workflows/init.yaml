@@ -1,6 +1,7 @@
 # Names a repository created from the template: runs scripts/init-project.sh on its first push.
 # The script deletes this file, so the commit it pushes removes the workflow with the placeholder.
 # Its push starts no workflow, so it dispatches CI to put status on its commit (D25.10).
+# It first cancels CI on the template's commit, which would make the dispatched run wait (D25.11).
 name: Init
 
 on:
@@ -56,11 +57,18 @@ jobs:
           git push origin "HEAD:${GITHUB_REF_NAME}"
           echo "pushed=true" >>"${GITHUB_OUTPUT}"
 
-      - name: Start CI on the pushed commit
+      # GITHUB_SHA is the template's commit this job renamed, so a manual run cancels nothing else.
+      - name: Cancel CI on the template's commit, then start CI on the named one
         if: steps.rename.outputs.pushed == 'true'
         env:
           GH_TOKEN: ${{ github.token }}
-        run: gh workflow run ci.yaml --ref "${GITHUB_REF_NAME}"
+        run: |
+          for id in $(gh run list --workflow ci.yaml --commit "${GITHUB_SHA}" \
+            --json databaseId,status --jq '.[] | select(.status != "completed") | .databaseId'); do
+            # A run that finished since the list cannot be cancelled, and need not be.
+            gh run cancel "${id}" || echo "::warning::Could not cancel CI run ${id}"
+          done
+          gh workflow run ci.yaml --ref "${GITHUB_REF_NAME}"
 
       - name: Say how to pick the name by hand
         if: failure() && steps.rename.outcome == 'failure'
