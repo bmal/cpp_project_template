@@ -34,6 +34,10 @@ jobs:
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
+      # init-project.sh formats what it renames, with the formatters CI's pre-commit runs.
+      - name: Install the pinned clang-format and gersemi
+        run: scripts/bootstrap.sh --format-tools
+
       - name: Rename, commit, and push
         id: rename
         env:

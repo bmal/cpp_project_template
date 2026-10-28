@@ -37,7 +37,7 @@ cases=(
     "release_tag         check-release-tag.sh accepts v<project version> and its pre-releases, and names both versions otherwise"
     "ci_pins             every uses: under .github/ names a local action or a commit SHA with its version"
     "ci_dispatch         Init dispatches ci.yaml after its push, and ci.yaml accepts a dispatch"
-    "init_rename         init-project.sh leaves no placeholder, the result builds and tests, and a bad name fails in one line"
+    "init_rename         init-project.sh to a long name leaves no placeholder, passes make format-check, builds and tests, and a bad name fails in one line"
     "init_strip          init-project.sh --strip-samples leaves core, one app, and passing tests"
     "init_idempotent     a second init-project.sh with the same arguments changes nothing"
     "setup_repo_auth     setup-repo.sh with gh logged out exits non-zero and prints gh auth login"
@@ -936,8 +936,10 @@ probe_name() {
 }
 
 case_init_rename() {
-    local src="${work}/init_rename" first_run=0 name
-    name="$(probe_name renamed)"
+    local src="${work}/init_rename" first_run=0 name camel
+    # Long enough that the rename pushes lines past 100 columns, so the formatter must reflow them.
+    name="$(probe_name long_enough_to_reflow)"
+    camel="LongEnoughToReflowProbe$$"
     copy_tree "${src}"
     if "${src}/scripts/init-project.sh" "9 bad name" 2>"${work}/init_rename.err"; then
         echo "init-project.sh accepted the name '9 bad name'"
@@ -947,20 +949,21 @@ case_init_rename() {
     [ "$(wc -l <"${work}/init_rename.err")" -eq 1 ]
     # The self-init workflow exists only until the first init.
     if [ -e "${src}/.github/workflows/init.yaml" ]; then first_run=1; fi
-    # Mixed case and a hyphen, as a repository name has them.
-    "${src}/scripts/init-project.sh" "Renamed-Probe-$$"
+    # Mixed case and hyphens, as a repository name has them.
+    "${src}/scripts/init-project.sh" "Long-Enough-To-Reflow-Probe-$$"
     if grep -rnI --exclude-dir=.git -e myproj -e MyProj -e MYPROJ "${src}"; then
         echo "init-project.sh left the old name in the lines above"
         return 1
     fi
-    grep -q "^project(RenamedProbe$$ VERSION" "${src}/CMakeLists.txt"
-    grep -q "\"name\": \"renamed-probe-$$\"" "${src}/vcpkg.json"
+    grep -q "^project(${camel} VERSION" "${src}/CMakeLists.txt"
+    grep -q "\"name\": \"${name//_/-}\"" "${src}/vcpkg.json"
     if [ "${first_run}" -eq 1 ]; then
-        grep -q "^project(RenamedProbe$$ VERSION 0.1.0 " "${src}/CMakeLists.txt"
-        grep -q "^# RenamedProbe$$\$" "${src}/README.md"
+        grep -q "^project(${camel} VERSION 0.1.0 " "${src}/CMakeLists.txt"
+        grep -q "^# ${camel}\$" "${src}/README.md"
         grep -q '^make dev$' "${src}/README.md"
         [ ! -e "${src}/.github/workflows/init.yaml" ]
     fi
+    make -C "${src}" format-check
     # The first configure seeds the shared vcpkg tree; the workflow then reuses its cache.
     configure_dev "${src}"
     (cd "${src}" && cmake --workflow --preset dev)

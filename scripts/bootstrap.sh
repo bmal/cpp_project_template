@@ -15,19 +15,24 @@ root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 
 usage() {
     cat <<USAGE
-Usage: scripts/bootstrap.sh [--ci]
+Usage: scripts/bootstrap.sh [--ci | --format-tools]
 
 Installs the compilers, lldb, CMake, Ninja, Make, ccache, Valgrind on Linux, pre-commit, gersemi, and vcpkg at its pinned commit.
 
   --ci  For the Dockerfile and CI jobs: install vcpkg into \$VCPKG_ROOT when it is set,
         and leave the git hook and the shell profile alone.
+  --format-tools
+        Install only the pinned clang-format and gersemi, which scripts/format.sh runs;
+        the Init workflow uses this before it names the project.
 USAGE
 }
 
 ci=0
+format_only=0
 case "${1:-}" in
 "") ;;
 --ci) ci=1 ;;
+--format-tools) format_only=1 ;;
 -h | --help)
     usage
     exit 0
@@ -43,7 +48,9 @@ install_macos() {
         echo "bootstrap: Homebrew is required on macOS, see https://brew.sh" >&2
         exit 1
     fi
-    for formula in llvm cmake ninja ccache pkg-config pipx; do
+    local formulas=(llvm cmake ninja ccache pkg-config pipx)
+    if [ "${format_only}" -eq 1 ]; then formulas=(llvm pipx); fi
+    for formula in "${formulas[@]}"; do
         brew list --versions "${formula}" >/dev/null || brew install "${formula}"
     done
 }
@@ -58,10 +65,14 @@ install_linux() {
     export DEBIAN_FRONTEND=noninteractive
 
     ${sudo} apt-get update -qq
-    ${sudo} apt-get install -y -qq --no-install-recommends \
-        ca-certificates ccache cmake curl git make ninja-build pkg-config sudo tar unzip zip \
-        python3 python3-venv pipx lcov valgrind \
-        "g++-${GCC_VERSION}"
+    if [ "${format_only}" -eq 1 ]; then
+        ${sudo} apt-get install -y -qq --no-install-recommends ca-certificates curl pipx
+    else
+        ${sudo} apt-get install -y -qq --no-install-recommends \
+            ca-certificates ccache cmake curl git make ninja-build pkg-config sudo tar unzip zip \
+            python3 python3-venv pipx lcov valgrind \
+            "g++-${GCC_VERSION}"
+    fi
 
     if ! apt-cache show "clang-${CLANG_VERSION}" >/dev/null 2>&1; then
         local codename
@@ -72,6 +83,10 @@ install_linux() {
         echo "deb http://apt.llvm.org/${codename}/ llvm-toolchain-${codename}-${CLANG_VERSION} main" |
             ${sudo} tee "/etc/apt/sources.list.d/llvm-${CLANG_VERSION}.list" >/dev/null
         ${sudo} apt-get update -qq
+    fi
+    if [ "${format_only}" -eq 1 ]; then
+        ${sudo} apt-get install -y -qq --no-install-recommends "clang-format-${CLANG_VERSION}"
+        return
     fi
     ${sudo} apt-get install -y -qq --no-install-recommends \
         "clang-${CLANG_VERSION}" "clang-tidy-${CLANG_VERSION}" "clang-format-${CLANG_VERSION}" \
@@ -98,8 +113,9 @@ install_pipx_tool() {
 
 # Installs pre-commit and gersemi, then the hook when this is a git checkout.
 install_format_tools() {
-    install_pipx_tool pre-commit "${PRE_COMMIT_VERSION}"
     install_pipx_tool gersemi "${GERSEMI_VERSION}"
+    if [ "${format_only}" -eq 1 ]; then return; fi
+    install_pipx_tool pre-commit "${PRE_COMMIT_VERSION}"
     if [ "${ci}" -eq 1 ]; then return; fi
     # Puts pipx's directory on PATH in the shell profile, for pre-commit on the command line.
     pipx ensurepath >/dev/null
@@ -135,5 +151,9 @@ case "$(uname -s)" in
         ;;
 esac
 install_format_tools
+if [ "${format_only}" -eq 1 ]; then
+    echo "bootstrap: clang-format and gersemi installed"
+    exit 0
+fi
 install_vcpkg
 echo "bootstrap: done, next run: make dev"

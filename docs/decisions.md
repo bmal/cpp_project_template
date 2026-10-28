@@ -392,6 +392,12 @@ Narrow choices left to single tickets are appended below the entry they refine.
 - Why: GitHub rejects the merge queue rule on user-owned repositories, and on private ones outside Enterprise Cloud, which the API does not reveal. Asking for it there would fail the whole setup.
 - Rejected: failing on user-owned repositories; branch protection rules instead of a ruleset.
 
+#### D26.2. Init formats what it renames
+
+- Decision: `init-project.sh` ends with `scripts/format.sh` over the tree, on every run. The Init workflow first runs `scripts/bootstrap.sh --format-tools`, which installs only what the pinned clang-format and gersemi need. The selftest case `init_rename` renames to a long name and runs `make format-check` (issue #36).
+- Why: a name longer than `myproj` pushes lines past 100 columns, and the Init commit then fails tier one at `pre-commit run --all-files`.
+- Rejected: running Init in the CI image, which a new repository has not published yet; unpinned formatters from the runner.
+
 ### D27. Documentation per Diátaxis
 
 - Decision: a one-screen README, a one-page getting started, how-tos under forty lines, generated reference, one testing guide, this register. Short, command first.

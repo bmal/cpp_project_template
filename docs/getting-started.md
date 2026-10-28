@@ -24,10 +24,11 @@ Then fetch the renamed tree:
 git pull
 ```
 
-When the repository name is not the project name you want, rename by hand and push:
+When the repository name is not the project name you want, rename by hand and push.
+The rename formats the tree, so the first command installs the pinned formatters:
 
 ```bash
-scripts/init-project.sh order_book && git add -A && git commit -m "Name the project" && git push
+scripts/bootstrap.sh --format-tools && scripts/init-project.sh order_book && git add -A && git commit -m "Name the project" && git push
 ```
 
 When you want a weekend project with only `core`, one app, and one passing test, drop the samples too:

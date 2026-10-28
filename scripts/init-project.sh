@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 # Names the project: rewrites the current name in every lowercase, CamelCase, and UPPER_CASE form.
 # The first run also leaves the template behind; a second run with the same arguments changes nothing.
+# Ends by formatting the tree, since a longer name can push a line past the column limit.
 set -euo pipefail
 
 # shellcheck source-path=SCRIPTDIR source=lib/scaffold.sh
@@ -18,6 +19,9 @@ and deletes .github/workflows/init.yaml, the workflow that runs this script on t
 
 --strip-samples removes the parser module and everything built on it: its unit tests,
 the fuzz harness, its benchmark, core's echo_fields, and the integration test.
+
+Every run ends with scripts/format.sh, so it needs the clang-format and gersemi that
+scripts/bootstrap.sh installs.
 USAGE
 }
 
@@ -212,6 +216,9 @@ CPP
     echo "reduced tests/functional/test_cli.cpp to the banner"
     changed=1
 fi
+
+# Also on a run that renames nothing, so a run that stopped here for want of a formatter can be repeated.
+list_files | xargs -0 scripts/format.sh
 
 if [ "${changed}" -eq 0 ]; then
     echo "nothing to change: the project is already ${lower}"
