@@ -374,6 +374,12 @@ Narrow choices left to single tickets are appended below the entry they refine.
 - Why: the archive's version and the tag cannot disagree, and a release candidate needs no version bump.
 - Rejected: reading the version from the tag, which makes `project(VERSION)` a second source.
 
+#### D25.10. Init dispatches CI on its commit
+
+- Decision: `ci.yaml` also runs on `workflow_dispatch`. Init runs `gh workflow run ci.yaml` on the branch it pushed, `main` on first push, with `actions: write`. The bad-name hint shows only when the rename fails. The selftest case `ci_dispatch` checks the dispatch (issue #35).
+- Why: a push with `GITHUB_TOKEN` starts no workflow, so without a dispatch `main` has no `status` until a second push.
+- Rejected: a token or App secret, which a new repository lacks; `status` first on the next push.
+
 ### D26. Instantiation
 
 - Decision: literal placeholders. Idempotent `init-project.sh <name> [--strip-samples]`. A self-initializing workflow on first push, also manual. `bootstrap.sh`. `.devcontainer/` on the CI Dockerfile. `setup-repo.sh` for labels, ruleset, merge queue, Dependabot. CI exercises the init script.

@@ -11,7 +11,7 @@ When you start a project, create it from the template and clone it; `order_book`
 gh repo create order_book --public --clone --template bmal/cpp_project_template
 ```
 
-The first push runs the Init workflow, which names the project after the repository and commits.
+The first push runs the Init workflow, which names the project after the repository, commits, and starts CI.
 When you want to see it finish, watch it; `found no in progress runs` means it already has:
 
 ```bash

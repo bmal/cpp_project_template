@@ -36,6 +36,7 @@ cases=(
     "debugger_init       lldb is installed and loads tools/lldbinit; gdb, where installed, loads tools/gdbinit"
     "release_tag         check-release-tag.sh accepts v<project version> and its pre-releases, and names both versions otherwise"
     "ci_pins             every uses: under .github/ names a local action or a commit SHA with its version"
+    "ci_dispatch         Init dispatches ci.yaml after its push, and ci.yaml accepts a dispatch"
     "init_rename         init-project.sh leaves no placeholder, the result builds and tests, and a bad name fails in one line"
     "init_strip          init-project.sh --strip-samples leaves core, one app, and passing tests"
     "init_idempotent     a second init-project.sh with the same arguments changes nothing"
@@ -893,6 +894,23 @@ case_ci_pins() {
     fi
 }
 
+case_ci_dispatch() {
+    # Init's commit gets status only by a dispatch (D25.10).
+    local ci="${root}/.github/workflows/ci.yaml" init="${root}/.github/workflows/init.yaml"
+    if ! sed -n '/^on:/,/^[^ ]/p' "${ci}" | grep -q '^  workflow_dispatch:'; then
+        echo "ci.yaml has no workflow_dispatch trigger, so Init cannot start it"
+        return 1
+    fi
+    if ! grep -qx '  actions: write' "${init}"; then
+        echo "init.yaml lacks actions: write, which gh workflow run needs"
+        return 1
+    fi
+    if ! sed -n '/git push/,$p' "${init}" | grep -q 'gh workflow run ci.yaml --ref'; then
+        echo "init.yaml does not run gh workflow run ci.yaml --ref after its git push"
+        return 1
+    fi
+}
+
 case_release_tag() {
     local version tag
     version="$(sed -n 's/^project([^ ]* VERSION \([0-9.]*\).*/\1/p' "${root}/CMakeLists.txt")"
@@ -1045,6 +1063,11 @@ skip_reason() {
         ;;
     pre_commit_hooks | docs_limits)
         if [ -z "$(pre_commit_bin)" ]; then echo "pre-commit is not installed; run scripts/bootstrap.sh"; fi
+        ;;
+    ci_dispatch)
+        if [ ! -e "${root}/.github/workflows/init.yaml" ]; then
+            echo "Init already ran, and scripts/init-project.sh deleted init.yaml"
+        fi
         ;;
     setup_repo_auth)
         if ! command -v gh >/dev/null; then echo "the GitHub CLI is not installed"; fi

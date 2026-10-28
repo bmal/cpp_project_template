@@ -8,6 +8,8 @@ on:
   merge_group:
   push:
     branches: [main]
+  # Init starts this on its own commit, which its GITHUB_TOKEN push cannot (D25.10).
+  workflow_dispatch:
 
 permissions:
   contents: read

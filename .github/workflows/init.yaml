@@ -1,5 +1,6 @@
 # Names a repository created from the template: runs scripts/init-project.sh on its first push.
 # The script deletes this file, so the commit it pushes removes the workflow with the placeholder.
+# Its push starts no workflow, so it dispatches CI to put status on its commit (D25.10).
 name: Init
 
 on:
@@ -14,6 +15,7 @@ on:
 
 permissions:
   contents: write
+  actions: write
 
 defaults:
   run:
@@ -33,6 +35,7 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
       - name: Rename, commit, and push
+        id: rename
         env:
           NAME: ${{ inputs.name || github.event.repository.name }}
         run: |
@@ -47,9 +50,16 @@ jobs:
           git add -A
           git commit -m "Name the project ${NAME} from the template"
           git push origin "HEAD:${GITHUB_REF_NAME}"
+          echo "pushed=true" >>"${GITHUB_OUTPUT}"
+
+      - name: Start CI on the pushed commit
+        if: steps.rename.outputs.pushed == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh workflow run ci.yaml --ref "${GITHUB_REF_NAME}"
 
       - name: Say how to pick the name by hand
-        if: failure()
+        if: failure() && steps.rename.outcome == 'failure'
         run: >-
           echo "::error::The repository name is not a usable project name.
           Run this workflow with one: gh workflow run init.yaml -f name=<name>"
