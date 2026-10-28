@@ -205,7 +205,7 @@ jobs:
         run: make fuzz
       - name: Upload the inputs that crashed
         if: failure()
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: fuzz-crashes
           path: |
@@ -262,13 +262,13 @@ jobs:
       # Coverage is shown, never a gate (D21); without the secret the report stays an artifact.
       - name: Upload to Codecov
         if: env.CODECOV_TOKEN != ''
-        uses: codecov/codecov-action@2320916714171c258d01dbd81040d64d798c6f8e # v7.1.1
+        uses: codecov/codecov-action@303a32d7a59b442fa8d48b6a1cc6825c09c847a5 # v7.1.1
         with:
           token: ${{ env.CODECOV_TOKEN }}
           files: build/coverage/coverage/lcov.info
           disable_search: true
       - name: Upload lcov.info
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: lcov
           path: build/coverage/coverage/lcov.info
