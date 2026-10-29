@@ -15,7 +15,7 @@ cases=(
     "profile_symbols     the profile preset's CLI has debug info, frame pointers, and no LTO"
     "release_lto         release turns LTO on, links the CLI with -flto, and installs for a non-LTO consumer"
     "release_inline      release and release-gcc inline a libs/ function and an hft dependency's function into the CLI's main; Linux only"
-    "hft_triplet         release builds dependencies with the hft triplet's LTO and resolved CPU flag, and a missing variant fails naming its file"
+    "hft_triplet         release builds dependencies with the hft triplet's LTO and resolved CPU flag, the project with that CPU flag, and a missing variant fails naming its file"
     "scaffold            new-module and new-app output builds, tests, and runs; bad names fail"
     "make_help           make help exits 0 and describes every Makefile target"
     "sample_headers      every source under libs/, apps/, tests/, benchmarks/ opens with two purpose lines"
@@ -416,7 +416,7 @@ sha256() {
 
 case_hft_triplet() {
     local src="${work}/hft_triplet" installed="${work}/hft_triplet-installed"
-    local buildtrees="${work}/hft_triplet-buildtrees" triplet flags flag abi output
+    local buildtrees="${work}/hft_triplet-buildtrees" triplet flags flag abi own output
     copy_tree "${src}"
     # Built from source, so the port's own build files show the flags it was compiled with.
     (cd "${src}" && cmake --preset release -DPROJECT_BUILD_TESTS=OFF -DVCPKG_INSTALLED_DIR="${installed}" \
@@ -439,6 +439,12 @@ case_hft_triplet() {
     abi="$(sed -n 's/^ENV:PROJECT_MARCH_FLAG //p' "${installed}/${triplet}/share/fmt/vcpkg_abi_info.txt")"
     if [ "${abi}" != "$(printf '%s' "${flag}" | sha256)" ]; then
         echo "fmt's ABI inputs hash '${abi}' for PROJECT_MARCH_FLAG, not the hash of ${flag}"
+        return 1
+    fi
+    # LTO inlines dependency code only into code built for the same CPU features.
+    own="$(grep -Eo -- '-m(arch|cpu)=[^ "]+' "${src}/build/release/compile_commands.json" | sort -u)"
+    if [ "${own}" != "${flag}" ]; then
+        echo "the project compiles with '${own}', not the dependencies' ${flag}"
         return 1
     fi
 

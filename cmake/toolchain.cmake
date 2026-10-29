@@ -67,6 +67,8 @@ elseif(PROJECT_MARCH STREQUAL "native")
     )
   endif()
   set(ENV{PROJECT_MARCH_FLAG} "${_project_flag}")
+  # CompilerPolicy reads this, not the environment, which each try_compile clears by rereading this file.
+  set(PROJECT_NATIVE_FLAG "${_project_flag}")
 elseif(PROJECT_MARCH)
   set(ENV{PROJECT_MARCH_FLAG} "-march=${PROJECT_MARCH}")
 endif()
