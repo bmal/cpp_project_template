@@ -48,6 +48,12 @@ Narrow choices left to single tickets are appended below the entry they refine.
 - Why: dependencies are built by the same compiler and flags as the project, so TSan and HFT flags are exact.
 - Rejected: CPM; shipping Conan or a second manager next to `vcpkg.json`. Conan is documented as the team-scale swap.
 
+#### E1. The `hft` triplet builds the dependencies of `release`, `profile`, and `bench`
+
+- Decision: `triplets/<arch>-<os>-hft.cmake` chainloads the compiler file with `-O3 -DNDEBUG`, the preset's LTO, and the CPU flag of `PROJECT_MARCH`. `release`, `profile`, and `bench` set `PROJECT_TRIPLET_VARIANT=hft`. The toolchain turns `native` into the CPU the compiler names, `-mcpu=` for Clang on Arm. The flag and LTO reach vcpkg as passed-through variables, which vcpkg hashes into each package's ABI. A missing triplet file fails configure in one sentence, as does a build directory cached for another triplet (issue #39).
+- Why: a dependency gets the project's HFT flags, and no binary cache restores a package built for another CPU.
+- Rejected: an opt-in variant no preset uses; dropping `hft` from D6 (register E, issue #38).
+
 ### D7. Linux and macOS only
 
 - Decision: CI compilers are GCC and Clang on Linux, Homebrew LLVM on macOS. Configure enforces GCC 14 and Clang 19. AppleClang is best-effort and not in CI.

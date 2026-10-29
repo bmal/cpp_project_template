@@ -62,7 +62,8 @@
       "cacheVariables": {
         "CMAKE_BUILD_TYPE": "Release",
         "CMAKE_INTERPROCEDURAL_OPTIMIZATION": "ON",
-        "PROJECT_MARCH": "native"
+        "PROJECT_MARCH": "native",
+        "PROJECT_TRIPLET_VARIANT": "hft"
       }
     },
     {

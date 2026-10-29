@@ -160,3 +160,9 @@ if(VCPKG_CXX_FLAGS OR VCPKG_LINKER_FLAGS)
     string(APPEND CMAKE_${_project_kind}_LINKER_FLAGS_INIT " ${VCPKG_LINKER_FLAGS}")
   endforeach()
 endif()
+
+# The hft triplet states its release flags; a cache entry replaces CMake's default instead of joining it.
+if(VCPKG_CXX_FLAGS_RELEASE)
+  set(CMAKE_C_FLAGS_RELEASE "${VCPKG_C_FLAGS_RELEASE}" CACHE STRING "")
+  set(CMAKE_CXX_FLAGS_RELEASE "${VCPKG_CXX_FLAGS_RELEASE}" CACHE STRING "")
+endif()

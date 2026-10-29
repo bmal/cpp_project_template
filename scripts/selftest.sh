@@ -14,6 +14,7 @@ cases=(
     "current_build       build/current and compile_commands.json follow the last configured preset"
     "profile_symbols     the profile preset's CLI has debug info, frame pointers, and no LTO"
     "release_lto         release turns LTO on, links the CLI with -flto, and installs for a non-LTO consumer"
+    "hft_triplet         release builds dependencies with the hft triplet's LTO and resolved CPU flag, and a missing variant fails naming its file"
     "scaffold            new-module and new-app output builds, tests, and runs; bad names fail"
     "make_help           make help exits 0 and describes every Makefile target"
     "sample_headers      every source under libs/, apps/, tests/, benchmarks/ opens with two purpose lines"
@@ -369,6 +370,50 @@ case_release_lto() {
     # A consumer that links without LTO must still link the installed LTO archives.
     cmake --install "${build}" --prefix "${work}/release_lto-prefix"
     link_installed_consumer "${src}" "${work}/release_lto-prefix" "${work}/release_lto-consumer"
+}
+
+# Prints the SHA-256 of standard input, as vcpkg hashes a passed-through variable.
+sha256() {
+    if command -v sha256sum >/dev/null; then sha256sum | cut -d ' ' -f 1; else shasum -a 256 | cut -d ' ' -f 1; fi
+}
+
+case_hft_triplet() {
+    local src="${work}/hft_triplet" installed="${work}/hft_triplet-installed"
+    local buildtrees="${work}/hft_triplet-buildtrees" triplet flags flag abi output
+    copy_tree "${src}"
+    # Built from source, so the port's own build files show the flags it was compiled with.
+    (cd "${src}" && cmake --preset release -DPROJECT_BUILD_TESTS=OFF -DVCPKG_INSTALLED_DIR="${installed}" \
+        "-DVCPKG_INSTALL_OPTIONS=--no-binarycaching;--x-buildtrees-root=${buildtrees}")
+    triplet="$(cd "${installed}" && ls -d ./*-hft)"
+    triplet="${triplet#./}"
+    [ -n "${triplet}" ]
+    flags="$(grep -h '^ *FLAGS = ' "${buildtrees}/fmt/config-${triplet}-rel-ninja.log" | sort -u)"
+    echo "${flags}"
+    if [[ "${flags}" != *-flto* ]]; then
+        echo "fmt was compiled without -flto under release"
+        return 1
+    fi
+    flag="$(grep -Eo -- '-m(arch|cpu)=[^ ]+' <<<"${flags}" | sort -u)"
+    if [ "$(wc -l <<<"${flag}")" -ne 1 ] || [ -z "${flag}" ] || [[ "${flag}" == *native* ]]; then
+        echo "fmt was not compiled with exactly one resolved -march or -mcpu flag: '${flag}'"
+        return 1
+    fi
+    # vcpkg hashes each passed-through variable into the package ABI; the hash must be of that flag.
+    abi="$(sed -n 's/^ENV:PROJECT_MARCH_FLAG //p' "${installed}/${triplet}/share/fmt/vcpkg_abi_info.txt")"
+    if [ "${abi}" != "$(printf '%s' "${flag}" | sha256)" ]; then
+        echo "fmt's ABI inputs hash '${abi}' for PROJECT_MARCH_FLAG, not the hash of ${flag}"
+        return 1
+    fi
+
+    if output="$(cd "${src}" && cmake --preset release -B build/nope -DPROJECT_TRIPLET_VARIANT=nope 2>&1)"; then
+        echo "configure with PROJECT_TRIPLET_VARIANT=nope succeeded"
+        return 1
+    fi
+    echo "${output}"
+    if ! grep -q "triplets/${triplet%-hft}-nope.cmake" <<<"${output}" || grep -q "vcpkg install failed" <<<"${output}"; then
+        echo "configure with PROJECT_TRIPLET_VARIANT=nope did not fail naming triplets/${triplet%-hft}-nope.cmake"
+        return 1
+    fi
 }
 
 case_scaffold() {

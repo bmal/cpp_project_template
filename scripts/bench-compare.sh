@@ -24,9 +24,10 @@ fi
 # Configures, builds, and runs every benchmark of the tree at $1, writing build/bench/bench/*.json.
 # Old results go first, so a benchmark that no longer exists is never compared.
 # Chained with &&, because set -e does not apply inside a function called with ||.
+# --fresh drops only the cache, which may name another commit's triplet; objects stay built.
 run_benchmarks() {
     rm -rf "$1/build/bench/bench" &&
-        cmake -S "$1" --preset bench >/dev/null &&
+        cmake -S "$1" --preset bench --fresh >/dev/null &&
         cmake --build "$1/build/bench" --target run_benchmarks
 }
 

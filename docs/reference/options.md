@@ -13,7 +13,7 @@ Set on the configure command, as in `cmake --preset dev -DPROJECT_LINKER=default
 | `PROJECT_STDLIB_HARDENING` | `ON` or `OFF` | `ON` in `dev` |
 | `PROJECT_FRAME_POINTERS` | `ON` or `OFF` | `ON` in `bench` and `profile` |
 | `PROJECT_SANITIZER` | `address`, `undefined`, `thread`, `memory`, `leak`, or a list such as `address;undefined` | Empty; set by the sanitizer presets |
-| `PROJECT_TRIPLET_VARIANT` | A suffix such as `asan`, picking `triplets/<host>-<variant>.cmake` | Empty; set by the sanitizer presets |
+| `PROJECT_TRIPLET_VARIANT` | A suffix such as `hft` or `asan`, picking `triplets/<host>-<variant>.cmake` | Empty; `hft` in `release`, `bench`, and `profile`; set by the sanitizer presets |
 | `PROJECT_BUILD_APPS` | `ON` or `OFF` | `ON` when top level |
 | `PROJECT_BUILD_TESTS` | `ON` or `OFF` | `ON` when top level |
 | `PROJECT_BUILD_BENCHMARKS` | `ON` or `OFF`; `ON` installs the vcpkg `benchmarks` feature | `ON` in `bench` |
