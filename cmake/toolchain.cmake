@@ -1,6 +1,6 @@
 # The only toolchain file presets name: selects the compiler, picks the triplet, and chainloads vcpkg.
 # PROJECT_COMPILER picks clang (default) or gcc; VCPKG_ROOT overrides the bootstrapped .vcpkg/. The hft
-# triplet reads the CPU flag and LTO setting exported here.
+# triplet reads the CPU and LTO flags exported here.
 
 include("${CMAKE_CURRENT_LIST_DIR}/toolchain/compiler.cmake")
 
@@ -70,10 +70,13 @@ elseif(PROJECT_MARCH STREQUAL "native")
 elseif(PROJECT_MARCH)
   set(ENV{PROJECT_MARCH_FLAG} "-march=${PROJECT_MARCH}")
 endif()
-if(CMAKE_INTERPROCEDURAL_OPTIMIZATION)
-  set(ENV{PROJECT_LTO} ON)
+# Mirrors the flag CMake's LTO gives the project, thin for Clang: a thin module cannot import from a full one.
+if(NOT CMAKE_INTERPROCEDURAL_OPTIMIZATION)
+  set(ENV{PROJECT_LTO_FLAG} "")
+elseif(_project_version_text MATCHES "Free Software Foundation")
+  set(ENV{PROJECT_LTO_FLAG} "-flto=auto")
 else()
-  set(ENV{PROJECT_LTO} OFF)
+  set(ENV{PROJECT_LTO_FLAG} "-flto=thin")
 endif()
 
 # A preset sets PROJECT_TRIPLET_VARIANT, for example hft or asan, to pick triplets/<host>-<variant>.cmake.

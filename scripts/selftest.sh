@@ -14,6 +14,7 @@ cases=(
     "current_build       build/current and compile_commands.json follow the last configured preset"
     "profile_symbols     the profile preset's CLI has debug info, frame pointers, and no LTO"
     "release_lto         release turns LTO on, links the CLI with -flto, and installs for a non-LTO consumer"
+    "release_inline      release and release-gcc inline a libs/ function and an hft dependency's function into the CLI's main; Linux only"
     "hft_triplet         release builds dependencies with the hft triplet's LTO and resolved CPU flag, and a missing variant fails naming its file"
     "scaffold            new-module and new-app output builds, tests, and runs; bad names fail"
     "make_help           make help exits 0 and describes every Makefile target"
@@ -370,6 +371,42 @@ case_release_lto() {
     # A consumer that links without LTO must still link the installed LTO archives.
     cmake --install "${build}" --prefix "${work}/release_lto-prefix"
     link_installed_consumer "${src}" "${work}/release_lto-prefix" "${work}/release_lto-consumer"
+}
+
+# Prints the call instructions in main of the executable $1.
+calls_in_main() {
+    objdump -d --no-show-raw-insn -C "$1" | awk '/<main>:/ { p = 1; next } p && /^$/ { exit } p' |
+        grep -E '\b(call|jmp|bl?)[[:space:]]' || true
+}
+
+case_release_inline() {
+    local src="${work}/release_inline" main preset build calls
+    copy_tree "${src}"
+    # fmt::getpagesize is a few instructions around sysconf, compiled into libfmt.a, not a header.
+    main="${src}/apps/myproj_cli/main.cpp"
+    { echo '#include <fmt/os.h>' && cat "${main}"; } >"${main}.new" && mv "${main}.new" "${main}"
+    sed -i.orig 's/^\(int main(.*) {\)$/\1 if (argc > 99) { return static_cast<int>(fmt::getpagesize()); }/' "${main}"
+    sed -i.orig 's|DEPS myproj::core myproj::parser|& fmt::fmt|' "${src}/apps/myproj_cli/CMakeLists.txt"
+    grep -q 'fmt::getpagesize' "${main}"
+    grep -q 'fmt::fmt' "${src}/apps/myproj_cli/CMakeLists.txt"
+    for preset in release release-gcc; do
+        build="${src}/build/${preset}"
+        (cd "${src}" && cmake --preset "${preset}" -DPROJECT_BUILD_TESTS=OFF \
+            -DVCPKG_INSTALLED_DIR="${work}/release_inline-${preset}-installed")
+        (cd "${src}" && cmake --build --preset "${preset}" --target myproj_cli)
+        calls="$(calls_in_main "${build}/bin/myproj_cli")"
+        echo "${calls}"
+        # Their bodies may still call larger functions, such as fmt::vformat; those stay calls.
+        if grep -E 'version_banner|getpagesize' <<<"${calls}"; then
+            echo "${preset}: main of myproj_cli still calls version_banner or fmt::getpagesize, so LTO did not cross their archives"
+            return 1
+        fi
+        # The probe's body must be there, or a missing call proves nothing.
+        if ! grep -q 'sysconf' <<<"${calls}"; then
+            echo "${preset}: main of myproj_cli does not call sysconf, so the fmt::getpagesize probe is gone"
+            return 1
+        fi
+    done
 }
 
 # Prints the SHA-256 of standard input, as vcpkg hashes a passed-through variable.
@@ -1130,6 +1167,9 @@ skip_reason() {
         ;;
     setup_repo_auth)
         if ! command -v gh >/dev/null; then echo "the GitHub CLI is not installed"; fi
+        ;;
+    release_inline)
+        if [ "$(uname -s)" != Linux ]; then echo "it checks the Linux LTO archives only"; fi
         ;;
     valgrind_leak)
         if [ "$(uname -s)" != Linux ]; then

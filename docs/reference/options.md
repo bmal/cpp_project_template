@@ -7,7 +7,7 @@ Set on the configure command, as in `cmake --preset dev -DPROJECT_LINKER=default
 | `PROJECT_COMPILER` | `clang` or `gcc` | `clang`; `gcc` in the `-gcc` presets |
 | `PROJECT_CXX_STANDARD` | `23` or `26` | `23`; `26` in `cxx26` |
 | `PROJECT_MARCH` | A `-march` value, such as `native` or `x86-64-v3` | Empty; `native` in `release`, `bench`, and `profile` |
-| `PROJECT_LINKER` | `auto`, `mold`, `lld`, or `default` | `auto`: mold, then lld, on Linux, if it links |
+| `PROJECT_LINKER` | `auto`, `mold`, `lld`, or `default` | `auto`: mold, then lld, on Linux, if it links; mold skipped for Clang with LTO |
 | `CMAKE_CXX_COMPILER_LAUNCHER` | A launcher, or empty for none | `ccache` when found |
 | `PROJECT_WARNINGS_AS_ERRORS` | `ON` or `OFF` | `ON` when top level; never applied to consumers |
 | `PROJECT_STDLIB_HARDENING` | `ON` or `OFF` | `ON` in `dev` |

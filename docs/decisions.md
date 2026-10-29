@@ -257,6 +257,12 @@ Narrow choices left to single tickets are appended below the entry they refine.
 - Why: lld cannot link GCC's LTO objects, so `release-gcc` on a machine with lld and without mold would fail at the last step.
 - Rejected: a fixed order that ignores whether the linker works; `CMAKE_LINKER_TYPE`, which needs CMake 3.29 against the 3.28 floor.
 
+#### D19.2. Clang LTO crosses `libs/` and `hft` archives on Linux
+
+- Decision: the toolchain hands the `hft` triplet the LTO flag CMake gives the project, `-flto=thin` for Clang and `-flto=auto` for GCC. Linux archives stay fat, and Clang LTO links pass `-ffat-lto-objects`. With Clang and LTO, `auto` skips mold, refining D19.1's order to lld, else the default linker. `scripts/selftest.sh release_inline` checks it (owner, 2026-10-29, issue #47).
+- Why: `libs/` was already inlined, since CMake's Clang LTO is thin. A thin module cannot import from a full one, and Clang's `-flto=auto` is full, so nothing from fmt was. ld.bfd reads a fat object's thin bitcode. lld reads it only with that link flag, and mold never does.
+- Rejected: installing lld in the CI image, which ld.bfd makes unnecessary; slim archives, which break a consumer without LTO; leaving mold first and documenting the gap.
+
 ## Extension and code
 
 ### D20. Module helper

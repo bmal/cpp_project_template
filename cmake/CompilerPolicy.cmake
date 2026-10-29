@@ -62,8 +62,10 @@ if(PROJECT_MARCH)
   target_compile_options(myproj_options INTERFACE -march=${PROJECT_MARCH})
 endif()
 # An installed archive keeps machine code beside the LTO bitcode, so a consumer without LTO links it.
+# lld links a fat object's machine code unless the link asks for its bitcode too.
 if(CMAKE_INTERPROCEDURAL_OPTIMIZATION AND CMAKE_SYSTEM_NAME STREQUAL "Linux")
   target_compile_options(myproj_options INTERFACE -ffat-lto-objects)
+  target_link_options(myproj_options INTERFACE $<$<CXX_COMPILER_ID:Clang>:-ffat-lto-objects>)
 endif()
 if(PROJECT_STDLIB_HARDENING)
   # Each macro is ignored by the other standard library, so both are always set.

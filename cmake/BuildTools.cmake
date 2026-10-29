@@ -49,7 +49,12 @@ function(project_configure_build_tools)
   if(PROJECT_LINKER STREQUAL "auto")
     # macOS keeps the Apple linker. lld cannot link GCC's LTO objects, so the check skips it there.
     if(CMAKE_SYSTEM_NAME STREQUAL "Linux")
-      foreach(candidate IN ITEMS mold lld)
+      # mold links a fat archive's machine code, not its bitcode, so auto skips it under Clang's LTO.
+      set(candidates mold lld)
+      if(CMAKE_INTERPROCEDURAL_OPTIMIZATION AND CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
+        set(candidates lld)
+      endif()
+      foreach(candidate IN ITEMS ${candidates})
         _project_linker_works(${candidate} works)
         if(works)
           set(linker ${candidate})
