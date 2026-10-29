@@ -6,7 +6,7 @@ When you want a library, add its vcpkg port name to `dependencies` in `vcpkg.jso
 
 ```cmake
 find_package(fmt CONFIG REQUIRED)
-project_add_module(NAME core PUBLIC_DEPS fmt::fmt)
+project_add_module(NAME core PRIVATE_DEPS fmt::fmt)
 ```
 
 Use `PUBLIC_DEPS` when the dependency appears in the module's public headers, `PRIVATE_DEPS` otherwise.
@@ -16,8 +16,8 @@ The next configure installs it into `build/<preset>/vcpkg_installed/`:
 make dev
 ```
 
-When a module links the new package `PUBLIC`, consumers of the installed package need it too.
-Add one line to `cmake/templates/Config.cmake.in`:
+When other projects use the installed package, add one line to `cmake/templates/Config.cmake.in`.
+Modules are static, so consumers link the new package even when it is `PRIVATE`:
 
 ```cmake
 find_dependency(fmt CONFIG)

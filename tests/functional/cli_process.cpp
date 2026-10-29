@@ -9,7 +9,6 @@
 #include <sys/wait.h>
 #include <unistd.h>
 
-#include <array>
 #include <cerrno>
 #include <cstdlib>
 #include <expected>
@@ -21,6 +20,7 @@
 #include <string_view>
 #include <system_error>
 #include <utility>
+#include <vector>
 
 // unistd.h declares environ only under _GNU_SOURCE, which libstdc++ turns on.
 #ifndef _GNU_SOURCE
@@ -71,7 +71,7 @@ private:
 
 } // namespace
 
-std::expected<CliRun, std::string> run_cli(std::string_view input) {
+std::expected<CliRun, std::string> run_cli(std::string_view input, std::vector<std::string> args) {
     const ScratchDir scratch;
     if (scratch.path().empty()) {
         return std::unexpected(cannot("cannot create a scratch directory to run", errno));
@@ -87,7 +87,11 @@ std::expected<CliRun, std::string> run_cli(std::string_view input) {
     posix_spawn_file_actions_addopen(&actions, 1, out.c_str(), O_WRONLY | O_CREAT | O_TRUNC, 0600);
     posix_spawn_file_actions_addopen(&actions, 2, err.c_str(), O_WRONLY | O_CREAT | O_TRUNC, 0600);
     std::string program = cli_path;
-    const std::array<char*, 2> argv = {program.data(), nullptr};
+    std::vector<char*> argv = {program.data()};
+    for (auto& arg : args) {
+        argv.push_back(arg.data());
+    }
+    argv.push_back(nullptr);
     pid_t pid = 0;
     const int spawn_error = posix_spawn(&pid, cli_path, &actions, nullptr, argv.data(), environ);
     posix_spawn_file_actions_destroy(&actions);

@@ -26,7 +26,7 @@ No `.cpp` under `src/` makes an `INTERFACE` library. When `tests/unit/<n>/` exis
 | Option | Example | Effect |
 | --- | --- | --- |
 | `NAME` | `project_add_app(NAME myproj_cli)` | Lower snake_case executable name |
-| `DEPS` | `project_add_app(NAME myproj_cli DEPS myproj::core)` | Linked `PRIVATE` |
+| `DEPS` | `project_add_app(NAME myproj_cli DEPS myproj::core myproj::parser)` | Linked `PRIVATE` |
 | `SOURCES` | `project_add_app(NAME myproj_cli SOURCES main.cpp)` | Replaces the default recursive glob |
 
 ## project_add_tests

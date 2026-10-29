@@ -54,7 +54,7 @@ make dev
 ```
 
 You should see `100% tests passed`. The first run builds dependencies and takes a few minutes.
-When you want to run the sample app, which echoes `key=value` fields and exits 1 on a malformed line:
+When you want to run the sample app, which echoes the `key=value` fields of its arguments and stdin, and exits non-zero on a malformed one:
 
 ```bash
 echo "a=1 b=2" | build/dev/bin/order_book_cli

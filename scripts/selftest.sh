@@ -583,7 +583,7 @@ case_format_roundtrip() {
     copy_tree "${src}"
     make -C "${src}" --no-print-directory format-check
     # One C++ line with the pointer bound to the name, and one CMake line indented by five spaces.
-    sed -i.orig 's/^int main() {$/int main() { int *probe = nullptr; (void)probe;/' "${src}/apps/myproj_cli/main.cpp"
+    sed -i.orig 's/^\(int main(.*) {\)$/\1 int *probe = nullptr; (void)probe;/' "${src}/apps/myproj_cli/main.cpp"
     sed -i.orig 's/^  project_add_lint_target()$/     project_add_lint_target()/' "${src}/CMakeLists.txt"
     rm "${src}/apps/myproj_cli/main.cpp.orig" "${src}/CMakeLists.txt.orig"
     if make -C "${src}" --no-print-directory format-check >"${work}/format_roundtrip.out" 2>&1; then

@@ -18,7 +18,7 @@ The first run also sets project(VERSION) to 0.1.0, replaces README.md with a pro
 and deletes .github/workflows/init.yaml, the workflow that runs this script on the first push.
 
 --strip-samples removes the parser module and everything built on it: its unit tests,
-the fuzz harness, its benchmark, core's echo_fields, and the integration test.
+the fuzz harness, its benchmark, core's echo_fields, the integration test, and the CLI's use of it.
 
 Every run ends with scripts/format.sh, so it needs the clang-format and gersemi that
 scripts/bootstrap.sh installs.
@@ -173,7 +173,9 @@ if [ "${strip}" -eq 1 ] && [ -d libs/parser ]; then
         libs/core/include/core/echo_fields.hpp libs/core/src/echo_fields.cpp \
         tests/support/include/support/line_builder.hpp
     echo "removed libs/parser, its tests, benchmark, and fuzz harness, core's echo_fields, and tests/integration"
-    sed -i.bak "s/ PRIVATE_DEPS ${lower}::parser//" libs/core/CMakeLists.txt && rm libs/core/CMakeLists.txt.bak
+    for cmakelists in libs/core/CMakeLists.txt "apps/${lower}_cli/CMakeLists.txt"; do
+        sed -i.bak "s/ ${lower}::parser//" "${cmakelists}" && rm "${cmakelists}.bak"
+    done
 
     cat >"apps/${lower}_cli/main.cpp" <<CPP
 // Mechanism: an app that wires modules together and keeps its own logic to orchestration.

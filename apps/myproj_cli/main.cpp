@@ -1,13 +1,16 @@
 // Mechanism: an app that wires modules together and keeps its own logic to orchestration.
-// Reads key=value lines from stdin, echoes each field, and exits 1 on the first malformed line.
+// Echoes the key=value fields of its arguments, then of stdin lines; exits 2 or 1 if malformed.
 #include <core/build_info.hpp>
 #include <core/clock.hpp>
 #include <core/echo_fields.hpp>
+#include <parser/parser.hpp>
 
 #include <chrono>
+#include <cstddef>
 #include <cstdio>
 #include <iostream>
 #include <print>
+#include <span>
 #include <string_view>
 
 namespace {
@@ -21,16 +24,35 @@ public:
     }
 };
 
+// Echoes the fields of each argument through the sink; false after naming the first malformed one.
+bool echo_arguments(std::span<char* const> args, myproj::core::OutputSink& sink) {
+    for (std::size_t i = 0; i < args.size(); ++i) {
+        const auto fields = myproj::parser::parse_line(args[i]);
+        if (!fields.has_value()) {
+            std::println(stderr, "argument {}: {}", i + 1,
+                         myproj::parser::describe(fields.error().kind));
+            return false;
+        }
+        for (const auto& field : *fields) {
+            sink.field(field.key, field.value);
+        }
+    }
+    return true;
+}
+
 } // namespace
 
 // NOLINTNEXTLINE(bugprone-exception-escape): an escaping exception should terminate and dump core.
-int main() {
+int main(int argc, char* argv[]) {
     // std::print needs the Homebrew libc++ on macOS; the system copy lacks it.
     std::println("{}", myproj::core::version_banner());
 
+    ConsoleSink sink;
+    if (!echo_arguments(std::span(argv, static_cast<std::size_t>(argc)).subspan(1), sink)) {
+        return 2;
+    }
     const myproj::core::SystemClock clock;
     const myproj::core::Stopwatch stopwatch(clock);
-    ConsoleSink sink;
     const auto totals = myproj::core::echo_fields(std::cin, sink);
     if (!totals.has_value()) {
         std::println(stderr, "line {}, column {}: {}", totals.error().line, totals.error().column,

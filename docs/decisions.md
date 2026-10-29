@@ -305,6 +305,8 @@ Narrow choices left to single tickets are appended below the entry they refine.
 - Decision: `core` compiled, `parser` header-only and exception-free, one CLI app, one example per test kind, a mock at an edge in integration tests. Two-line purpose header per file. Placeholders `myproj` and `MyProj`.
 - Why: every sample file demonstrates one mechanism, so the samples are the documentation.
 - Rejected: none recorded.
+- Owner, 2026-10-29, #41: the CLI calls `parser` itself. It echoes the fields of its arguments before stdin's, and exits 2 on a malformed argument. Rejected: `parser` in `DEPS` with nothing using it; a D23 where the CLI uses `core` only.
+- Owner, 2026-10-29, #41: `core` links `fmt` `PRIVATE`, and the package config still finds it. A static module's private dependencies link into every consumer. Rejected: header-only `fmt` compiled into `core`.
 
 ## Lifecycle
 

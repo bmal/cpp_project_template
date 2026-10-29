@@ -1,4 +1,5 @@
-# Package config for find_package(@PROJECT_NAME@). Every package a module links PUBLIC is found here.
+# Package config for find_package(@PROJECT_NAME@). Every external package a module links is found here:
+# modules are static, so even a PRIVATE dependency is linked into the consumer.
 @PACKAGE_INIT@
 
 include(CMakeFindDependencyMacro)
