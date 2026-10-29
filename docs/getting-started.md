@@ -5,62 +5,37 @@ You need `git`, a GitHub account, and the [GitHub CLI](https://cli.github.com) l
 
 ## 1. Create the repository
 
-When you start a project, create it from the template and clone it; `order_book` is your name:
+When you start a project, create it from the template, wait for Init to name it, then fetch the rename:
 
 ```bash
-gh repo create order_book --public --clone --template bmal/cpp_project_template
+gh repo create order_book --public --clone --template bmal/cpp_project_template && cd order_book && until id=$(gh run list --json databaseId,workflowName -q 'map(select(.workflowName == "Init"))[0].databaseId') && [ -n "$id" ]; do sleep 2; done && gh run watch "$id" && git pull
 ```
 
-The first push runs the Init workflow, which names the project after the repository, commits, and starts CI.
-When you want to see it finish, watch it; `found no in progress runs` means it already has:
+Here `order_book` is your name. Init names the project after the repository and starts CI.
 
-```bash
-cd order_book && gh run watch
-```
-
-Then fetch the renamed tree:
-
-```bash
-git pull
-```
-
-When the repository name is not the project name you want, rename by hand and push.
-The rename formats the tree, so the first command installs the pinned formatters:
+When the repository name is not the project name you want, rename by hand and push:
 
 ```bash
 scripts/bootstrap.sh --format-tools && scripts/init-project.sh order_book && git add -A && git commit -m "Name the project" && git push
 ```
 
-When you want a weekend project with only `core`, one app, and one passing test, drop the samples too:
+When you want a weekend project with only `core`, one app, and one passing test, drop the samples:
 
 ```bash
-scripts/init-project.sh order_book --strip-samples && git add -A && git commit -m "Drop the samples" && git push
+scripts/bootstrap.sh --format-tools && scripts/init-project.sh order_book --strip-samples && git add -A && git commit -m "Drop the samples" && git push
 ```
 
-## 2. Install the toolchain
+## 2. Build and test
 
-When a machine has never built this project, install the compilers, CMake, vcpkg, and the git hook:
-
-```bash
-scripts/bootstrap.sh
-```
-
-## 3. Build and test
-
-When you want the debug build and its unit and integration tests:
+When a machine has never built this project, install the toolchain and git hook, then build and test `dev`:
 
 ```bash
-make dev
+scripts/bootstrap.sh && make dev
 ```
 
 You should see `100% tests passed`. The first run builds dependencies and takes a few minutes.
-When you want to run the sample app, which echoes the `key=value` fields of its arguments and stdin, and exits non-zero on a malformed one:
 
-```bash
-echo "a=1 b=2" | build/dev/bin/order_book_cli
-```
-
-## 4. Protect the repository
+## 3. Protect the repository
 
 When you want `main` to take only pull requests that pass CI, run once as the repository's admin:
 
@@ -68,9 +43,7 @@ When you want `main` to take only pull requests that pass CI, run once as the re
 make setup-repo
 ```
 
-It prints one line per change. From now on, push a branch and open a pull request; the `status` check gates the merge.
-
-## 5. Hit a breakpoint
+## 4. Hit a breakpoint
 
 When you want to debug, open the folder in VS Code:
 
@@ -78,10 +51,8 @@ When you want to debug, open the folder in VS Code:
 code .
 ```
 
-1. Accept **Install** on the recommended extensions prompt.
-2. Pick `dev` under **Configure** in the CMake panel.
+1. Click **Yes, I trust the authors**, then **Install** on the recommended extensions prompt.
+2. Pick **Debug build with tests**, which is `dev`, when CMake Tools asks for a configure preset.
 3. Run **CMake: Set Launch/Debug Target** and pick `order_book_cli`.
 4. Open `apps/order_book_cli/main.cpp` and click left of the line in `main` that prints `version_banner()`.
-5. Press F5.
-
-You should see the debugger stop on that line with the locals shown. Next, see the [how-to guides](how-to/README.md).
+5. Press F5. The debugger stops on that line with the locals shown. Next, see the [how-to guides](how-to/README.md).

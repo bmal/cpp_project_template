@@ -42,7 +42,7 @@ cases=(
     "init_strip          init-project.sh --strip-samples leaves core, one app, and passing tests"
     "init_idempotent     a second init-project.sh with the same arguments changes nothing"
     "setup_repo_auth     setup-repo.sh with gh logged out exits non-zero and prints gh auth login"
-    "docs_limits         README is under 60 lines, each how-to under 40, the reference is current, and markdownlint passes"
+    "docs_limits         README and getting started are under 60 lines, each how-to under 40, the reference is current, and markdownlint passes"
 )
 
 usage() {
@@ -1072,13 +1072,15 @@ case_setup_repo_auth() {
 case_docs_limits() {
     local src="${work}/docs_limits" page lines names name missing=0
     copy_tree "${src}"
-    lines="$(wc -l <"${src}/README.md")"
-    if [ "${lines}" -ge 60 ]; then
-        echo "README.md has ${lines} lines; the limit is 59"
-        missing=1
-    fi
+    for page in README.md docs/getting-started.md; do
+        lines="$(wc -l <"${src}/${page}" | tr -d " ")"
+        if [ "${lines}" -ge 60 ]; then
+            echo "${page} has ${lines} lines; the limit is 59"
+            missing=1
+        fi
+    done
     for page in "${src}"/docs/how-to/*.md; do
-        lines="$(wc -l <"${page}")"
+        lines="$(wc -l <"${page}" | tr -d " ")"
         if [ "${lines}" -ge 40 ]; then
             echo "${page#"${src}"/} has ${lines} lines; the limit is 39"
             missing=1

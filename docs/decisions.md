@@ -430,6 +430,12 @@ Narrow choices left to single tickets are appended below the entry they refine.
 - Why: a new target or preset cannot be missing from the reference, and the hand-written pages hold what no file states in a readable form.
 - Rejected: generating the helper and option pages from CMake comments, which would move prose into build files; a hand-kept presets table, which drifts.
 
+#### D27.2. Getting started is under 60 lines
+
+- Decision: `docs/getting-started.md` stays under 60 lines, the README's limit. The selftest case `docs_limits` checks both (issue #42).
+- Why: one rule for both entry pages, and 60 lines still hold five steps with one command each.
+- Rejected: under 50 lines, one terminal screen; no line limit, only a cap of five numbered sections.
+
 ### D28. Delivery
 
 - Decision: one program, one parent issue, one register, five milestones, an adversarial review per milestone, then one final review. Every child names acceptance commands at a seam and closes only after running them.

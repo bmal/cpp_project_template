@@ -12,12 +12,10 @@ A C++23 project on CMake presets and vcpkg, for Linux and macOS. It carries a we
 When you start a project, create it from the template, clone it, and watch Init name it:
 
 ```bash
-gh repo create order_book --public --clone --template bmal/cpp_project_template && cd order_book && gh run watch
+gh repo create order_book --public --clone --template bmal/cpp_project_template && cd order_book && until id=$(gh run list --json databaseId,workflowName -q 'map(select(.workflowName == "Init"))[0].databaseId') && [ -n "$id" ]; do sleep 2; done && gh run watch "$id"
 ```
 
-Init finishes within a minute; `found no in progress runs` means it already has.
-
-When Init is done, fetch the rename, install the toolchain, and build and test:
+When Init is done, which takes about a minute, fetch the rename, install the toolchain, and build and test:
 
 ```bash
 git pull && scripts/bootstrap.sh && make dev

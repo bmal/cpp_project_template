@@ -29,8 +29,9 @@ git diff <base> FETCH_HEAD | perl -pe 's/myp''roj/order_book/g; s/MyP''roj/Order
 
 You should see one line per file. A hunk that does not fit goes to `<file>.rej`; apply it by hand, or delete it.
 Changes to `README.md` and `.github/workflows/init.yaml` never fit, because Init replaced one and deleted the other.
-When the build and tests pass, commit with the template commit in the subject:
+Init also formatted the renamed tree. A hunk on a line it reflowed may not fit, and an applied one may need formatting.
+When you want to format, build, test, and commit with the template commit in the subject:
 
 ```bash
-make dev && find . -name '*.rej' -delete && git add -A && git commit -m "Pull template $(git rev-parse --short FETCH_HEAD)"
+make format && make dev && find . -name '*.rej' -delete && git add -A && git commit -m "Pull template $(git rev-parse --short FETCH_HEAD)"
 ```

@@ -13,7 +13,7 @@ A choice that changes one of the [decisions](docs/decisions.md) is recorded ther
 | Sentences stay under twenty words | Split at "and" or "which" |
 | Tables over paragraphs | Options, labels, and choices go in a table |
 | Say nothing a preset name or a `make help` line already says | Link the [reference](docs/reference/README.md) instead |
-| A how-to stays under forty lines, the README under sixty | `scripts/selftest.sh docs_limits` checks both |
+| A how-to stays under forty lines, the README and getting started under sixty | `scripts/selftest.sh docs_limits` checks them |
 
 ## Check a template change
 
