@@ -58,7 +58,11 @@ target_compile_options(
   myproj_options
   INTERFACE $<$<AND:$<CONFIG:Debug>,$<CXX_COMPILER_ID:Clang,AppleClang>>:-fstandalone-debug>
 )
-if(PROJECT_MARCH)
+# native compiles as the hft triplet resolved it: on an x86 VM, native lacks features of the named CPU,
+# and LTO does not inline dependency code built for features the caller lacks.
+if(PROJECT_MARCH STREQUAL "native" AND NOT "$ENV{PROJECT_MARCH_FLAG}" STREQUAL "")
+  target_compile_options(myproj_options INTERFACE $ENV{PROJECT_MARCH_FLAG})
+elseif(PROJECT_MARCH)
   target_compile_options(myproj_options INTERFACE -march=${PROJECT_MARCH})
 endif()
 # An installed archive keeps machine code beside the LTO bitcode, so a consumer without LTO links it.
