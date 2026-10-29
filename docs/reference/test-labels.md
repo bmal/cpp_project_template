@@ -17,13 +17,13 @@ A `stress` test keeps its other labels, but only the stress presets run it.
 | Test preset | Runs |
 | --- | --- |
 | `dev`, `cxx26`, and their `-gcc` twins | `unit` and `integration` |
-| `functional` | `functional`, on the `dev` build |
-| `stress` | `stress`, on the `dev` build |
+| `functional` and its `-gcc` twin | `functional`, on the `dev` or `dev-gcc` build |
+| `stress` and its `-gcc` twin | `stress`, on the `dev` or `dev-gcc` build |
 | `release`, `relwithdebinfo`, `profile`, `coverage`, and their `-gcc` twins | Everything built except `stress` |
 | `asan`, `tsan`, `msan`, and the `asan-gcc` and `tsan-gcc` twins | Everything built except `stress`; these presets build no apps |
 | `asan-stress`, `tsan-stress` | `stress` under the sanitizer, each test capped at five minutes |
 | `fuzz` | `fuzz` |
-| `bench` | `bench` |
+| `bench` and its `-gcc` twin | `bench` |
 
 When you want one label of an existing build, add `-L` to its test preset:
 

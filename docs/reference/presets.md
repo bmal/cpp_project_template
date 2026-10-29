@@ -21,6 +21,7 @@ Run every step of a preset with `cmake --workflow --preset <name>`. Builds go to
 | `relwithdebinfo-gcc` | Optimized at -O2 with debug info and frame pointers, GCC | yes | yes | yes | yes | Linux |
 | `profile-gcc` | Release flags with debug info and frame pointers, no LTO, GCC | yes | yes | yes | yes | Linux |
 | `cxx26-gcc` | Debug build with tests in C++26, GCC | yes | yes | yes | yes | Linux |
+| `bench-gcc` | Release build with benchmarks and frame pointers, GCC | yes | yes | yes | yes | Linux |
 | `asan-gcc` | AddressSanitizer and UBSan at -O1, GCC | yes | yes | yes | yes | Linux |
 | `tsan-gcc` | ThreadSanitizer, GCC | yes | yes | yes | yes | Linux |
 | `coverage-gcc` | Debug build with gcov coverage, GCC | yes | yes | yes | yes | Linux |
@@ -28,3 +29,5 @@ Run every step of a preset with `cmake --workflow --preset <name>`. Builds go to
 | `stress` | Long-running tests labeled stress, on the dev build | no | no | yes | yes | Linux, macOS |
 | `asan-stress` | Tests labeled stress under AddressSanitizer and UBSan, each capped at five minutes | no | no | yes | no | Linux, macOS |
 | `tsan-stress` | Tests labeled stress under ThreadSanitizer, each capped at five minutes | no | no | yes | no | Linux, macOS |
+| `functional-gcc` | Black-box tests of the apps, on the dev-gcc build | no | no | yes | yes | Linux |
+| `stress-gcc` | Long-running tests labeled stress, on the dev-gcc build | no | no | yes | yes | Linux |

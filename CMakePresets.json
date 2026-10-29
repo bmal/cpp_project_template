@@ -202,6 +202,14 @@
       ]
     },
     {
+      "name": "bench-gcc",
+      "displayName": "Release build with benchmarks and frame pointers, GCC",
+      "inherits": [
+        "gcc",
+        "bench"
+      ]
+    },
+    {
       "name": "asan-gcc",
       "displayName": "AddressSanitizer and UBSan at -O1, GCC",
       "inherits": [
@@ -310,6 +318,15 @@
     {
       "name": "cxx26-gcc",
       "configurePreset": "cxx26-gcc",
+      "condition": {
+        "type": "equals",
+        "lhs": "${hostSystemName}",
+        "rhs": "Linux"
+      }
+    },
+    {
+      "name": "bench-gcc",
+      "configurePreset": "bench-gcc",
       "condition": {
         "type": "equals",
         "lhs": "${hostSystemName}",
@@ -555,6 +572,28 @@
       }
     },
     {
+      "name": "functional-gcc",
+      "displayName": "Black-box tests of the apps, on the dev-gcc build",
+      "configurePreset": "dev-gcc",
+      "inherits": "functional",
+      "condition": {
+        "type": "equals",
+        "lhs": "${hostSystemName}",
+        "rhs": "Linux"
+      }
+    },
+    {
+      "name": "stress-gcc",
+      "displayName": "Long-running tests labeled stress, on the dev-gcc build",
+      "configurePreset": "dev-gcc",
+      "inherits": "stress",
+      "condition": {
+        "type": "equals",
+        "lhs": "${hostSystemName}",
+        "rhs": "Linux"
+      }
+    },
+    {
       "name": "release-gcc",
       "configurePreset": "release-gcc",
       "inherits": "no-stress",
@@ -588,6 +627,17 @@
       "name": "cxx26-gcc",
       "configurePreset": "cxx26-gcc",
       "inherits": "unit-integration",
+      "condition": {
+        "type": "equals",
+        "lhs": "${hostSystemName}",
+        "rhs": "Linux"
+      }
+    },
+    {
+      "name": "bench-gcc",
+      "displayName": "Run each benchmark once, as a smoke test, GCC",
+      "configurePreset": "bench-gcc",
+      "inherits": "bench",
       "condition": {
         "type": "equals",
         "lhs": "${hostSystemName}",
@@ -871,6 +921,40 @@
       ]
     },
     {
+      "name": "functional-gcc",
+      "steps": [
+        {
+          "type": "configure",
+          "name": "dev-gcc"
+        },
+        {
+          "type": "build",
+          "name": "dev-gcc"
+        },
+        {
+          "type": "test",
+          "name": "functional-gcc"
+        }
+      ]
+    },
+    {
+      "name": "stress-gcc",
+      "steps": [
+        {
+          "type": "configure",
+          "name": "dev-gcc"
+        },
+        {
+          "type": "build",
+          "name": "dev-gcc"
+        },
+        {
+          "type": "test",
+          "name": "stress-gcc"
+        }
+      ]
+    },
+    {
       "name": "release-gcc",
       "steps": [
         {
@@ -935,6 +1019,23 @@
         {
           "type": "test",
           "name": "cxx26-gcc"
+        }
+      ]
+    },
+    {
+      "name": "bench-gcc",
+      "steps": [
+        {
+          "type": "configure",
+          "name": "bench-gcc"
+        },
+        {
+          "type": "build",
+          "name": "bench-gcc"
+        },
+        {
+          "type": "test",
+          "name": "bench-gcc"
         }
       ]
     },

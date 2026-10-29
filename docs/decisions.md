@@ -213,6 +213,7 @@ Narrow choices left to single tickets are appended below the entry they refine.
 - Decision: the hidden `gcc` preset sets `PROJECT_COMPILER` and the Linux condition, and inherits nothing. `asan-gcc` inherits `gcc`, then `asan`.
 - Why: the first parent wins, so a `gcc` preset that inherited the base options overrode its twin's.
 - Rejected: repeating each twin's options in its `-gcc` variant.
+- Owner, 2026-10-29, #44: benchmarks were never built with GCC, so `bench-gcc` is a full twin, and `functional-gcc` and `stress-gcc` are test and workflow presets on `dev-gcc`. Those three test presets inherit their Clang presets and change only the configure preset. CI runs none of them; a GCC regression is caught locally on demand. Rejected: a `bench-gcc` smoke job in CI; `bench-gcc` alone.
 
 #### D15.2. `release` builds for this machine's CPU
 
